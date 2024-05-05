@@ -116,3 +116,13 @@ compile_commands.json
 # VIA(L) files that don't belong in QMK repo
 via*.json
 /keyboards/**/keymaps/vial/*
+
+# All keyboards except tractyl
+keyboards/*
+keyboards/*/*
+keyboards/*/*/*
+keyboards/*/*/*/*
+keyboards/*/*/*/*/*
+!keyboards/tractyl
+!keyboards/tractyl/*
+!keyboards/tractyl/*/*
