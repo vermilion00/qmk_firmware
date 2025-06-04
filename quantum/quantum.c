@@ -183,10 +183,6 @@ __attribute__((weak)) bool pre_process_record_user(uint16_t keycode, keyrecord_t
     return true;
 }
 
-__attribute__((weak)) bool process_action_kb(keyrecord_t *record) {
-    return true;
-}
-
 __attribute__((weak)) bool process_record_modules(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
@@ -460,7 +456,7 @@ bool process_record_quantum_helper(uint16_t keycode, keyrecord_t *record) {
         return false;
     }
 
-    return process_action_kb(record);
+    return true;
 }
 
 void set_single_default_layer(uint8_t default_layer) {
