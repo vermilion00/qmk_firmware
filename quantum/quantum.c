@@ -17,6 +17,10 @@
 #include "quantum.h"
 #include "qmk_settings.h"
 
+#ifdef SLEEP_LED_ENABLE
+#    include "sleep_led.h"
+#endif
+
 #ifdef BACKLIGHT_ENABLE
 #    include "process_backlight.h"
 #endif
@@ -495,6 +499,10 @@ void suspend_power_down_quantum(void) {
     backlight_level_noeeprom(0);
 #    endif
 
+#    ifdef SLEEP_LED_ENABLE
+    sleep_led_enable();
+#    endif
+
 #    ifdef LED_MATRIX_ENABLE
     led_matrix_task();
 #    endif
@@ -539,6 +547,10 @@ __attribute__((weak)) void suspend_wakeup_init_quantum(void) {
 // Turn on backlight
 #ifdef BACKLIGHT_ENABLE
     backlight_init();
+#endif
+
+#ifdef SLEEP_LED_ENABLE
+    sleep_led_disable();
 #endif
 
     // Restore LED indicators
