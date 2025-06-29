@@ -22,31 +22,9 @@
 #    error "DYNAMIC_KEYMAP_ENABLE is not enabled"
 #endif
 
-#ifndef VIAL_ENABLE
-#error Compiling VIA keymaps is not supported with the vial-qmk repo, please use qmk_firmware instead, or set VIAL_ENABLE=yes
+#ifdef VIA_INSECURE
+#    pragma message "VIA_INSECURE is enabled - firmware is susceptible to keyloggers"
 #endif
-
-// If VIA_CUSTOM_LIGHTING_ENABLE is not defined, then VIA_QMK_BACKLIGHT_ENABLE is set
-// if BACKLIGHT_ENABLE is set, so handling of QMK Backlight values happens here by default.
-// if VIA_CUSTOM_LIGHTING_ENABLE is defined, then VIA_QMK_BACKLIGHT_ENABLE must be explicitly
-// set in keyboard-level config.h, so handling of QMK Backlight values happens here
-#if defined(BACKLIGHT_ENABLE) && !defined(VIA_CUSTOM_LIGHTING_ENABLE)
-#    define VIA_QMK_BACKLIGHT_ENABLE
-#endif
-
-// If VIA_CUSTOM_LIGHTING_ENABLE is not defined, then VIA_QMK_RGBLIGHT_ENABLE is set
-// if RGBLIGHT_ENABLE is set, so handling of QMK RGBLIGHT values happens here by default.
-// If VIA_CUSTOM_LIGHTING_ENABLE is defined, then VIA_QMK_RGBLIGHT_ENABLE must be explicitly
-// set in keyboard-level config.h, so handling of QMK RGBLIGHT values happens here
-#if defined(RGBLIGHT_ENABLE) && !defined(VIA_CUSTOM_LIGHTING_ENABLE)
-#    define VIA_QMK_RGBLIGHT_ENABLE
-#endif
-
-#if defined(RGB_MATRIX_ENABLE) && !defined(VIA_QMK_RGBLIGHT_ENABLE) && !defined(VIA_CUSTOM_LIGHTING_ENABLE) && !defined(VIALRGB_ENABLE)
-#    define VIA_QMK_RGB_MATRIX_ENABLE
-#endif
-
-#include "quantum.h"
 
 #include "via.h"
 
