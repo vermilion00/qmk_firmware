@@ -20,7 +20,6 @@
 -Sensitivity bug -> Variance in distance to sensor most likely
 -Fix encoder sometimes activating on keyboard boot - Maybe fixed now?
 -Encoders don't work properly: Skip steps, activating the other way, etc
--ALWAYS KEEP BOOTMAGIC_RIGHT DEFINITIONS, OR ELSE THE RIGHT HALF WILL NEED TO BE DISASSEMBLED TO FLASH AGAIN
 */
 
 static bool LALT_HELD;

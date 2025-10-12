@@ -133,7 +133,14 @@
         },
         "serial": {
             "driver": "usart"
+        },
+        "bootmagic": {
+            "matrix": [6, 5]
         }
+    },
+    "bootmagic": {
+        "enabled": true,
+        "matrix": [0, 0]
     },
     "encoder": {
         "encoder_map": true,
