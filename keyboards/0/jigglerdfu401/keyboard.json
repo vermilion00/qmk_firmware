@@ -1,0 +1,31 @@
+{
+	"keyboard_name": "Test",
+	"maintainer": "vermilion00",
+	"manufacturer": "Me",
+	"bootloader_instructions": "Test",
+    "url": "github.com/vermilion00/qmk_firmware",
+	"bootloader": "stm32-dfu",
+	"development_board": "blackpill_f401"
+    "usb": {
+        "pid": "0x3536",
+		"vid": "0xFEED",
+        "device_version": "2.0.0",
+		"force_nkro": false
+    },
+	"build": {
+		"firmware_format": "bin",
+		"lto": false
+	},
+	"matrix_pins": {
+		"direct": [["A0"]]
+    },
+    "diode_direction": "COL2ROW",
+	"debounce": 20,
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"matrix": [0, 0], "x": 0, "y": 0},
+            ]
+        }
+    }
+}

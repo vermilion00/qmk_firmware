@@ -1,0 +1,36 @@
+{
+	"keyboard_name": "HE446",
+	"maintainer": "vermilion00",
+	"manufacturer": "Me",
+	"bootloader_instructions": "Test",
+    "url": "https://github.com/vermilion00/qmk_firmware",
+	"bootloader": "stm32-dfu",
+    "processor": "STM32F446",
+    "usb": {
+        "pid": "0x3536",
+		"vid": "0xFEED",
+        "device_version": "2.0.0"
+    },
+	"build": {
+		"firmware_format": "bin",
+		"lto": false,
+        "debounce_type": "sym_eager_pk"
+	},
+	"matrix_pins": {
+		"direct": [["C13"]],
+        "custom": true
+    },
+    "features": {
+        "mousekey": true,
+        "console": false
+    },
+    "diode_direction": "COL2ROW",
+	"debounce": 0,
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"matrix": [0, 0], "x": 0, "y": 0}
+            ]
+        }
+    }
+}
