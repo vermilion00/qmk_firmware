@@ -1,0 +1,34 @@
+{
+	"keyboard_name": "Test446",
+	"maintainer": "vermilion00",
+	"manufacturer": "Me",
+	"bootloader_instructions": "Test",
+    "url": "https://github.com/vermilion00/qmk_firmware",
+    "development_board": "blackpill_f446",
+    "usb": {
+        "pid": "0x3536",
+		"vid": "0xFEED",
+        "device_version": "2.0.0"
+    },
+	"build": {
+		"firmware_format": "bin",
+		"lto": false,
+        "debounce_type": "sym_defer_pk"
+	},
+	"matrix_pins": {
+		"direct": [["C13"]]
+    },
+    "features": {
+        "mousekey": true,
+        "console": false
+    },
+    "diode_direction": "COL2ROW",
+	"debounce": 20,
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"matrix": [0, 0], "x": 0, "y": 0}
+            ]
+        }
+    }
+}
