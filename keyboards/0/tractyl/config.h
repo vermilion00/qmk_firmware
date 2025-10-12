@@ -75,8 +75,3 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define POINTING_DEVICE_RIGHT
 
 #define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC
-
-#define BOOTMAGIC_LITE_ROW 0
-#define BOOTMAGIC_LITE_COLUMN 0
-#define BOOTMAGIC_LITE_ROW_RIGHT 6
-#define BOOTMAGIC_LITE_COLUMN_RIGHT 5
