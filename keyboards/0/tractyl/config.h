@@ -18,8 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#define WAIT_FOR_USB
-#define USB_POLLING_INTERVAL_MS 1
+// TODO: Reenable this once build flags work
+// #ifdef SMAIN
+#   define WAIT_FOR_USB
+#   define USB_POLLING_INTERVAL_MS 1
+// #endif
 
 // #define DEBUG_MATRIX_SCAN_RATE
 
