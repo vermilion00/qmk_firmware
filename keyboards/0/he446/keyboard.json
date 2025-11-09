@@ -16,12 +16,11 @@
         "debounce_type": "sym_eager_pk"
 	},
 	"matrix_pins": {
-		"direct": [["C13"]],
-        "custom": true
+		"direct": [["C13"]]
     },
     "features": {
         "mousekey": true,
-        "console": false
+        "console": true
     },
     "diode_direction": "COL2ROW",
 	"debounce": 0,
