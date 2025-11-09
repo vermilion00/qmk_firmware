@@ -38,8 +38,8 @@ void matrix_scan_user(void){
 void keyboard_post_init_user(void) {
     // gpio_set_pin_input_high("C13");
 
-    // debug_enable = true;
-    // debug_matrix = true;
+    debug_enable = true;
+    debug_matrix = true;
     // debug_keyboard = true;
 }
 
