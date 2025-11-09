@@ -23,6 +23,14 @@
 #undef STM32_ST_USE_TIMER
 #define STM32_ST_USE_TIMER 5
 
+#undef STM32_ADC_USE_ADC1
+#define STM32_ADC_USE_ADC1 TRUE
+
+#undef STM32_ADC_ADC1_DMA_STREAM
+#define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4)
+#define STM32_ADC_ADC1_DMA_PRIORITY         2
+#define STM32_ADC_ADC1_DMA_IRQ_PRIORITY     6
+
 // #undef STM32_PLLM_VALUE
 // #define STM32_PLLM_VALUE                    8
 #undef STM32_PLLN_VALUE
@@ -54,14 +62,6 @@
 // #undef STM32_CK48MSEL
 // #define STM32_CK48MSEL                      STM32_CK48MSEL_PLL
 // #define STM32_CK48MSEL                      STM32_CK48MSEL_PLLALT
-
-#undef STM32_ADC_USE_ADC1
-#define STM32_ADC_USE_ADC1 TRUE
-
-// #undef STM32_ADC_ADC1_DMA_STREAM
-// #define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4)
-// #define STM32_ADC_ADC1_DMA_PRIORITY         2
-// #define STM32_ADC_ADC1_DMA_IRQ_PRIORITY     6
 
 // #define STM32_USB_USE_OTG1                  TRUE
 // #define STM32_USB_USE_OTG2                  FALSE
