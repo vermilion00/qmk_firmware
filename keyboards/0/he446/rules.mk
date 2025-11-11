@@ -1,5 +1,4 @@
-SRC += matrix.c
-SRC += multiplexer.c
+SRC += matrix.c multiplexer.c
 
 ANALOG_DRIVER_REQUIRED = yes
 CUSTOM_MATRIX = lite
