@@ -22,7 +22,8 @@
 -WAIT_FOR_USB or USB_POLLING_INTERVAL need to be commented out before flashing slave half, or else it won't work
 -Sensitivity bug -> Variance in distance to sensor most likely
 -Fix encoder sometimes activating on keyboard boot - Maybe fixed now?
--Encoders don't work properly: Skip steps, activating the other way, etc
+-Encoders don't work properly: Skip steps, activating the other way, etc -> Prob hardware issue
+-Use Auto mouse layer?
 */
 
 static bool LALT_HELD;
@@ -306,6 +307,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 	return true;
 }
 
+void pointing_device_init_kb(void) {
+    pointing_device_set_cpi(12000);
+}
+
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 	if(mouse_report.x != 0 || mouse_report.y != 0){
 		if(!layer_state_is(_GMCL)){
@@ -317,12 +322,12 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 	}else if((timer_elapsed(mouse_timer) > 500) && layer_state_is(_MOUSE) && !mouse_lock){
 		layer_off(_MOUSE);
 	}
-	short x = mouse_report.x, y = mouse_report.y;
-	x = (x > 0 ? x * x / 3 + x : -x * x / 3 + x);
-	y = (y > 0 ? y * y / 3 + y : -y * y / 3 + y);
+	// short x = mouse_report.x, y = mouse_report.y;
+	// x = (x > 0 ? x * x / 3 + x : -x * x / 3 + x);
+	// y = (y > 0 ? y * y / 3 + y : -y * y / 3 + y);
 
-	mouse_report.x = constrain_hid(x);
-	mouse_report.y = constrain_hid(y);
+	// mouse_report.x = constrain_hid(x);
+	// mouse_report.y = constrain_hid(y);
 	if(scrolling_mode){
 		caret_mode = false;
 		tempx += mouse_report.x;

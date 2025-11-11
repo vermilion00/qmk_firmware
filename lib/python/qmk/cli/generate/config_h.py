@@ -61,6 +61,12 @@ def matrix_pins(matrix_pins, postfix=''):
     if 'rows' in matrix_pins:
         pins.append(pin_array('MATRIX_ROW', matrix_pins['rows'], postfix))
 
+    if 'he_mux_pins' in matrix_pins:
+        pins.append(pin_array('HE_MUX_PINS', matrix_pins['he_mux_pins'], postfix))
+
+    if 'he_adc_pins' in matrix_pins:
+        pins.append(pin_array('HE_ADC_PINS', matrix_pins['he_adc_pins'], postfix))
+
     return '\n'.join(pins)
 
 
@@ -71,6 +77,9 @@ def generate_matrix_size(kb_info_json, config_h_lines):
         config_h_lines.append(generate_define('MATRIX_COLS', kb_info_json['matrix_size']['cols']))
         config_h_lines.append(generate_define('MATRIX_ROWS', kb_info_json['matrix_size']['rows']))
 
+    if 'he_matrix' in kb_info_json:
+        config_h_lines.append(generate_define('MUX_PINS', kb_info_json['he_matrix']['mux_pins']))
+        config_h_lines.append(generate_define('ADC_PINS', kb_info_json['he_matrix']['adc_pins']))
 
 def generate_config_items(kb_info_json, config_h_lines):
     """Iterate through the info_config map to generate basic config values.

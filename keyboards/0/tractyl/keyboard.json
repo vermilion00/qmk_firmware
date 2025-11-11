@@ -30,11 +30,43 @@
         "encoder_map": true,
         "console": false
     },
-	"modules": ["getreuer/socd_cleaner"],
+	"modules": ["getreuer/socd_cleaner", "drashna/pointing_device_accel"],
     "diode_direction": "COL2ROW",
     "matrix_pins": {
         "cols": ["A15", "B3", "B4", "A2", "B8", "B9"],
         "rows": ["B12", "B13", "B14", "B15", "A8", "A10"]
+    },
+    "rgblight": {
+        "split": true,
+        "led_count": 18,
+        "split_count": [9, 9],
+        "max_brightness": 40
+    },
+    "ws2812": {
+        "pin": "A1",
+        "driver": "pwm"
+    },
+    "split": {
+        "enabled": true,
+        "handedness": {
+            "pin": "C14"
+        },
+        "serial": {
+            "driver": "usart"
+        },
+        "bootmagic": {
+            "matrix": [6, 5]
+        }
+    },
+    "bootmagic": {
+        "enabled": true,
+        "matrix": [0, 0]
+    },
+    "encoder": {
+        "encoder_map": true,
+        "rotary": [
+            {"pin_a": "A13", "pin_b": "A14", "resolution": 4}
+        ]
     },
     "layouts": {
         "LAYOUT": {
@@ -115,37 +147,5 @@
                 {"matrix": [11, 1], "x": 10, "y": 7}
             ]
         }
-    },
-    "rgblight": {
-        "split": true,
-        "led_count": 18,
-        "split_count": [9, 9],
-        "max_brightness": 40
-    },
-    "ws2812": {
-        "pin": "A1",
-        "driver": "pwm"
-    },
-    "split": {
-        "enabled": true,
-        "handedness": {
-            "pin": "C14"
-        },
-        "serial": {
-            "driver": "usart"
-        },
-        "bootmagic": {
-            "matrix": [6, 5]
-        }
-    },
-    "bootmagic": {
-        "enabled": true,
-        "matrix": [0, 0]
-    },
-    "encoder": {
-        "encoder_map": true,
-        "rotary": [
-            {"pin_a": "A13", "pin_b": "A14", "resolution": 4}
-        ]
     }
 }
