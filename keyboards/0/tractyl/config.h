@@ -24,6 +24,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   define USB_POLLING_INTERVAL_MS 1
 // #endif
 
+// Pointing Device Accel
+#define POINTING_DEVICE_ACCEL_TAKEOFF 2.5      // lower/higher value = curve takes off more smoothly/abruptly
+#define POINTING_DEVICE_ACCEL_GROWTH_RATE 0.7  // lower/higher value = curve reaches its upper limit slower/faster
+#define POINTING_DEVICE_ACCEL_OFFSET 1.8       // lower/higher value = acceleration kicks in earlier/later
+#define POINTING_DEVICE_ACCEL_LIMIT 0.12       // lower limit of accel curve (minimum acceleration factor)
+
 // #define DEBUG_MATRIX_SCAN_RATE
 
 // #define USB_VBUS_PIN        B10 // doesn't seem to work for me on one of my controllers... */
@@ -68,7 +74,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define PMW33XX_CS_PIN                       A4
 #define PMW33XX_SPI_DIVISOR                  64
 #define PMW33XX_SPI_MODE                     3
-#define PMW33XX_CPI                          500
+#define PMW33XX_CPI                          12000
 #define PMW33XX_LIFTOFF_DISTANCE 0x01
 #define POINTING_DEVICE_INVERT_Y
 #define PMW33XX_FIRMWARE_UPLOAD_FAST
