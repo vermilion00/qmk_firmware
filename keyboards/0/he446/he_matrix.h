@@ -44,14 +44,22 @@ volatile static const pin_t power_pins[] = POWER_PINS;
 #endif
 
 //TODO: Convert automatically using a define?
-//      Would have to first put all min/max values into an array to use them here
+//      Would have to first put all min/max values into an array to use them here, need to be known at compile time?
 #ifndef CONSTANT_RAPID_TRIGGER
 volatile static const float trigger_height[] = TRIGGER_HEIGHT;
+#if defined RELEASE_HEIGHT
 volatile static const float release_height[] = RELEASE_HEIGHT;
+#else
+volatile static const float release_height[] = TRIGGER_HEIGHT;
+#endif
 #endif
 #if defined(RAPID_TRIGGER) || defined(CONTINUOUS_RAPID_TRIGGER) || defined(CONSTANT_RAPID_TRIGGER)
 volatile static const float rt_press_distance[] = RT_PRESS_DISTANCE;
+#if defined RT_RELEASE_DISTANCE
 volatile static const float rt_release_distance[] = RT_RELEASE_DISTANCE;
+#else
+volatile static const float rt_release_distance[] = RT_PRESS_DISTANCE;
+#endif
 #endif
 
 
@@ -59,6 +67,7 @@ volatile static const float rt_release_distance[] = RT_RELEASE_DISTANCE;
 //TODO: Rework this into an array of rows, like standard qmk?
 volatile Switch matrix[SWITCH_NUM];
 
+volatile static const uint8_t he_to_qmk[SWITCH_NUM][2] = HE_TO_QMK;
 
 
 
@@ -97,3 +106,13 @@ volatile void sensor_power_low_user(uint8_t mux_channel);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);
+
+/* Random stuff */
+typedef enum translation_type_t {
+    translate_trigger_height = 0,
+    translate_release_height,
+    translate_rt_press,
+    translate_rt_release,
+    translate_all
+
+} translation_type_t;

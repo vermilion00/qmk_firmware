@@ -11,6 +11,15 @@
     // invalid: Default `false`. Set to `true` to generate errors when a value exists
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
+    // Hall Effect
+    //TODO: Test if i can use floats here
+    "TRIGGER_HEIGHT": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
+    "RELEASE_HEIGHT": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
+    "RT_PRESS_DISTANCE": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
+    "RT_RELEASE_DISTANCE": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
+
+    "TRAVEL_DISTANCE": {"info_key": "hall_effect.travel_distance", "value_type":}
+
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},
     "APA102_DEFAULT_BRIGHTNESS": {"info_key": "apa102.default_brightness", "value_type": "int"},

@@ -16,6 +16,7 @@
 //Define this automatically at compile time
 #define SWITCH_NUM 4
 
+//TODO: When these defines only have one value, use it for every switch
 #define TRIGGER_HEIGHT { 1.0, 2.0, 3.0, 0.5 }
 
 #define RELEASE_HEIGHT { 1.0, 2.0, 3.0, 0.5 }
@@ -24,7 +25,6 @@
 
 #define RT_RELEASE_DISTANCE  { 0.5, 0.5, 0.2, 2.0 }
 
-//
 #define TRAVEL_DISTANCE 3.8
 
 //1,2,3
@@ -32,21 +32,30 @@
 //1,2,3,4,5
 #define DEADZONE_LEVEL 3
 
-#define HE_PINS { A4 }
+#define HE_PINS { A4, A0 }
 // #define HE_PINS_RIGHT {}
 // #define HE_PIN_NUM 2
-// #define MUX_PINS_CONTINUOUS
-#define MUX_PIN_OFFSET 12
-#define MUX_PORT GPIOB
+// #define MUX_PIN_OFFSET 12
+// #define MUX_PORT GPIOB
+// #define DIRECT_ADC_PINS
 #define MUX_PINS { B12 }
 // #define MUX_PINS_RIGHT {}
-#define MUX_PIN_NUM 2
+#define MUX_PIN_NUM 1
 #define ADC_RESOLUTION 12
+
+// If the ADC value increases as you press a switch further down, define this
+// #define INVERT_ADC
 
 // Translates from mux combination to matrix position
 // Rows are adc channels, cols are mux channels
 // Use a 0 to indicate no connection
-#define MUX_TO_MATRIX {{1,2}}
+#define MUX_TO_MATRIX { {1,2} }
+
+// Translates from he matrix to qmk matrix
+// [ROW][COL]
+// Follows QMK layout macro style, so split keyboard right half is set as a secondary set of rows beneath the left side
+#define HE_TO_QMK { {0,0}, {0,1},  \
+                    {1,0}, {1,1} }
 
 /* Rapid trigger only activates below the trigger height and deactivates
    above it */
@@ -63,6 +72,7 @@
 //How are the sensors powered? Is every sensor powered all the time?
 //Do they need to be powered by a pin before being read?
 //#define CONSTANT_POWER
+
 //TODO: Add a call to a user-defined function to allow them to control this
 /* Make an array equal to the 1 << MUX_PIN_NUM, every time the mux pins are changed,
    set and reset the appropriate pins so that the sensors about to be scanned are powered */
@@ -72,9 +82,11 @@
 //#define CUSTOM_POWER_BEFORE_SCAN
 
 // How many microseconds to wait before reading the adc
+// TODO: Implement delay in the code somehow (QMK has avr delay files, prob smth for stm32 too)
 //#define SCAN_DELAY_US 1
 
 // Skip EEPROM Reading/Writing
+//TODO: Implement EEPROM
 #define NO_EEPROM
 
 // TESTING STUFF
