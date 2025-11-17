@@ -9,6 +9,7 @@
 #include "hal_pal_lld.h"
 #include "he_config.h"
 #include "he_matrix.h"
+#include "info_config.h"
 #include "keycodes.h"
 #include "multiplexer.h"
 // #include "debounce.h"
@@ -34,21 +35,24 @@ void calibrate_switches(void);
 //      Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Translates the HE matrix index to the QMK matrix format and sets the pressed state
-static inline void translate_he_to_qmk(matrix_row_t current_matrix[], uint8_t index);
+static inline void translate_num_to_matrix(matrix_row_t current_matrix[], uint8_t index);
 
+//MARK: Ini
 void matrix_init_custom(void) {
     // TODO: initialize hardware and global matrix state here
     // Set mux pins to output, HE pins to analog input
-    for(uint8_t i = 0; i < sizeof(mux_pins)/sizeof(pin_t); i++) {
+    for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
+        palSetLineMode(adc_pins[i], PAL_MODE_INPUT_ANALOG);
+        // Convert adc pins to adc mux combination
+        adc_pin_mux[i] = pinToMux(adc_pins[i]);
+    }
+    #ifdef MUX_PINS
+    for(uint8_t i = 0; i < MUX_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(mux_pins[i]);
     }
-    for(uint8_t i = 0; i < sizeof(he_pins)/sizeof(pin_t); i++) {
-        palSetLineMode(he_pins[i], PAL_MODE_INPUT_ANALOG);
-        // Convert adc pins to adc mux combination
-        he_mux[i] = pinToMux(he_pins[i]);
-    }
+    #endif
     #if defined POWER_BEFORE_SCAN
-    for(uint8_t i = 0; i < sizeof(power_pins)/4; i++) {
+    for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
     }
@@ -72,34 +76,34 @@ void matrix_init_custom(void) {
     matrix_init_kb();
 }
 
+//MARK: Scan
 uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     bool matrix_has_changed = false;
     uint16_t adc_value;
     uint8_t matrix_index;
 
-    for(uint8_t mux_channel = 0; mux_channel < (1 << (sizeof(mux_pins)/sizeof(pin_t))); mux_channel++) {
+    for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
         #if defined POWER_BEFORE_SCAN
         gpio_write_pin_high(power_pins[mux_channel]);
         //TODO: Add delay = POWER_DELAY_US;
         #elif defined CUSTOM_POWER_BEFORE_SCAN
         sensor_power_high_kb(mux_channel);
         #endif
-        // set_mux_channel(mux_channel);
-        set_mux_channel(0);
-        for(uint8_t adc_channel = 0; adc_channel < sizeof(he_pins)/sizeof(pin_t); adc_channel++) {
+        set_mux_channel(mux_channel);
+        for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
             //TODO: Add possibility to toggle pins to power sensor rows/cols
             // Translate matrix mux and adc channels to matrix position
-            matrix_index = mux_to_matrix[mux_channel][adc_channel];
+            matrix_index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
             if(matrix_index > 0){
                 matrix_index -= 1;
-                adc_value = adc_read(he_mux[adc_channel]);
+                adc_value = adc_read(adc_pin_mux[adc_channel]);
                 // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
                 if(evaluate_value(matrix_index, adc_value)) {
                     matrix_has_changed = true;
                     //TODO: Transform matrix index into row/col combination and adjust current_matrix[] accordingly
                     // Use the layout macro or something equivalent?
-                    translate_he_to_qmk(current_matrix, matrix_index);
+                    translate_num_to_matrix(current_matrix, matrix_index);
                 }
 
                 // print statements only work if debug mode is enabled in keymap and json
@@ -120,6 +124,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     return matrix_has_changed;
 }
 
+//MARK: Translate all
 //TODO: use assignment like trigger_height[] = {[0...SWITCH_NUM] = TRIGGER_HEIGHT}; using the build system
 void translate_key_values(void) {
 
@@ -147,6 +152,7 @@ void translate_key_values(void) {
     // if(same_trigger_height )
 }
 
+//MARK: Translate one
 // At initialization, translate the trigger height etc into the corresponding ADC values
 void translate_mm_to_value(uint8_t index, translation_type_t type, bool all_switches) {
     uint16_t bottom_value = matrix[index].bottom_value;
@@ -154,19 +160,7 @@ void translate_mm_to_value(uint8_t index, translation_type_t type, bool all_swit
     // ADC count per mm of travel
     //TODO: Add per key travel distance option
     uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
-    // uint8_t key_amount;
 
-    // if(all_switches) {
-    //     #if !defined CONSTANT_RAPID_TRIGGER
-    //     key_amount = sizeof(trigger_height)/sizeof(float);
-    //     #else
-    //     key_amount = sizeof(rt_press_value)/sizeof(float);
-    //     #endif
-    // } else {
-    //     key_amount = 1;
-    // }
-
-    // for(uint8_t key = 0; )
     switch(type) {
         // Release height check happens in he_matrix.h
         case translate_trigger_height:
@@ -182,11 +176,11 @@ void translate_mm_to_value(uint8_t index, translation_type_t type, bool all_swit
             matrix[index].rt_release_value = travel_unit * rt_release_distance[index];
             break;
         case translate_all:
-            #if !defined CONSTANT_RAPID_TRIGGER
+            #if RAPID_TRIGGER_TYPE == CONSTANT_RAPID_TRIGGER
             matrix[index].trigger_value = travel_unit * trigger_height[index] + bottom_value;
             matrix[index].release_value = travel_unit * release_height[index] + bottom_value;
             #endif
-            #if defined RAPID_TRIGGER || defined CONSTANT_RAPID_TRIGGER || defined CONTINUOUS_RAPID_TRIGGER
+            #if RAPID_TRIGGER_TYPE > 0
             matrix[index].rt_press_value = travel_unit * rt_press_distance[index];
             matrix[index].rt_release_value = travel_unit * rt_release_distance[index];
             #endif
@@ -194,15 +188,17 @@ void translate_mm_to_value(uint8_t index, translation_type_t type, bool all_swit
     }
 }
 
+//MARK: Get calibration
 bool get_calibration_data(void) {
 #   if defined NO_EEPROM
-    uint16_t top_values[] = TOP_VALUES;
-    uint16_t bottom_values[] = BOTTOM_VALUES;
+    const uint16_t top_values[] = TOP_VALUES;
+    const uint16_t bottom_values[] = BOTTOM_VALUES;
 
-    for(uint8_t key = 0; key < sizeof(top_values)/sizeof(uint16_t); key++) {
+    for(uint8_t key = 0; key < SWITCH_NUM; key++) {
         matrix[key].top_value = top_values[key];
         matrix[key].bottom_value = bottom_values[key];
     }
+
     return true;
 #   else //if defined NO_EEPROM
     //TODO: Add eeprom support
@@ -210,10 +206,12 @@ bool get_calibration_data(void) {
 #   endif //else defined NO_EEPROM
 }
 
+//MARK: Calibrate
 void calibrate_switches(void) {
 
 }
 
+//MARK: Evaluate
 //TODO: Dynamically change type of arg based on matrix size
 // Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
@@ -222,7 +220,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = matrix[index].pressed;
 #if defined INVERT_ADC
 //TODO: Test this
-#   if defined RAPID_TRIGGER
+#   if RAPID_TRIGGER_TYPE == RAPID_TRIGGER
     // Rapid trigger is only active when the switch is lower than the trigger and release height
     if(value > matrix[index].trigger_value + ADC_SMOOTHING) {
         // Set the new lowest value if needed
@@ -242,7 +240,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         matrix[index].rt_press_threshold = matrix[index].trigger_value;
     }
 
-#   elif defined CONTINUOUS_RAPID_TRIGGER
+#   elif RAPID_TRIGGER_TYPE == CONTINUOUS_RAPID_TRIGGER
     static bool rt_active = false;
     // Rapid trigger activates below the trigger height, but only stops when fully released
     if(rt_active || (value > matrix[index].trigger_value + ADC_SMOOTHING)) {
@@ -264,7 +262,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         rt_active = false;
     }
 
-#   elif defined CONSTANT_RAPID_TRIGGER
+#   elif RAPID_TRIGGER_TYPE == CONSTANT_RAPID_TRIGGER
     // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
     if((value > matrix[index].rt_press_threshold + ADC_SMOOTHING) ||
         value > matrix[index].bottom_value - ADC_DEADZONE) {
@@ -293,7 +291,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 #   endif //defined RAPID_TRIGGER
 
 #else //defined INVERT_ADC
-#   if defined RAPID_TRIGGER
+#   if RAPID_TRIGGER_TYPE == RAPID_TRIGGER
     // Rapid trigger is only active when the switch is lower than the trigger and release height
     if(value < matrix[index].trigger_value - ADC_SMOOTHING) {
         // Set the new lowest value if needed
@@ -313,7 +311,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         matrix[index].rt_press_threshold = matrix[index].trigger_value;
     }
 
-#   elif defined CONTINUOUS_RAPID_TRIGGER
+#   elif RAPID_TRIGGER_TYPE == CONTINUOUS_RAPID_TRIGGER
     static bool rt_active = false;
     // Rapid trigger activates below the trigger height, but only stops when fully released
     if(rt_active || (value < matrix[index].trigger_value - ADC_SMOOTHING)) {
@@ -335,7 +333,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         rt_active = false;
     }
 
-#   elif defined CONSTANT_RAPID_TRIGGER
+#   elif RAPID_TRIGGER_TYPE == CONSTANT_RAPID_TRIGGER
     // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
     if((value < matrix[index].rt_press_threshold - ADC_SMOOTHING) ||
         value < matrix[index].bottom_value + ADC_DEADZONE) {
@@ -366,9 +364,10 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     return !(prev_pressed == matrix[index].pressed);
 }
 
-static inline void translate_he_to_qmk(matrix_row_t current_matrix[], uint8_t index) {
-    uint8_t row = he_to_qmk[index][0];
-    uint8_t col = he_to_qmk[index][1];
+//MARK: Num to Matrix
+static inline void translate_num_to_matrix(matrix_row_t current_matrix[], uint8_t index) {
+    uint8_t row = num_to_matrix[index][0];
+    uint8_t col = num_to_matrix[index][1];
 
     current_matrix[row] ^= 1 << col;
 }
