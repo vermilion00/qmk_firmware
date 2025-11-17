@@ -809,7 +809,11 @@ def _matrix_size(info_data):
     if 'matrix_size' not in info_data and 'matrix_pins' in info_data:
         info_data['matrix_size'] = {}
 
-        if 'direct' in info_data['matrix_pins']:
+        if 'hall_effect' in info_data:
+            matrix = info_data['hall_effect']['hardware']['num_to_matrix']
+            info_data['matrix_size']['rows'] = max([i[0] for i in matrix]) + 1
+            info_data['matrix_size']['cols'] = max([i[1] for i in matrix]) + 1
+        elif 'direct' in info_data['matrix_pins']:
             info_data['matrix_size']['cols'] = len(info_data['matrix_pins']['direct'][0])
             info_data['matrix_size']['rows'] = len(info_data['matrix_pins']['direct'])
         elif 'cols' in info_data['matrix_pins'] and 'rows' in info_data['matrix_pins']:

@@ -1,4 +1,17 @@
 {
+    "hall_effect": {
+        "hardware": {
+            "adc_resolution": 12,
+            "smoothing": 3,
+            "deadzone": 5
+        },
+        "config": {
+            //TODO: Check if my checks still work
+            "trigger_height": [2.0],
+            "rt_press_distance": [0.5],
+            "rapid_trigger_type": "none"
+        }
+    },
     "bootmagic": {
         "matrix": [0, 0]
     },

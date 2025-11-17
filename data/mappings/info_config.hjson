@@ -3,7 +3,7 @@
 {
     // Format:
     // <config.h key>: {"info_key": <info.json key>, ["value_type": <value_type>], ["to_json": <true/false>], ["to_c": <true/false>]}
-    // value_type: one of "array", "array.int", "bool, "flag", "int", "hex", "list", "mapping", "str", "raw"
+    // value_type: one of "array", "array.array", "array.int", "bool", "flag", "int", "hex", "list", "mapping", "str", "raw"
     // to_json: Default `true`. Set to `false` to exclude this mapping from info.json
     // to_c: Default `true`. Set to `false` to exclude this mapping from config.h
     // warn_duplicate: Default `true`. Set to `false` to turn off warning when a value exists in both places
@@ -12,13 +12,26 @@
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
     // Hall Effect
-    //TODO: Test if i can use floats here
-    "TRIGGER_HEIGHT": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
-    "RELEASE_HEIGHT": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
-    "RT_PRESS_DISTANCE": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
-    "RT_RELEASE_DISTANCE": {"info_key": "hall_effect.trigger_height", "value_type": "array"},
-
-    "TRAVEL_DISTANCE": {"info_key": "hall_effect.travel_distance", "value_type":}
+    "TESTPIN": {"info_key": "hall_effect.hardware.test_pin"},
+    "HETEST": {"info_key": "hall_effect.hardware.test", "value_type": "bool"},
+    "ADC_PINS": {"info_key": "hall_effect.hardware.adc_pins", "value_type": "array"},
+    "MUX_PINS": {"info_key": "hall_effect.hardware.mux_pins", "value_type": "array"},
+    "POWER_PINS": {"info_key": "hall_effect.hardware.power_pins", "value_type": "array"},
+    "TRAVEL_DISTANCE": {"info_key": "hall_effect.hardware.travel_distance"},
+    "ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
+    "SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
+    "DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
+    "MUX_TO_NUM": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
+    "NUM_TO_MATRIX": {"info_key": "hall_effect.hardware.num_to_matrix", "value_type": "array.array"},
+    //Can't map this here, since it needs to be uppercase first
+    //"RAPID_TRIGGER_TYPE": {"info_key": "hall_effect.config.rapid_trigger_type"},
+    //"TRIGGER_HEIGHT": {"info_key": "hall_effect.config.trigger_height", "value_type": "array"},
+    //"RELEASE_HEIGHT": {"info_key": "hall_effect.config.release_height", "value_type": "array"},
+    //"RT_PRESS_DISTANCE": {"info_key": "hall_effect.config.rt_press_distance", "value_type": "array"},
+    //"RT_RELEASE_DISTANCE": {"info_key": "hall_effect.config.rt_release_distance", "value_type": "array"},
+    "ADC_SCAN_DELAY": {"info_key": "hall_effect.config.adc_scan_delay", "value_type": "int"},
+    "MUX_SELECT_DELAY": {"info_key": "hall_effect.config.mux_select_delay", "value_type": "int"},
+    "POWER_SELECT_DELAY": {"info_key": "hall_effect.config.power_select_delay", "value_type": "int"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},

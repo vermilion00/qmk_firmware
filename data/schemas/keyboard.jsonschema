@@ -505,6 +505,84 @@
                 "rows": {"$ref": "./definitions.jsonschema#/mcu_pin_array"}
             }
         },
+        "hall_effect": {
+            "type": "object",
+            "properties": {
+                "hardware": {
+                    "type": "object",
+                    "properties": {
+                        "test": {"type": "boolean"},
+                        "power_before_scan": {"type": "boolean"},
+                        "custom_power_before_scan": {"type": "boolean"},
+                        "power_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
+                        "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
+                        "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
+                        "mux_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "adc_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "power_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "test_pin": {"$ref": "./definitions.jsonschema#/mcu_pin"},
+                        "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "mux_to_num": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "num_to_matrix": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "minItems": 2,
+                                "maxItems": 2,
+                                "items": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "trigger_height": {
+                            "type": "array",
+                            "items": {"type": "number"}
+                        },
+                        "release_height": {
+                            "type": "array",
+                            "items": {"type": "number"}
+                        },
+                        "rt_press_distance": {
+                            "type": "array",
+                            "items": {"type": "number"}
+                        },
+                        "rt_release_distance": {
+                            "type": "array",
+                            "items": {"type": "number"}
+                        },
+                        "rapid_trigger_type": {
+                            "type": "string",
+                            "enum": [
+                                "rapid_trigger",
+                                "constant_rapid_trigger",
+                                "continuous_rapid_trigger",
+                                "RAPID_TRIGGER",
+                                "CONSTANT_RAPID_TRIGGER",
+                                "CONTINUOUS_RAPID_TRIGGER"
+                            ]
+                        },
+                        "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "power_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
+                    }
+                }
+            }
+        },
         "modules": {
             "type": "array",
             "items": {
