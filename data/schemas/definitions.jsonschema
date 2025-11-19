@@ -199,5 +199,15 @@
         "type": "integer",
         "minimum": 0,
         "maximum": 255
+    },
+    "unsigned_int_16": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 65535
+    },
+    "unsigned_int_32": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4294967295
     }
 }

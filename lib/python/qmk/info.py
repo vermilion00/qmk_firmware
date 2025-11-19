@@ -686,6 +686,7 @@ def _extract_config_h(info_data, config_c):
     return info_data
 
 
+#TODO: Add replacement mappings perhaps?
 def _process_defaults(info_data):
     """Process any additional defaults based on currently discovered information
     """
