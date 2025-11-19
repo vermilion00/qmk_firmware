@@ -280,12 +280,7 @@ def generate_hall_effect_config(hall_effect_json, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
     validate_hall_effect_config(hall_effect_json)
 
-    #Matrix size
-    # matrix = hall_effect_json['hardware']['num_to_matrix']
-    # rows = max([i[0] for i in matrix]) + 1
-    # cols = max([i[1] for i in matrix]) + 1
-    # config_h_lines.append(generate_define('MATRIX_ROWS', rows))
-    # config_h_lines.append(generate_define('MATRIX_COLS', cols))
+    #TODO: Add config for correct us delay function, maybe in gpio func?
 
     #Hardware stuff
     adc_pin_num = len(hall_effect_json['hardware']['adc_pins'])
@@ -370,12 +365,9 @@ def generate_config_h(cli):
 
     #MARK: Main function
     if 'hall_effect' in kb_info_json:
-        port_def = get_port_def(kb_info_json)
         generate_hall_effect_config(kb_info_json['hall_effect'], config_h_lines)
+        port_def = get_port_def(kb_info_json)
         check_continuous_mux_pins(kb_info_json['hall_effect'], port_def, config_h_lines)
-    #Hall effect matrix uses a different method to determine matrix size
-    # else:
-    #     generate_matrix_size(kb_info_json, config_h_lines)
 
     if 'matrix_pins' in kb_info_json:
         config_h_lines.append(matrix_pins(kb_info_json['matrix_pins']))

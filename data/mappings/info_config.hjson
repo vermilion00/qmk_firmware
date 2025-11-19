@@ -19,10 +19,11 @@
     "POWER_PINS": {"info_key": "hall_effect.hardware.power_pins", "value_type": "array"},
     "TRAVEL_DISTANCE": {"info_key": "hall_effect.hardware.travel_distance"},
     "ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
-    "SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
-    "DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
+    "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
+    "ADC_DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
     "MUX_TO_NUM": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
     "NUM_TO_MATRIX": {"info_key": "hall_effect.hardware.num_to_matrix", "value_type": "array.array"},
+    "INVERT_ADC": {"info_key": "hall_effect.hardware.invert_adc", "value_type": "bool"},
     //Can't map this here, since it needs to be uppercase first
     //"RAPID_TRIGGER_TYPE": {"info_key": "hall_effect.config.rapid_trigger_type"},
     //"TRIGGER_HEIGHT": {"info_key": "hall_effect.config.trigger_height", "value_type": "array"},
@@ -32,6 +33,9 @@
     "ADC_SCAN_DELAY": {"info_key": "hall_effect.config.adc_scan_delay", "value_type": "int"},
     "MUX_SELECT_DELAY": {"info_key": "hall_effect.config.mux_select_delay", "value_type": "int"},
     "POWER_SELECT_DELAY": {"info_key": "hall_effect.config.power_select_delay", "value_type": "int"},
+    "SCANS_WITHOUT_CHANGE": {"info_key": "hall_effect.config.scans_without_change", "value_type": "int"},
+    "DEBUG_SCAN_VALUE": {"info_key": "hall_effect.config.debug_scan_value", "value_type": "bool"},
+    "DEBUG_CALIBRATION": {"info_key": "hall_effect.config.debug_calibration", "value_type": "bool"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},
