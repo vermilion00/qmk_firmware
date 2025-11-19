@@ -24,20 +24,21 @@
     },
     "hall_effect": {
         "hardware": {
-            "adc_pins": ["A0", "A4"],
+            "adc_pins": ["A0", "A6"],
             "mux_to_num":  [[1, 2]],
             "num_to_matrix": [[0, 0], [0, 1]],
-            "travel_distance": 3.8
+            "travel_distance": 4.0,
+            "smoothing": 2,
+            "deadzone": 6
         },
         "config": {
-            "trigger_height": [1.3],
-            "release_height": [1.6],
+            "trigger_height": [0.5],
+            "release_height": [0.4],
             "rt_press_distance": [0.3],
-            "rapid_trigger_type": "continuous_rapid_trigger"
+            "scans_without_change": 250000
         }
     },
-    "diode_direction": "COL2ROW",
-	"debounce": 0,
+    "debounce": 0,
     "layouts": {
         "LAYOUT": {
             "layout": [

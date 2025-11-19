@@ -568,9 +568,11 @@
                         "rapid_trigger_type": {
                             "type": "string",
                             "enum": [
+                                "none",
                                 "rapid_trigger",
                                 "constant_rapid_trigger",
                                 "continuous_rapid_trigger",
+                                "NONE",
                                 "RAPID_TRIGGER",
                                 "CONSTANT_RAPID_TRIGGER",
                                 "CONTINUOUS_RAPID_TRIGGER"
@@ -578,7 +580,10 @@
                         },
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "power_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
+                        "power_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "scans_without_change": {"$ref": "./definitions.jsonschema#/unsigned_int_32"},
+                        "debug_scan_values": {"type": "boolean"},
+                        "debug_calibration": {"type": "boolean"}
                     }
                 }
             }
