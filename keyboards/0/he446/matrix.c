@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/cdefs.h>
 #include "analog.h"
 #include "debug.h"
 #include "gpio.h"
@@ -499,6 +500,8 @@ static inline void delay_ns(uint16_t delay) {
         __asm("");
     }
 }
+
+void
 
 
 
