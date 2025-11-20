@@ -1,9 +1,12 @@
 #include "action.h"
 #include "keycodes.h"
 #include "quantum.h"
+#include "quantum_keycodes.h"
 #include QMK_KEYBOARD_H
 #include "pointing_device.h"
 
+#define MOUSE_LAYER_TIME 400
+#define DRAGSCROLL_TIME 200
 #define constrain_hid(amt) ((amt) < -127 ? -127 : ((amt) > 127 ? 127 : (amt)))
 
 #define _CLMK 0
@@ -27,7 +30,6 @@
 */
 
 static bool LALT_HELD;
-static bool FN_HELD;
 
 static bool mouse_lock = false;
 static bool mslk = false;
@@ -41,8 +43,7 @@ static bool caret_prev = false;
 static unsigned int dragscroll_timer;
 
 enum custom_keycodes {
-	MO_FN = SAFE_RANGE,
-	MO_LALT,
+	MO_LALT = SAFE_RANGE,
 	CK_MSOF,
 	//CK_SCLN,
 	ALT_TAB,
@@ -68,7 +69,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			 KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_LGUI, KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			 KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
                        KC_LBRC, KC_RBRC, 								   						  	   KC_PLUS, KC_EQL,
-										 KC_MPLY, KC_SPC,  MO_LALT,         MO_FN,   KC_LSFT, ALT_TAB,
+										 KC_MPLY, KC_SPC,  MO_LALT,         MO(_FN),   KC_LSFT, ALT_TAB,
 												  KC_LCTL, KC_LALT,			KC_ENT
   ),
 
@@ -76,7 +77,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			 KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			 KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
      KC_BSPC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			 KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-     KC_DEL,  KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			 KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO_FN,
+     KC_DEL,  KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			 KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
                        KC_LBRC, KC_RBRC, 								   						  	   KC_PLUS, KC_EQL,
 										 KC_MPLY, KC_SPC,  KC_LSFT,         KC_BSPC, KC_LSFT, ALT_TAB,
 												  KC_LCTL, KC_LALT,			KC_ENT
@@ -88,7 +89,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                    			 KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_EQL,  KC_V,    KC_X,    KC_Y,    KC_C,    KC_Z,                    			 KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
                        KC_LBRC, KC_RBRC,													 	  	   KC_PLUS, KC_EQL,
-										 KC_MPLY, KC_SPC,  MO_LALT,			  MO_FN, KC_LSFT, ALT_TAB,
+										 KC_MPLY, KC_SPC,  MO_LALT,			  MO(_FN), KC_LSFT, ALT_TAB,
 												  KC_LCTL, KC_LALT,			  KC_ENT
   ),
 
@@ -98,7 +99,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_COPY, MS_BTN1, MS_BTN2, MS_BTN3, KC_MPLY, KC_QUOT,
      KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_PASTE,MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
                        CK_MSOF, CK_MSOF,											              	   KC_PLUS, KC_EQL,
-										 _______, CK_MSOF, KC_LSFT,			MO_FN,   KC_LSFT, _______,
+										 _______, CK_MSOF, KC_LSFT,			MO(_FN),   KC_LSFT, _______,
 												  KC_LCTL, KC_LALT,			KC_ENT
   ),
 
@@ -170,23 +171,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				tap_code(KC_TRNS);
 			}
 			return true;
-		case MO_FN:
-			if (record->event.pressed) {
-				layer_on(_FN);
-				FN_HELD = true;
-			} else {
-				layer_off(_FN);
-				FN_HELD = false;
-			}
-			return false;
 		case MO_LALT:
 			if (record->event.pressed) {
 				layer_on(_LALT);
-				FN_HELD = true;
 				caret_mode = true;
 			} else {
 				layer_off(_LALT);
-				FN_HELD = false;
 				caret_mode = false;
 			}
 			return false;
@@ -237,7 +227,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 					mouse_lock = !mouse_lock;
 				}
 			}else{
-				if(timer_elapsed(dragscroll_timer) < 200){
+				if(timer_elapsed(dragscroll_timer) < DRAGSCROLL_TIME){
 					scrolling_mode = !scroll_prev;
 				}else{
 					if(!mslk){
@@ -253,7 +243,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				caret_prev = caret_mode;
 				caret_mode = true;
 			}else{
-				if(timer_elapsed(dragscroll_timer) < 200){
+				if(timer_elapsed(dragscroll_timer) < DRAGSCROLL_TIME){
 					caret_mode = !caret_prev;
 				}else{
 					caret_mode = false;
@@ -319,7 +309,7 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 			}
 			mouse_timer = timer_read();
 		}
-	}else if((timer_elapsed(mouse_timer) > 500) && layer_state_is(_MOUSE) && !mouse_lock){
+	}else if((timer_elapsed(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
 		layer_off(_MOUSE);
 	}
 	// short x = mouse_report.x, y = mouse_report.y;
