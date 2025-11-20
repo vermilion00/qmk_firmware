@@ -14,24 +14,13 @@
 -Allow enabling rapid trigger on specific keys only
 -Change system to interrupt based
 -Derive num_to_matrix from layout macro instead, basically the same procedure
--Implement from_bottom mode where the heights are defined as the distance from the bottom
+-Fix matrix_row_pins size check
+    -Either automatically declare row_pins[MATRIX_ROWS] = {NO_PIN},
+    or better skip check entirely
+-Put python functions into separate file, since extra checks would bloat current file too much
+-Check if trigger height checks happen against the actual switch or not, switch d seems not to check correctly
+-Try a higher buffer depth and circular buffer?
+-Implement dynamic calibration as an alternative
 
 -info_defaults don't work?
 */
-
-// Skip EEPROM Reading/Writing
-//TODO: Implement EEPROM
-#define NO_EEPROM
-
-// TESTING STUFF
-
-//TODO: Implement this?
-//      Need to change how calibration and evaluation works, so make it an opt-in thing
-//      with the current implementation as the default
-// #define DYNAMIC_CALIBRATION
-
-#define TOP_VALUES { 619, 632 }
-#define BOTTOM_VALUES { 264, 264 }
-
-// #define TOP_VALUES {[0 ... SWITCH_NUM] = 500 }
-// #define BOTTOM_VALUES {[0 ... SWITCH_NUM] = 350 }
