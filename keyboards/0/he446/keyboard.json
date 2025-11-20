@@ -24,18 +24,26 @@
     },
     "hall_effect": {
         "hardware": {
-            "adc_pins": ["A0", "A6"],
-            "mux_to_num":  [[1, 2]],
-            "num_to_matrix": [[0, 0], [0, 1]],
+            "mux_pins": ["B12"],
+            "adc_pins": ["A0", "A6", "A4"],
+            "mux_to_num":  [
+                [1, 2, 3],
+                [0, 0, 4]
+            ],
+            "num_to_matrix": [[0, 0], [0, 1], [0, 2], [0, 3]],
             "travel_distance": 4.0,
-            "smoothing": 2,
-            "deadzone": 6
+            "smoothing": 1,
+            "deadzone": 3
         },
         "config": {
-            "trigger_height": [0.5],
-            "release_height": [0.4],
+            "trigger_height": [0.3],
+            "release_height": [0.2],
             "rt_press_distance": [0.3],
-            "scans_without_change": 250000
+            "scans_without_change": 250000,
+            "debug_scan_values": true,
+            "no_eeprom": true,
+            "top_values": [ 617, 634, 634, 707 ],
+            "bottom_values": [ 264, 261, 264, 333 ]
         }
     },
     "debounce": 0,
@@ -43,7 +51,9 @@
         "LAYOUT": {
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0},
-                {"matrix": [0, 1], "x": 0, "y": 0}
+                {"matrix": [0, 1], "x": 0, "y": 0},
+                {"matrix": [0, 2], "x": 0, "y": 0},
+                {"matrix": [0, 3], "x": 0, "y": 0}
             ]
         }
     }

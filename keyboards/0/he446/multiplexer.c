@@ -2,11 +2,13 @@
 #include <stdint.h>
 #include "gpio.h"
 #include "he_matrix.h"
+#include "info_config.h"
 
+#define MUX_MASK (MUX_CHANNELS - 1)
 void set_mux_channel(uint8_t channel) {
 #if defined MUX_PINS
 #if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT
-    CONTINUOUS_MUX_PORT->ODR = (CONTINUOUS_MUX_PORT->ODR & ~(MUX_PIN_NUM << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
+    CONTINUOUS_MUX_PORT->ODR = (CONTINUOUS_MUX_PORT->ODR & ~(MUX_MASK << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
 #else
     switch(channel){
         case 0:
