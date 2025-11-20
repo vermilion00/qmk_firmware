@@ -14,7 +14,6 @@
 #include "keycodes.h"
 #include "multiplexer.h"
 #include "atomic_util.h"
-#include "matrix_ref.h"
 #include "print.h"
 #include "stm32_gpio.h"
 
@@ -35,6 +34,9 @@ void calibrate_switches(void);
 static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Translates the HE matrix index to the QMK matrix format and sets the pressed state
 static inline void translate_num_to_matrix(matrix_row_t current_matrix[], uint8_t index);
+// Empty loop for short delays
+static inline void delay_ns(uint16_t delay);
+
 
 //MARK: Init
 void matrix_init_custom(void) {
@@ -58,6 +60,12 @@ void matrix_init_custom(void) {
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     sensor_power_init_kb();
     #endif
+    //TODO: Remove this after testing, only is an issue since qmk sets all unused pins to high,
+    //      and I have all mux select pins connected
+    GPIOB->MODER = 0b01010101010101010101010101010101;
+    GPIOB->OTYPER = 0x0000;
+    GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
+    GPIOB->ODR = 0x0000;
 
     // TODO: Load key matrix struct with calibration and distance data from the EEPROM
     // Get the min/max values of each switch from EEPROM
@@ -75,6 +83,7 @@ void matrix_init_custom(void) {
     matrix_init_kb();
 }
 
+
 //MARK: Scan
 uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     bool matrix_has_changed = false;
@@ -82,16 +91,19 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     uint8_t matrix_index;
 
     for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
-        #if DEBUG_SCAN_VALUE == TRUE
-        dprintf("Mux: %i\n", mux_channel);
-        #endif
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_high(power_pins[mux_channel]);
-        //TODO: Add delay = POWER_DELAY_US;
+        #ifdef POWER_SELECT_DELAY
+        delay_ns(POWER_SELECT_CYCLES);
+        #endif
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_high_kb(mux_channel);
         #endif
         set_mux_channel(mux_channel);
+        #ifdef MUX_SELECT_DELAY
+        delay_ns(MUX_SELECT_CYCLES);
+        #endif
+
         for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
             matrix_index = mux_to_num[mux_channel][adc_channel];
@@ -99,19 +111,29 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             if(matrix_index > 0){
                 matrix_index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
-                #if DEBUG_SCAN_VALUE == TRUE
-                dprintf("%i: %i,  ", adc_channel, adc_value);
+                #if DEBUG_SCAN_VALUES == TRUE
+                dprintf("%2i/%2i: %3i,  ",mux_channel, adc_channel, adc_value);
+                #endif
+                #ifdef ADC_SCAN_DELAY
+                delay_ns(ADC_SCAN_CYCLES);
                 #endif
 
                 // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
                 if(evaluate_value(matrix_index, adc_value)) {
                     matrix_has_changed = true;
+                    #if DEBUG_SCAN_NO_INPUT == FALSE
                     translate_num_to_matrix(current_matrix, matrix_index);
+                    #endif
                 }
             }
+            #if DEBUG_SCAN_VALUES == TRUE
+            else {
+                dprintf("%2i/XX: XXX,  ", mux_channel);
+            }
+            #endif
         }
-        #if DEBUG_SCAN_VALUE == TRUE
-        dprint("\n\n");
+        #if DEBUG_SCAN_VALUES == TRUE
+        dprint("\n");
         #endif
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_low(power_pins[mux_channel]);
@@ -126,6 +148,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     return matrix_has_changed;
 }
 
+
 //MARK: Translate mm
 // At initialization, translate the trigger height etc into the corresponding ADC values
 void translate_mm_to_value(uint8_t index) {
@@ -136,16 +159,24 @@ void translate_mm_to_value(uint8_t index) {
     // ADC count per mm of travel
     uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
     #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-    // he_matrix[index].trigger_value = travel_unit * trigger_height[index] + bottom_value;
-    // he_matrix[index].release_value = travel_unit * release_height[index] + bottom_value;
+    #if DISTANCE_FROM_BOTTOM == FALSE
     he_matrix[index].trigger_value = top_value - (travel_unit * trigger_height[index]);
     he_matrix[index].release_value = top_value - (travel_unit * release_height[index]);
+    #else
+    he_matrix[index].trigger_value = travel_unit * trigger_height[index] + bottom_value;
+    he_matrix[index].release_value = travel_unit * release_height[index] + bottom_value;
+    #endif// else DISTANCE_FROM_BOTTOM == FALSE
     #endif
     #else //Inverted ADC -> Lower switch means higher value
     uint16_t travel_unit = floor((bottom_value - top_value) / TRAVEL_DISTANCE);
     #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+    #if DISTANCE_FROM_BOTTOM == FALSE
     he_matrix[index].trigger_value = top_value + (travel_unit * trigger_height[index]);
     he_matrix[index].release_value = top_value + (travel_unit * release_height[index]);
+    #else
+    he_matrix[index].trigger_value = bottom_value - (travel_unit * trigger_height[index]);
+    he_matrix[index].release_value = bottom_value - (travel_unit * release_height[index]);
+    #endif // else DISTANCE_FROM_BOTTOM == FALSE
     #endif
     #endif //else INVERT ADC == TRUE
     #if RAPID_TRIGGER_TYPE != NONE
@@ -154,11 +185,20 @@ void translate_mm_to_value(uint8_t index) {
     #endif
 }
 
+
 //MARK: Get calibration
 bool get_calibration_data(void) {
-#   if defined NO_EEPROM
-    const uint16_t top_values[] = TOP_VALUES;
-    const uint16_t bottom_values[] = BOTTOM_VALUES;
+#   if HE_NO_EEPROM == TRUE
+    #ifdef HE_TOP_VALUES
+    const uint16_t top_values[] = HE_TOP_VALUES;
+    #else
+    #   error "hall_effect.config.top_values needs to be defined!"
+    #endif
+    #ifdef HE_BOTTOM_VALUES
+    const uint16_t bottom_values[] = HE_BOTTOM_VALUES;
+    #else
+    #   error "hall_effect.config.bottom_values needs to be defined!"
+    #endif
 
     for(uint8_t key = 0; key < SWITCH_NUM; key++) {
         he_matrix[key].top_value = top_values[key];
@@ -167,7 +207,7 @@ bool get_calibration_data(void) {
 
     return true;
     // return false;
-#   else //if defined NO_EEPROM
+#   else //if HE_NO_EEPROM == TRUE
     //TODO: Add eeprom support
     // Read the calibration data from EEPROM
 
@@ -175,8 +215,10 @@ bool get_calibration_data(void) {
 
     // Start calibration if necessary
     calibrate_switches();
-#   endif //else defined NO_EEPROM
+    return true;
+#   endif //else HE_NO_EEPROM == TRUE
 }
+
 
 //MARK: Calibrate
 void calibrate_switches(void) {
@@ -187,16 +229,22 @@ void calibrate_switches(void) {
 
     while(true) {
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
-            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUE == TRUE
+            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
             dprintf("Mux: %i\n", mux_channel);
             #endif
             #if POWER_BEFORE_SCAN == TRUE
             gpio_write_pin_high(power_pins[mux_channel]);
-            //TODO: Add delay = POWER_DELAY_US;
+            #ifdef POWER_SELECT_DELAY
+            delay_ns(POWER_SELECT_CYCLES);
+            #endif
             #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
             sensor_power_high_kb(mux_channel);
             #endif
             set_mux_channel(mux_channel);
+            #ifdef MUX_SELECT_DELAY
+            delay_ns(MUX_SELECT_CYCLES);
+            #endif
+
             for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
                 matrix_index = mux_to_num[mux_channel][adc_channel];
@@ -204,7 +252,7 @@ void calibrate_switches(void) {
                 if(matrix_index > 0){
                     matrix_index -= 1;
                     adc_value = adc_read(adc_pin_mux[adc_channel]);
-                    #if DEBUG_CALIBRATION == true || DEBUG_SCAN_VALUE == true
+                    #if DEBUG_CALIBRATION == true || DEBUG_SCAN_VALUES == true
                     dprintf("%i: %i,  ", adc_channel, adc_value);
                     #endif
 
@@ -212,25 +260,35 @@ void calibrate_switches(void) {
                     if(adc_value < he_matrix[matrix_index].top_value){
                         he_matrix[matrix_index].top_value = adc_value;
                         scans_without_change = 0;
+                        #if DEBUG_CALIBRATION == true
+                        dprintf("key %i: new top value %i\n", matrix_index, adc_value);
+                        #endif
                     } else if (adc_value > he_matrix[matrix_index].bottom_value) {
                         he_matrix[matrix_index].bottom_value = adc_value;
                         scans_without_change = 0;
+                        #if DEBUG_CALIBRATION == true
+                        dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
+                        #endif
                     }
                     #else //if INVERT_ADC == TRUE
                     if(adc_value > he_matrix[matrix_index].top_value){
                         he_matrix[matrix_index].top_value = adc_value;
                         scans_without_change = 0;
-                        // dprintf("key %i: new top value %i\n", matrix_index, adc_value);
+                        #if DEBUG_CALIBRATION == true
+                        dprintf("key %i: new top value %i\n", matrix_index, adc_value);
+                        #endif
                     } else if (adc_value < he_matrix[matrix_index].bottom_value) {
                         he_matrix[matrix_index].bottom_value = adc_value;
                         scans_without_change = 0;
-                        // dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
+                        #if DEBUG_CALIBRATION == true
+                        dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
+                        #endif
                     }
                     #endif//else INVERT_ADC == TRUE
                 }
             }
-            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUE == TRUE
-            dprint("\n\n");
+            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
+            dprint("\n");
             #endif
             #if POWER_BEFORE_SCAN == TRUE
             gpio_write_pin_low(power_pins[mux_channel]);
@@ -242,13 +300,34 @@ void calibrate_switches(void) {
         // Default is set to 10000, so 5s assuming 2000 scans per s?
         if(scans_without_change > SCANS_WITHOUT_CHANGE){
             //TODO: Save calibration data to eeprom
-
+            #if HE_NO_EEPROM == FALSE
+            #else //NO_EEPROM == FALSE
+            // Print the calibration values of each switch so that they can be adjusted in the config
+            print("Top values: [ ");
+            for(uint8_t index = 0; index < SWITCH_NUM; index++){
+                if(index < SWITCH_NUM - 1){
+                    printf("%u, ", he_matrix[index].top_value);
+                }else{
+                    printf("%u ]\n", he_matrix[index].top_value);
+                }
+            }
+            print("Bottom values: [ ");
+            for(uint8_t index = 0; index < SWITCH_NUM; index++){
+                // dprintf("%2u | %3u | %3u\n", index, he_matrix[index].top_value, he_matrix[index].bottom_value);
+                if(index < SWITCH_NUM - 1){
+                    printf("%u, ", he_matrix[index].bottom_value);
+                }else{
+                    printf("%u ]\n", he_matrix[index].bottom_value);
+                }
+            }
+            #endif //else NO_EEPROM == FALSE
 
             scans_without_change = 0;
             // break;
         }
     }
 }
+
 
 //MARK: Evaluate
 //TODO: Dynamically change type of arg based on matrix size
@@ -402,13 +481,26 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     return !(prev_pressed == he_matrix[index].pressed);
 }
 
+
 //MARK: Num to Matrix
 static inline void translate_num_to_matrix(matrix_row_t current_matrix[], uint8_t index) {
     uint8_t row = num_to_matrix[index][0];
     uint8_t col = num_to_matrix[index][1];
 
+    // Toggle the matrix state of the key
     current_matrix[row] ^= 1 << col;
 }
+
+
+//MARK: Delay
+//TODO: Scale this so that it's roughly correct
+static inline void delay_ns(uint16_t delay) {
+    for(; delay > 0; delay--){
+        __asm("");
+    }
+}
+
+
 
 /* Weak defines, to allow a custom powering logic */
 __attribute__((weak)) void sensor_power_init_kb(void) { sensor_power_init_user(); }

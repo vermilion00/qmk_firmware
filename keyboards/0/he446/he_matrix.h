@@ -6,7 +6,6 @@
 #include "gpio.h"
 #include "he_config.h"
 #include "info_config.h"
-#include "matrix_ref.h"
 #include "analog.h"
 
 #define NONE 0
@@ -70,11 +69,14 @@ volatile static const float rt_release_distance[] = RT_PRESS_DISTANCE;
 
 
 /* Configuration defaults */
-//TODO: Just use a default mapping value
-#ifndef ADC_RESOLUTION
-#   define ADC_RESOLUTION 12
-#elif ADC_RESOLUTION > 16
+#ifndef HE_ADC_RESOLUTION
+#   define HE_ADC_RESOLUTION 10
+#elif HE_ADC_RESOLUTION > 16
 #   error "ADC_RESOLUTION can't be higher than 16 bits!"
+#endif
+#define ADC_RESOLUTION HE_ADC_RESOLUTION
+#if HE_ADC_RESOLUTION <= 8
+#   define ADC_BUFFER_DEPTH 1
 #endif
 #define MAX_ADC_VALUE 1 << ADC_RESOLUTION
 #ifndef SMOOTHING_LEVEL
@@ -93,6 +95,16 @@ volatile static const float rt_release_distance[] = RT_PRESS_DISTANCE;
 #ifndef SCANS_WITHOUT_CHANGE
 #   define SCANS_WITHOUT_CHANGE 20000
 #endif
+#ifdef ADC_SCAN_DELAY
+#   define ADC_SCAN_CYCLES ADC_SCAN_DELAY
+#endif
+#ifdef MUX_SELECT_DELAY
+#   define MUX_SELECT_CYCLES MUX_SELECT_DELAY
+#endif
+#ifdef POWER_SELECT_DELAY
+#   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
+#endif
+//TODO: I don't think these are needed
 // #ifndef INVERT_ADC
 // #   define INVERT_ADC FALSE
 // #endif
