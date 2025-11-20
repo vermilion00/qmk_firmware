@@ -12,13 +12,11 @@
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
     // Hall Effect
-    "TESTPIN": {"info_key": "hall_effect.hardware.test_pin"},
-    "HETEST": {"info_key": "hall_effect.hardware.test", "value_type": "bool"},
     "ADC_PINS": {"info_key": "hall_effect.hardware.adc_pins", "value_type": "array"},
     "MUX_PINS": {"info_key": "hall_effect.hardware.mux_pins", "value_type": "array"},
     "POWER_PINS": {"info_key": "hall_effect.hardware.power_pins", "value_type": "array"},
     "TRAVEL_DISTANCE": {"info_key": "hall_effect.hardware.travel_distance"},
-    "ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
+    "HE_ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
     "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
     "ADC_DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
     "MUX_TO_NUM": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
@@ -34,8 +32,13 @@
     "MUX_SELECT_DELAY": {"info_key": "hall_effect.config.mux_select_delay", "value_type": "int"},
     "POWER_SELECT_DELAY": {"info_key": "hall_effect.config.power_select_delay", "value_type": "int"},
     "SCANS_WITHOUT_CHANGE": {"info_key": "hall_effect.config.scans_without_change", "value_type": "int"},
-    "DEBUG_SCAN_VALUE": {"info_key": "hall_effect.config.debug_scan_value", "value_type": "bool"},
+    "DISTANCE_FROM_BOTTOM": {"info_key": "hall_effect.config.distance_from_bottom", "value_type": "bool"},
+    "DEBUG_SCAN_VALUES": {"info_key": "hall_effect.config.debug_scan_values", "value_type": "bool"},
+    "DEBUG_SCAN_NO_INPUT": {"info_key": "hall_effect.config.debug_scan_no_input", "value_type": "bool"},
     "DEBUG_CALIBRATION": {"info_key": "hall_effect.config.debug_calibration", "value_type": "bool"},
+    "HE_NO_EEPROM": {"info_key": "hall_effect.config.no_eeprom", "value_type": "bool"},
+    "HE_TOP_VALUES": {"info_key": "hall_effect.config.top_values", "value_type": "array.int"},
+    "HE_BOTTOM_VALUES": {"info_key": "hall_effect.config.bottom_values", "value_type": "array.int"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},
