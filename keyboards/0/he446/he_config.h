@@ -14,13 +14,30 @@
 -Allow enabling rapid trigger on specific keys only
 -Change system to interrupt based
 -Derive num_to_matrix from layout macro instead, basically the same procedure
--Fix matrix_row_pins size check
-    -Either automatically declare row_pins[MATRIX_ROWS] = {NO_PIN},
-    or better skip check entirely
--Put python functions into separate file, since extra checks would bloat current file too much
 -Check if trigger height checks happen against the actual switch or not, switch d seems not to check correctly
 -Try a higher buffer depth and circular buffer?
 -Implement dynamic calibration as an alternative
+-Make it so that no_eeprom always goes to calibration if no values are defined, and skips it otherwise
+-Remove need to have a defined matrix pin
+
+-To switch config per layer:
+    -Make a define for each layer/config combination to allow setting values in the json file,
+     then check for which ones are defined
+    -To check which layers have special settings, use a uint16_t and mask it when reading
+    -Each configuration of heights + rapid_trigger map is called a profile
+    -Make functions to switch to each profile
+    -Provide keybinds to call these functions
+    -Set the layers to activate the profile in profile_1_layers
+    -layer_state_set calls these functions when the layer appears in the array
+    -If the set layer is in these arrays, remap the heights in the struct
+    -Use the layer_state_set_kb function to change the heights for all keys in the key struct appropriately
+    -If the layer doesn't appear in these, nothing changes (or remaps to default maybe?)
 
 -info_defaults don't work?
 */
+
+//DEBUG
+// #undef HE_TOP_VALUES
+// #define HE_TOP_VALUES {[0 ... SWITCH_NUM] = 630 }
+// #undef HE_BOTTOM_VALUES
+// #define HE_BOTTOM_VALUES {[0 ... SWITCH_NUM] = 270 }

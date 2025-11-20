@@ -62,12 +62,6 @@ def matrix_pins(matrix_pins, postfix=''):
     if 'rows' in matrix_pins:
         pins.append(pin_array('MATRIX_ROW', matrix_pins['rows'], postfix))
 
-    if 'he_mux_pins' in matrix_pins:
-        pins.append(pin_array('HE_MUX_PINS', matrix_pins['he_mux_pins'], postfix))
-
-    if 'he_adc_pins' in matrix_pins:
-        pins.append(pin_array('HE_ADC_PINS', matrix_pins['he_adc_pins'], postfix))
-
     return '\n'.join(pins)
 
 
