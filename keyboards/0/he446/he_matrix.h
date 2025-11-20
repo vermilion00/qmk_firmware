@@ -121,6 +121,12 @@ volatile static const float rt_release_distance[] = RT_PRESS_DISTANCE;
 // #   define DEBUG_CALIBRATION FALSE
 // #endif
 
+/* Profile switching stuff */
+// We always have one profile, but switching isn't needed until we have two
+#if HE_PROFILES > 1
+void switch_to_profile(uint8_t profile);
+#endif
+
 /* Weak function defines */
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);
