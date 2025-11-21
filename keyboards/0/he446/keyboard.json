@@ -43,7 +43,10 @@
             "debug_scan_values": true,
             "no_eeprom": true,
             "top_values": [ 617, 634, 634, 707 ],
-            "bottom_values": [ 264, 261, 264, 333 ]
+            "bottom_values": [ 264, 261, 264, 333 ],
+            "profiles": 4,
+            "default_profile": 0,
+            "profile_switch_mode": "LAST"
         }
     },
     "debounce": 0,

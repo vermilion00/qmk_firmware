@@ -549,19 +549,19 @@
                     "properties": {
                         "trigger_height": {
                             "type": "array",
-                            "items": {"type": "number"}
+                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                         },
                         "release_height": {
                             "type": "array",
-                            "items": {"type": "number"}
+                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                         },
                         "rt_press_distance": {
                             "type": "array",
-                            "items": {"type": "number"}
+                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                         },
                         "rt_release_distance": {
                             "type": "array",
-                            "items": {"type": "number"}
+                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                         },
                         "rapid_trigger_type": {
                             "type": "string",
@@ -587,15 +587,177 @@
                         "no_eeprom": {"type": "boolean"},
                         "top_values": {
                             "type": "array",
-                                "items": {
-                                    "type": "integer"
-                                }
+                            "items": {
+                                "type": "integer"
+                            }
                         },
                         "bottom_values": {
                             "type": "array",
-                                "items": {
-                                    "type": "integer"
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                },
+                "profiles" : {
+                    "type": "object",
+                    "properties": {
+                        "default_profile": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "profile_switch_mode": {
+                            "type": "string",
+                            "enum": [
+                                "default",
+                                "last",
+                                "DEFAULT",
+                                "LAST"
+                            ]
+                        },
+                        "profile_0": {
+                            "type": "object",
+                            "properties": {
+                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
+                                "trigger_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "release_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_press_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_release_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rapid_trigger_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "none",
+                                        "rapid_trigger",
+                                        "constant_rapid_trigger",
+                                        "continuous_rapid_trigger",
+                                        "NONE",
+                                        "RAPID_TRIGGER",
+                                        "CONSTANT_RAPID_TRIGGER",
+                                        "CONTINUOUS_RAPID_TRIGGER"
+                                    ]
                                 }
+                            }
+                        },
+                        "profile_1": {
+                            "type": "object",
+                            "properties": {
+                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
+                                "trigger_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "release_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_press_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_release_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rapid_trigger_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "none",
+                                        "rapid_trigger",
+                                        "constant_rapid_trigger",
+                                        "continuous_rapid_trigger",
+                                        "NONE",
+                                        "RAPID_TRIGGER",
+                                        "CONSTANT_RAPID_TRIGGER",
+                                        "CONTINUOUS_RAPID_TRIGGER"
+                                    ]
+                                }
+                            }
+                        },
+                        "profile_2": {
+                            "type": "object",
+                            "properties": {
+                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
+                                "trigger_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "release_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_press_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_release_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_mask": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {"value": "boolean"}
+                                    }
+                                }
+                                "rapid_trigger_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "none",
+                                        "rapid_trigger",
+                                        "constant_rapid_trigger",
+                                        "continuous_rapid_trigger",
+                                        "NONE",
+                                        "RAPID_TRIGGER",
+                                        "CONSTANT_RAPID_TRIGGER",
+                                        "CONTINUOUS_RAPID_TRIGGER"
+                                    ]
+                                }
+                            }
+                        },
+                        "profile_3": {
+                            "type": "object",
+                            "properties": {
+                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
+                                "trigger_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "release_height": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_press_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rt_release_distance": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rapid_trigger_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "none",
+                                        "rapid_trigger",
+                                        "constant_rapid_trigger",
+                                        "continuous_rapid_trigger",
+                                        "NONE",
+                                        "RAPID_TRIGGER",
+                                        "CONSTANT_RAPID_TRIGGER",
+                                        "CONTINUOUS_RAPID_TRIGGER"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
