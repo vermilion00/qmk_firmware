@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/cdefs.h>
+#include "action_layer.h"
 #include "analog.h"
 #include "debug.h"
 #include "gpio.h"
@@ -159,30 +160,56 @@ void translate_mm_to_value(uint8_t index) {
     #if INVERT_ADC == FALSE
     // ADC count per mm of travel
     uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
+
     #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
     #if DISTANCE_FROM_BOTTOM == FALSE
-    he_matrix[index].trigger_value = top_value - (travel_unit * trigger_height[index]);
-    he_matrix[index].release_value = top_value - (travel_unit * release_height[index]);
-    #else
-    he_matrix[index].trigger_value = travel_unit * trigger_height[index] + bottom_value;
-    he_matrix[index].release_value = travel_unit * release_height[index] + bottom_value;
-    #endif// else DISTANCE_FROM_BOTTOM == FALSE
-    #endif
+    he_matrix[index].trigger_value = top_value - (travel_unit * trigger_height[HE_DEFAULT_PROFILE][index]);
+    he_matrix[index].release_value = top_value - (travel_unit * release_height[HE_DEFAULT_PROFILE][index]);
+
+    #else // if DISTANCE_FROM_BOTTOM == FALSE
+    he_matrix[index].trigger_value = travel_unit * trigger_height[HE_DEFAULT_PROFILE][index] + bottom_value;
+    he_matrix[index].release_value = travel_unit * release_height[HE_DEFAULT_PROFILE][index] + bottom_value;
+    #endif // else DISTANCE_FROM_BOTTOM == FALSE
+    #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+
     #else //Inverted ADC -> Lower switch means higher value
     uint16_t travel_unit = floor((bottom_value - top_value) / TRAVEL_DISTANCE);
+
     #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
     #if DISTANCE_FROM_BOTTOM == FALSE
-    he_matrix[index].trigger_value = top_value + (travel_unit * trigger_height[index]);
-    he_matrix[index].release_value = top_value + (travel_unit * release_height[index]);
-    #else
-    he_matrix[index].trigger_value = bottom_value - (travel_unit * trigger_height[index]);
-    he_matrix[index].release_value = bottom_value - (travel_unit * release_height[index]);
+    he_matrix[index].trigger_value = top_value + (travel_unit * trigger_height[HE_DEFAULT_PROFILE][index]);
+    he_matrix[index].release_value = top_value + (travel_unit * release_height[HE_DEFAULT_PROFILE][index]);
+
+    #else // if DISTANCE_FROM_BOTTOM == FALSE
+    he_matrix[index].trigger_value = bottom_value - (travel_unit * trigger_height[HE_DEFAULT_PROFILE][index]);
+    he_matrix[index].release_value = bottom_value - (travel_unit * release_height[HE_DEFAULT_PROFILE][index]);
     #endif // else DISTANCE_FROM_BOTTOM == FALSE
-    #endif
+    #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
     #endif //else INVERT ADC == TRUE
+
     #if RAPID_TRIGGER_TYPE != NONE
-    he_matrix[index].rt_press_value = travel_unit * rt_press_distance[index];
-    he_matrix[index].rt_release_value = travel_unit * rt_release_distance[index];
+    he_matrix[index].rt_press_value = travel_unit * rt_press_distance[HE_DEFAULT_PROFILE][index];
+    he_matrix[index].rt_release_value = travel_unit * rt_release_distance[HE_DEFAULT_PROFILE][index];
+    #endif
+
+    // Profile config translation
+    #if HE_PROFILE_NUM > 1
+    for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
+        #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+        #if DISTANCE_FROM_BOTTOM == FALSE
+        trigger_value[profile][index] = top_value - (travel_unit * trigger_height[profile][index]);
+        release_value[profile][index] = top_value - (travel_unit * trigger_height[profile][index]);
+        #else // if DISTANCE_FROM_BOTTOM == FALSE
+        trigger_value[profile][index] = travel_unit * trigger_height[profile][index] + bottom_value;
+        release_value[profile][index] = travel_unit * release_height[profile][index] + bottom_value;
+        #endif// else DISTANCE_FROM_BOTTOM == FALSE
+        #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+
+        #if RAPID_TRIGGER_TYPE != NONE
+        rt_press_value[profile][index] = travel_unit * rt_press_distance[profile][index];
+        rt_release_value[profile][index] = travel_unit * rt_release_distance[profile][index];
+        #endif
+    }
     #endif
 }
 
@@ -501,7 +528,49 @@ static inline void delay_ns(uint16_t delay) {
     }
 }
 
-void
+
+//MARK: Profiles
+#if HE_PROFILE_NUM > 1
+void switch_to_profile(uint8_t profile) {
+    if(profile == current_he_profile) { return; }
+
+    for(uint8_t key = 0; key < SWITCH_NUM; key++){
+        //TODO: Add per key rapid trigger here as well
+        #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+        he_matrix[key].trigger_value = trigger_value[profile][key];
+        he_matrix[key].release_value = release_value[profile][key];
+        #endif
+        #if RAPID_TRIGGER_TYPE != NONE
+        he_matrix[key].rt_press_value = rt_press_value[profile][key];
+        he_matrix[key].rt_release_value = rt_release_value[profile][key];
+        #endif
+    }
+    current_he_profile = profile;
+}
+
+
+//MARK: Layer state
+//TODO: Update this
+layer_state_t layer_state_set_kb(layer_state_t state) {
+    uint8_t highest_layer = get_highest_layer(state);
+    for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
+        // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
+        //TODO: Make this a thing, use python
+        // if(profile_layers[profile] & (1 << highest_layer)){
+        //     // A check if the profile is active already happens in the function, since it can be called from elsewhere
+        //     switch_to_profile(profile);
+        // }
+    }
+
+
+    // Need to return state for it to work correctly
+    return state;
+}
+
+
+//MARK: Get profile
+uint8_t get_current_profile(void) { return current_he_profile; }
+#endif // if HE_PROFILE_NUM > 1
 
 
 

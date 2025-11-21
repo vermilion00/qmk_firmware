@@ -1,6 +1,8 @@
 from qmk.constants import CHIBIOS_PROCESSORS, LUFA_PROCESSORS, VUSB_PROCESSORS
 from milc import cli
 
+MAX_PROFILES = 4
+
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
     value = f' {value}' if value is not None else ''
@@ -12,6 +14,7 @@ def generate_define(define, value=None):
 #ifndef {define}
 #    define {define}{value}
 #endif // {define}"""
+
 
 #MARK: Port def
 def get_port_def(json):
@@ -41,6 +44,78 @@ def check_mux_pins(he_json, port_def, config_h_lines, postfix=""):
         config_h_lines.append(generate_define('MUX_PINS_CONTINUOUS'))
         config_h_lines.append(generate_define('MUX_PIN_OFFSET', f'{init_offset}'))
         config_h_lines.append(generate_define('CONTINUOUS_MUX_PORT', f'{port_def}{port}'))
+
+
+#MARK: Profiles
+#TODO: Remove config height options, only use profiles for that
+def extract_profile_config(he_profiles, config_h_lines, switch_num):
+    """Extract the profile configuration"""
+    if 'switch_mode' in he_profiles:
+        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{he_profiles['switch_mode'].upper()}'))
+
+    trigger_heights = []
+    release_heights = []
+    press_distances = []
+    release_distances = []
+    rt_type = [0 for i in range(MAX_PROFILES)]
+    profile_num = 0
+    for profile in range(MAX_PROFILES):
+        profile_num += 1
+        if f'profile_{profile}' in he_profiles:
+            profile_num += 1
+            if 'trigger_height' in he_profiles[f'profile_{profile}']:
+                trigger_height = he_profiles[f'profile_{profile}']['trigger_height']
+                if len(trigger_height) == 1:
+                    trigger_height = [trigger_height[0] for num in range(switch_num)]
+                trigger_heights.append(trigger_height)
+                # config_h_lines.append(generate_define(f'TRIGGER_HEIGHT_{profile}', f'{{ {", ".join(map(str, trigger_height))} }}'))
+
+                if 'release_height' in he_profiles[f'profile_{profile}']:
+                    release_height = he_profiles[f'profile_{profile}']['release_height']
+                    if len(release_height) == 1:
+                        release_height = [release_height[0] for num in range(switch_num)]
+                    release_heights.append(release_height)
+                    # config_h_lines.append(generate_define(f'RELEASE_HEIGHT_{profile}', f'{{ {", ".join(map(str, release_height))} }}'))
+                #If no release height is defined, set it to the trigger height
+                else:
+                    release_heights.append(trigger_height)
+            else:   # No trigger height defined
+                #TODO: Check if uneven arrays cause issues in c
+                trigger_heights.append([])
+                release_heights.append([])
+
+            if 'rapid_trigger_type' in he_profiles[f'profile_{profile}']:
+                rt_type[profile] = he_profiles[f'profile_{profile}'].upper()
+
+                rt_press_distance = he_profiles[f'profile_{profile}']['rt_press_distance']
+                if len(rt_press_distance) == 1:
+                    rt_press_distance = [rt_press_distance[0] for num in range(switch_num)]
+                press_distances.append(rt_press_distance)
+
+                if 'rt_release_distance' in he_profiles[f'profile_{profile}']:
+                    rt_release_distance = he_profiles[f'profile_{profile}']['rt_release_distance']
+                    if len(rt_release_distance) == 1:
+                        rt_release_distance = [rt_release_distance[0] for num in range(switch_num)]
+                    release_distances.append(rt_release_distance)
+                #If no release distance is defined, set it to the press distance
+                else:
+                    release_distances.append(rt_press_distance)
+            else:   #No RT defined
+                press_distances.append([])
+                release_distances.append([])
+
+        else: # Profile isn't in the json
+            break
+
+    # Add the profile config to info_config.h
+
+
+
+
+
+
+
+
 
 
 #MARK: Validation
@@ -107,27 +182,23 @@ def validate_hall_effect_config(he_json):
 
 
 #MARK: Height validation
-def validate_height_config(he_config, configs, invert_adc, from_bottom):
-    #TODO: Simplify this
+def validate_height_config(he_config, invert_adc, from_bottom):
     if (invert_adc and from_bottom) or (not invert_adc and not from_bottom):
-        if 'trigger_height' in configs and 'release_height' in configs:
+        if 'trigger_height' in he_config and 'release_height' in he_config:
             for idx, i in enumerate(he_config['trigger_height']):
                 if i < he_config['release_height'][idx]:
                     raise Exception(f'The trigger height for key {idx} is higher than the release height when it needs to be lower.')
     else:
-        if 'trigger_height' in configs and 'release_height' in configs:
+        if 'trigger_height' in he_config and 'release_height' in he_config:
             for idx, i in enumerate(he_config['trigger_height']):
                 if i > he_config['release_height'][idx]:
                     raise Exception(f'The trigger height for key {idx} is lower than the release height when it needs to be higher.')
-
-    #The press distance can actually be higher than the release distance, no need to check
 
 
 #MARK: Extraction
 def generate_hall_effect_config(hall_effect_json, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
     validate_hall_effect_config(hall_effect_json)
-    configs = []
 
     #TODO: Add config for correct us delay function, maybe in gpio func?
 
@@ -148,7 +219,6 @@ def generate_hall_effect_config(hall_effect_json, config_h_lines):
     #Config stuff
     if 'trigger_height' in hall_effect_json['config']:
         trigger_height = hall_effect_json['config']['trigger_height']
-        configs.append('trigger_height')
         if len(trigger_height) == 1:
             height = trigger_height[0]
             trigger_height = [height for num in range(switch_num)]
@@ -156,7 +226,6 @@ def generate_hall_effect_config(hall_effect_json, config_h_lines):
 
         if 'release_height' in hall_effect_json['config']:
             release_height = hall_effect_json['config']['release_height']
-            configs.append('release_height')
             if len(release_height) == 1:
                 height = release_height[0]
                 release_height = [height for num in range(switch_num)]
@@ -197,4 +266,4 @@ def generate_hall_effect_config(hall_effect_json, config_h_lines):
     else:
         from_bottom = False
 
-    validate_height_config(hall_effect_json['config'], configs, invert_adc, from_bottom)
+    validate_height_config(hall_effect_json['config'], invert_adc, from_bottom)
