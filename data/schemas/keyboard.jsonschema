@@ -522,6 +522,12 @@
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "calibration_key": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "items": {"type": "integer"}
+                        },
                         "mux_to_num": {
                             "type": "array",
                             "items": {
@@ -632,6 +638,10 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
+                                "rapid_trigger_keys": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                },
                                 "rapid_trigger_type": {
                                     "type": "string",
                                     "enum": [
@@ -666,6 +676,10 @@
                                 "rt_release_distance": {
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rapid_trigger_keys": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",
@@ -702,13 +716,10 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
-                                "rt_mask": {
+                                "rapid_trigger_keys": {
                                     "type": "array",
-                                    "items": {
-                                        "type": "array",
-                                        "items": {"value": "boolean"}
-                                    }
-                                }
+                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                },
                                 "rapid_trigger_type": {
                                     "type": "string",
                                     "enum": [
@@ -743,6 +754,10 @@
                                 "rt_release_distance": {
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
+                                },
+                                "rapid_trigger_keys": {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",
