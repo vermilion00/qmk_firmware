@@ -11,28 +11,52 @@
 #include "analog.h"
 #include "constants.h"
 #include "matrix.h"
+#include "util.h"
+
+/* Current matrix implementation:
+ * matrix is an array of Switch structs, which hold all information relevant to the switch
+ * Each height param is an array holding the values for all profiles.
+ */
+
+typedef struct Profile {
+    layer_state_t layers;
+    // #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+    // uint16_t trigger_value[SWITCH_NUM];
+    // uint16_t release_value[SWITCH_NUM];
+    // #endif
+    // #if RAPID_TRIGGER_TYPE != NONE
+    rt_type_t rt_type;
+    // uint16_t rt_press_value[SWITCH_NUM];
+    // uint16_t rt_release_value[SWITCH_NUM];
+    // uint16_t rt_mask[ceil(SWITCH_NUM/16)];
+    uint16_t rt_mask[CEILING(SWITCH_NUM, 16)];
+    // #endif
+} Profile;
 
 typedef struct Switch {
     uint8_t pressed;
-#   if RAPID_TRIGGER_TYPE != NONE
     // Is rapid trigger enabled for this switch?
-    uint8_t rt_enabled;
+    //TODO: Maybe allow setting the mode for each individual switch, if it's already uint8
+    rt_type_t rt_type[HE_PROFILE_NUM];
+#   if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
     uint16_t rt_press_threshold;
     // The distance that the switch is required to travel downwards before it's registered as pressed
-    uint16_t rt_press_value;
+    uint16_t rt_press_value[HE_PROFILE_NUM];
     // The distance that the switch is required to travel upwards before it's registered as released
-    uint16_t rt_release_value;
+    uint16_t rt_release_value[HE_PROFILE_NUM];
 #   endif
-#   if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+#   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
     // The switch is counted as pressed below this value
-    uint16_t trigger_value;
+    uint16_t trigger_value[HE_PROFILE_NUM];
     // The switch is counted as released above this value
-    uint16_t release_value;
+    uint16_t release_value[HE_PROFILE_NUM];
 #   endif
     uint16_t bottom_value;
     uint16_t top_value;
+    uint8_t row;
+    uint8_t col;
 } Switch;
 
 volatile static Switch he_matrix[SWITCH_NUM];
@@ -41,6 +65,10 @@ volatile static const pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif
 volatile static const pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
 volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
+
+//TODO: Make one user defined mux_to_matrix[MUX_CHANNELS][ADC_PIN_NUM][2] thing
+//      and split it into these two using python
+//      Add a parameter to the layout macro and derive it from there
 // Used to translate from the ADC pin/Mux combination to the switch number
 volatile static const uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
 // Used to translate from the switch number to the QMK layout position
@@ -49,27 +77,15 @@ volatile static const uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
 volatile static const pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
 #endif
 
-#if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-// volatile static const float trigger_height[SWITCH_NUM] = TRIGGER_HEIGHT;
-//TODO: Change the definition in python to make this one define instead of 4
-volatile static const float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = {TRIGGER_HEIGHT TRIGGER_HEIGHT1 TRIGGER_HEIGHT2 TRIGGER_HEIGHT3};
-#if defined RELEASE_HEIGHT
-// volatile static const float release_height[SWITCH_NUM] = RELEASE_HEIGHT;
-volatile static const float release_height[HE_PROFILE_NUM][SWITCH_NUM] = {RELEASE_HEIGHT RELEASE_HEIGHT1 RELEASE_HEIGHT2 RELEASE_HEIGHT3};
-#else
-volatile static const float release_height[HE_PROFILE_NUM][SWITCH_NUM] = {TRIGGER_HEIGHT TRIGGER_HEIGHT1 TRIGGER_HEIGHT2 TRIGGER_HEIGHT3};
-#endif
-#endif
-#if RAPID_TRIGGER_TYPE != NONE
-volatile static const float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = {RT_PRESS_DISTANCE RT_PRESS_DISTANCE1 RT_PRESS_DISTANCE2 RT_PRESS_DISTANCE3};
-#if defined RT_RELEASE_DISTANCE
-volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = {RT_RELEASE_DISTANCE RT_RELEASE_DISTANCE1 RT_RELEASE_DISTANCE2 RT_RELEASE_DISTANCE3};
-#else
-volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = {RT_PRESS_DISTANCE RT_PRESS_DISTANCE1 RT_PRESS_DISTANCE2 RT_PRESS_DISTANCE3};
-#endif
+#if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+volatile static const float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+volatile static const float release_height[HE_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
 #endif
 
-
+#if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+volatile static const float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+#endif
 
 
 /* Configuration defaults */
@@ -108,48 +124,18 @@ volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = {R
 #ifdef POWER_SELECT_DELAY
 #   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
 #endif
-//TODO: I don't think these are needed
-// #ifndef INVERT_ADC
-// #   define INVERT_ADC FALSE
-// #endif
-// #ifndef POWER_BEFORE_SCAN
-// #   define POWER_BEFORE_SCAN FALSE
-// #endif
-// #ifndef CUSTOM_POWER_BEFORE_SCAN
-// #   define CUSTOM_POWER_BEFORE_SCAN FALSE
-// #endif
-// #ifndef DEBUG_SCAN_VALUE
-// #   define DEBUG_SCAN_VALUE FALSE
-// #endif
-// #ifndef DEBUG_CALIBRATION
-// #   define DEBUG_CALIBRATION FALSE
-// #endif
 
-#define HE_PROFILE_NUM 4
+
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
 #if HE_PROFILE_NUM > 1
-uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+// volatile uint8_t current_he_profile;
 void switch_to_profile(uint8_t profile);
-#if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-volatile static uint16_t trigger_value[HE_PROFILE_NUM][SWITCH_NUM];
-volatile static uint16_t release_value[HE_PROFILE_NUM][SWITCH_NUM];
-#endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-#if RAPID_TRIGGER_TYPE != NONE
-volatile static uint16_t rt_press_value[HE_PROFILE_NUM][SWITCH_NUM];
-volatile static uint16_t rt_release_value[HE_PROFILE_NUM][SWITCH_NUM];
-#endif // if RAPID_TRIGGER_TYPE != NONE
 
-typedef struct Profile {
-    //heights are stored in their own array
-    layer_state_t layers;
-    rapid_trigger_t rt_type;
-    matrix_row_t rt_mask[MATRIX_COLS];
-} Profile;
-
-volatile static const Profile profiles[HE_PROFILE_NUM] = {{0, 0, {0,0,0}}, {2, 1, 5}};
-// volatile static const Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
+//TODO: If NO_EEPROM is defined
+// volatile static Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
 #endif // if HE_PROFILE_NUM > 1
+volatile static const Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
 
 /* Function defines */
 uint8_t get_current_profile(void);
