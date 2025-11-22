@@ -13,7 +13,7 @@ from qmk.commands import dump_lines, parse_configurator_json
 from qmk.path import normpath, FileType
 from qmk.constants import GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE
 
-from qmk.he_config_h import get_port_def, check_mux_pins, generate_hall_effect_config
+from qmk.he_config_h import get_port_def, check_mux_pins, generate_hall_effect_config, generate_profile_config
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -191,9 +191,14 @@ def generate_config_h(cli):
 
     #MARK: Main function
     if 'hall_effect' in kb_info_json:
-        generate_hall_effect_config(kb_info_json['hall_effect'], config_h_lines)
+        switch_num = generate_hall_effect_config(kb_info_json['hall_effect'], config_h_lines)
         port_def = get_port_def(kb_info_json)
         check_mux_pins(kb_info_json['hall_effect'], port_def, config_h_lines)
+        #TODO: Fix this, doesn't seem to cause problems but whatever
+        if 'profiles' in kb_info_json['hall_effect']:
+            generate_profile_config(kb_info_json['hall_effect']['profiles'], config_h_lines, switch_num)
+        #TODO: Make this less of a hack
+        config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0""")
 
     if 'matrix_pins' in kb_info_json:
         config_h_lines.append(matrix_pins(kb_info_json['matrix_pins']))

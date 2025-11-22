@@ -36,17 +36,36 @@
             "deadzone": 3
         },
         "config": {
-            "trigger_height": [0.3],
-            "release_height": [0.2],
-            "rt_press_distance": [0.3],
             "scans_without_change": 250000,
-            "debug_scan_values": true,
             "no_eeprom": true,
-            "top_values": [ 617, 634, 634, 707 ],
-            "bottom_values": [ 264, 261, 264, 333 ],
-            "profiles": 4,
+            "debug_scan_values": true,
+            "top_values": [ 618, 636, 697, 706 ],
+            "bottom_values": [ 264, 261, 264, 243 ]
+        },
+        "profiles": {
             "default_profile": 0,
-            "profile_switch_mode": "LAST"
+            "profile_switch_mode": "LAST",
+            "profile_0": {
+                "rt_press_distance": [0.3],
+                "rapid_trigger_type": "constant_rapid_trigger",
+                "rapid_trigger_keys": [1],
+                "layers": [0, 3, 5, 2, 4]
+            },
+            "profile_1": {
+                "trigger_height": [1.5],
+                "release_height": [0.3],
+                "rapid_trigger_type": "none",
+                "rapid_trigger_keys": [0],
+                "layers": [0, 1, 2, 4]
+            },"profile_2": {
+                "trigger_height": [1.5],
+                "release_height": [0.3],
+                "rt_press_distance": [0.3],
+                "rt_release_distance": [0.5],
+                "rapid_trigger_type": "rapid_trigger",
+                "rapid_trigger_keys": [1],
+                "layers": [0, 1, 2, 4]
+            }
         }
     },
     "debounce": 0,
