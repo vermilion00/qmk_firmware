@@ -451,7 +451,8 @@
                                 "hand": {
                                     "type": "string",
                                     "enum": ["L", "R", "*"]
-                                }
+                                },
+                                "mux": {"$ref": "./definitions.jsonschema#/matrix_position"}
                             }
                         }
                     }
@@ -523,29 +524,34 @@
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "calibration_key": {
-                            "type": "array",
-                            "minItems": 2,
-                            "maxItems": 2,
-                            "items": {"type": "integer"}
-                        },
+                        "calibration_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "mux_to_num": {
                             "type": "array",
                             "items": {
                                 "type": "array",
-                                "items": {
-                                    "type": "integer"
-                                }
+                                "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                             }
                         },
                         "num_to_matrix": {
                             "type": "array",
+                            "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                        },
+                        "mux_to_matrix": {
+                            "type": "array",
                             "items": {
                                 "type": "array",
-                                "minItems": 2,
-                                "maxItems": 2,
                                 "items": {
-                                    "type": "integer"
+                                    "oneOf": [
+                                        {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                        {
+                                            "type": "string",
+                                            "enum": ["X", "none", "NONE"]
+                                        },
+                                        {
+                                            "type": "integer",
+                                            "enum": [0]
+                                        }
+                                    ]
                                 }
                             }
                         }
