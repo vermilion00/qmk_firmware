@@ -55,7 +55,7 @@ void matrix_init_custom(void) {
         gpio_set_pin_output_push_pull(mux_pins[i]);
     }
     #endif
-    #if POWER_BEFORE_SCAN == TRUE
+    #if POWER_BEFORE_SCAN == TRUE || POWER_BEFORE_SCAN_MIDDLE == TRUE
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
@@ -649,11 +649,15 @@ __attribute__((weak)) void sensor_power_high_kb(uint8_t mux_channel) { sensor_po
 
 __attribute__((weak)) void sensor_power_low_kb(uint8_t mux_channel) { sensor_power_low_user(mux_channel); }
 
+__attribute__((weak)) void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel) { sensor_power_toggle_user(mux_channel, adc_channel); }
+
 __attribute__((weak)) void sensor_power_init_user(void) {}
 
 __attribute__((weak)) void sensor_power_high_user(uint8_t mux_channel) {}
 
 __attribute__((weak)) void sensor_power_low_user(uint8_t mux_channel) {}
+
+__attribute__((weak)) void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel) {}
 
 
 

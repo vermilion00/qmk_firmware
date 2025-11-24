@@ -15,9 +15,6 @@
 		"lto": false,
         "debounce_type": "sym_eager_pk"
 	},
-	"matrix_pins": {
-		"direct": [["C13"]]
-    },
     "features": {
         "mousekey": true,
         "console": true
@@ -26,11 +23,7 @@
         "hardware": {
             "mux_pins": ["B12"],
             "adc_pins": ["A0", "A6", "A4"],
-            "mux_to_num":  [
-                [1, 2, 3],
-                [0, 0, 4]
-            ],
-            "num_to_matrix": [[0, 0], [0, 1], [0, 2], [0, 3]],
+            "power_pins": ["B13", "B14"],
             "travel_distance": 4.0,
             "smoothing": 1,
             "deadzone": 3
@@ -68,14 +61,13 @@
             }
         }
     },
-    "debounce": 0,
     "layouts": {
         "LAYOUT": {
             "layout": [
-                {"matrix": [0, 0], "x": 0, "y": 0},
-                {"matrix": [0, 1], "x": 0, "y": 0},
-                {"matrix": [0, 2], "x": 0, "y": 0},
-                {"matrix": [0, 3], "x": 0, "y": 0}
+                {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
+                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]},
+                {"matrix": [0, 2], "x": 0, "y": 0, "mux": [0, 2]},
+                {"matrix": [0, 3], "x": 0, "y": 0, "mux": [1, 2]}
             ]
         }
     }

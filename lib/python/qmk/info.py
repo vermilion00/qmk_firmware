@@ -17,6 +17,8 @@ from qmk.makefile import parse_rules_mk_file
 from qmk.math import compute
 from qmk.util import maybe_exit, truthy
 
+from qmk.he_config_h import _transform_he
+
 true_values = ['1', 'on', 'yes']
 false_values = ['0', 'off', 'no']
 
@@ -114,6 +116,7 @@ def _validate_build_target(keyboard, info_data):
 def _validate_layouts(keyboard, info_data):  # noqa C901
     """Non schema checks
     """
+    #TODO: Override these checks with he
     col_num = info_data.get('matrix_size', {}).get('cols', 0)
     row_num = info_data.get('matrix_size', {}).get('rows', 0)
     layouts = info_data.get('layouts', {})
@@ -220,6 +223,7 @@ def _validate(keyboard, info_data):
         maybe_exit(1)
 
 
+#MARK: Main function
 def info_json(keyboard, force_layout=None):
     """Generate the info.json data for a specific keyboard.
     """
@@ -250,6 +254,9 @@ def info_json(keyboard, force_layout=None):
     info_data = _process_defaults(info_data)
     info_data = _extract_rules_mk(info_data, rules_mk(str(keyboard)))
     info_data = _extract_config_h(info_data, config_h(str(keyboard)))
+
+    # If hall effect is used, transform the HE matrix
+    info_data = _transform_he(info_data)
 
     # Ensure that we have various calculated values
     info_data = _matrix_size(info_data)
@@ -517,6 +524,7 @@ def _extract_split_transport(info_data, config_c):
         transport['sync']['modifiers'] = transport.pop('sync_modifiers')
 
 
+#TODO: Might need to add mappings for he pins here
 def _extract_split_right_pins(info_data, config_c):
     # Figure out the right half matrix pins
     row_pins = config_c.get('MATRIX_ROW_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
@@ -807,14 +815,20 @@ def _extract_led_config(info_data, keyboard):
 def _matrix_size(info_data):
     """Add info_data['matrix_size'] if it doesn't exist.
     """
+    if 'matrix_size' not in info_data and 'hall_effect' in info_data:
+        info_data['matrix_size'] = {}
+        matrix = info_data['hall_effect']['hardware']['num_to_matrix']
+        info_data['matrix_size']['rows'] = max([i[0] for i in matrix]) + 1
+        info_data['matrix_size']['cols'] = max([i[1] for i in matrix]) + 1
+
+        if 'split' in info_data:
+            if info_data['split'].get('enabled', False):
+                info_data['matrix_size']['rows'] *= 2
+
     if 'matrix_size' not in info_data and 'matrix_pins' in info_data:
         info_data['matrix_size'] = {}
 
-        if 'hall_effect' in info_data:
-            matrix = info_data['hall_effect']['hardware']['num_to_matrix']
-            info_data['matrix_size']['rows'] = max([i[0] for i in matrix]) + 1
-            info_data['matrix_size']['cols'] = max([i[1] for i in matrix]) + 1
-        elif 'direct' in info_data['matrix_pins']:
+        if 'direct' in info_data['matrix_pins']:
             info_data['matrix_size']['cols'] = len(info_data['matrix_pins']['direct'][0])
             info_data['matrix_size']['rows'] = len(info_data['matrix_pins']['direct'])
         elif 'cols' in info_data['matrix_pins'] and 'rows' in info_data['matrix_pins']:
@@ -861,30 +875,32 @@ def _matrix_masked(info_data):
 def _check_matrix(info_data):
     """Check the matrix to ensure that row/column count is consistent.
     """
-    # Hall effect size checks happen in he_config_h.py
-    if 'hall_effect' not in info_data:
-        if 'matrix_pins' in info_data and 'matrix_size' in info_data:
-            actual_col_count = info_data['matrix_size'].get('cols', 0)
-            actual_row_count = info_data['matrix_size'].get('rows', 0)
-            col_count = row_count = 0
+    if 'matrix_pins' in info_data and 'matrix_size' in info_data:
+        actual_col_count = info_data['matrix_size'].get('cols', 0)
+        actual_row_count = info_data['matrix_size'].get('rows', 0)
+        col_count = row_count = 0
 
-            if 'direct' in info_data['matrix_pins']:
-                col_count = len(info_data['matrix_pins']['direct'][0])
-                row_count = len(info_data['matrix_pins']['direct'])
-            elif 'cols' in info_data['matrix_pins'] and 'rows' in info_data['matrix_pins']:
-                col_count = len(info_data['matrix_pins']['cols'])
-                row_count = len(info_data['matrix_pins']['rows'])
-            elif 'cols' not in info_data['matrix_pins'] and 'rows' not in info_data['matrix_pins']:
-                # This case caters for custom matrix implementations where normal rows/cols are specified
-                return
+        # Skip matrix check since HE matrix is checked elsewhere
+        if 'hall_effect' in info_data:
+            return
 
-            if col_count != actual_col_count and col_count != (actual_col_count / 2):
-                # FIXME: once we can we should detect if split is enabled to do the actual_col_count/2 check.
-                _log_error(info_data, f'MATRIX_COLS is inconsistent with the size of MATRIX_COL_PINS: {col_count} != {actual_col_count}')
+        if 'direct' in info_data['matrix_pins']:
+            col_count = len(info_data['matrix_pins']['direct'][0])
+            row_count = len(info_data['matrix_pins']['direct'])
+        elif 'cols' in info_data['matrix_pins'] and 'rows' in info_data['matrix_pins']:
+            col_count = len(info_data['matrix_pins']['cols'])
+            row_count = len(info_data['matrix_pins']['rows'])
+        elif 'cols' not in info_data['matrix_pins'] and 'rows' not in info_data['matrix_pins']:
+            # This case caters for custom matrix implementations where normal rows/cols are specified
+            return
 
-            if row_count != actual_row_count and row_count != (actual_row_count / 2):
-                # FIXME: once we can we should detect if split is enabled to do the actual_row_count/2 check.
-                _log_error(info_data, f'MATRIX_ROWS is inconsistent with the size of MATRIX_ROW_PINS: {row_count} != {actual_row_count}')
+        if col_count != actual_col_count and col_count != (actual_col_count / 2):
+            # FIXME: once we can we should detect if split is enabled to do the actual_col_count/2 check.
+            _log_error(info_data, f'MATRIX_COLS is inconsistent with the size of MATRIX_COL_PINS: {col_count} != {actual_col_count}')
+
+        if row_count != actual_row_count and row_count != (actual_row_count / 2):
+            # FIXME: once we can we should detect if split is enabled to do the actual_row_count/2 check.
+            _log_error(info_data, f'MATRIX_ROWS is inconsistent with the size of MATRIX_ROW_PINS: {row_count} != {actual_row_count}')
 
 
 def _search_keyboard_h(keyboard):

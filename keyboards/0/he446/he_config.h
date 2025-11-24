@@ -10,18 +10,15 @@
 -Check if trigger height checks happen against the actual switch or not, switch d seems not to check correctly
 -Try a higher buffer depth and circular buffer?
 -Implement dynamic calibration as an alternative
--Remove need to have a defined matrix pin
 -Add always inline stuff
 -To implement dynamic calibration
     -Check if the value is outside the bounds, if yes, save the new value to the switch
     -Then call translation function on that switch
     -Automatically move the bounds towards the center if they haven't been reached in x activations
 
--Merge mux to num and num to matrix by defining mux_to_num with [row, col]
- instead of the matrix index, and splitting them up via python
-    -Check if the layout array allows defining an extra parameter, which could be the [ADC_PIN][MUX_CHANNEL] combo
--Refactor height arrays to be in the config struct instead
 -Generate a matrix_to_num array from num_to_matrix to translate calibration_key and bootmagic keys
+
+-Change power_before_scan to always have two active pins, if used ignore power_delay
 
 -info_defaults don't work?
 -Pins are set to input by default -> check if QMK sets unused pins to output, if not diy
