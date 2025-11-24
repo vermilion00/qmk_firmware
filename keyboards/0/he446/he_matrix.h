@@ -28,7 +28,6 @@ typedef struct Profile {
     rt_type_t rt_type;
     // uint16_t rt_press_value[SWITCH_NUM];
     // uint16_t rt_release_value[SWITCH_NUM];
-    // uint16_t rt_mask[ceil(SWITCH_NUM/16)];
     uint16_t rt_mask[CEILING(SWITCH_NUM, 16)];
     // #endif
 } Profile;
@@ -64,6 +63,7 @@ volatile static Switch he_matrix[SWITCH_NUM];
 volatile static const pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif
 volatile static const pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
+// During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
 volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
 
 //TODO: Make one user defined mux_to_matrix[MUX_CHANNELS][ADC_PIN_NUM][2] thing
@@ -73,6 +73,11 @@ volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
 volatile static const uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
 // Used to translate from the switch number to the QMK layout position
 volatile static const uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
+// Used to translate from the QMK layout position to the switch number
+// volatile static const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+// Used to translate from the matrix index to the ADC pin/Mux combination
+// volatile static const uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
+
 #ifdef POWER_PINS
 volatile static const pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
 #endif
@@ -125,15 +130,11 @@ volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT
 #   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
 #endif
 
-
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
 #if HE_PROFILE_NUM > 1
 // volatile uint8_t current_he_profile;
 void switch_to_profile(uint8_t profile);
-
-//TODO: If NO_EEPROM is defined
-// volatile static Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
 #endif // if HE_PROFILE_NUM > 1
 volatile static const Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
 
