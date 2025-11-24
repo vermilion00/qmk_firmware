@@ -6,6 +6,8 @@
 #include <sys/cdefs.h>
 #include "action_layer.h"
 #include "analog.h"
+#include "bootloader.h"
+#include "bootmagic/bootmagic.h"
 #include "debug.h"
 #include "gpio.h"
 #include "hal_pal.h"
@@ -38,6 +40,8 @@ void calibrate_switches(void);
 static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
+// Initialize the keys to be checked at initialization
+void scan_init_keys(void);
 
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
 
@@ -85,8 +89,48 @@ void matrix_init_custom(void) {
         translate_mm_to_value(index);
     }
 
+    //TODO: Scan init keys
+    scan_init_keys();
+
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
+}
+
+
+//MARK: Init keys
+void scan_init_keys(void) {
+    uint16_t adc_value;
+    uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
+    void (*init_function[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
+
+    for(uint8_t idx = 0; idx < HE_INIT_KEY_NUM; idx++) {
+        #if POWER_BEFORE_SCAN == TRUE
+        gpio_write_pin_high(power_pins[init_keys[idx][0]]);
+        #ifdef POWER_SELECT_DELAY
+        delay_ns(POWER_SELECT_CYCLES);
+        #endif // POWER_SELECT_DELAY
+        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        sensor_power_high_kb(init_keys[idx][0]);
+        #endif // CUSTOM_POWER_BEFORE_SCAN
+        set_mux_channel(init_keys[idx][0]);
+        #ifdef MUX_SELECT_DELAY
+        delay_ns(MUX_SELECT_CYCLES);
+        #endif // MUX_SELECT_DELAY
+        uint8_t matrix_index = mux_to_num[init_keys[idx][0]][init_keys[idx][1]];
+        adc_value = adc_read(adc_pin_mux[init_keys[idx][1]]);
+        #if POWER_BEFORE_SCAN == TRUE
+        gpio_write_pin_low(power_pins[init_keys[idx][0]]);
+        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        sensor_power_low_kb(init_keys[idx][0]);
+        #endif // CUSTOM_POWER_BEFORE_SCAN
+        if(evaluate_value(matrix_index, adc_value)) {
+            //TODO: Figure this out
+            // If the key is activated, call the respective function
+            // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
+            (*init_function[idx])();
+        }
+    }
+
 }
 
 

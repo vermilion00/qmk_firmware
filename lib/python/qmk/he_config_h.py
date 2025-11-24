@@ -10,10 +10,20 @@ INIT_KEYS = {
     'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
     'CALIBRATION_KEY_RIGHT': 'hall_effect.config.calibration_key_right',
     'BOOTMAGIC_KEY': 'hall_effect.config.bootmagic_key',
-    'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right'
-    #TODO: Defining these currently causes issues
+    'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right',
+    'BOOTLOADER_KEY': 'hall_effect.config.bootloader_key',
+    'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right'
+    #TODO: Defining these in json currently causes issues
     # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
     # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
+}
+
+# _RIGHT keys automatically translate to their left variant
+#TODO: Reassign bootmagic key to proper function, since it should also reset eeprom in case of issues
+INIT_FUNCTIONS = {
+    'BOOTLOADER_KEY': 'bootloader_jump',
+    'BOOTMAGIC_KEY': 'bootloader_jump',
+    'CALIBRATION_KEY': 'calibrate_switches'
 }
 
 def generate_define(define, value=None):
@@ -182,6 +192,9 @@ def transform_init_keys(info_data, config_h_lines):
     #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
     matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
     num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
+    init_functions = []
+    init_keys = []
+    init_key_num = 0
 
     for key in INIT_KEYS:
         path = INIT_KEYS[key]
@@ -189,7 +202,17 @@ def transform_init_keys(info_data, config_h_lines):
             key_pos = info_data[path]
             key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]]-1]
             print(f'Found key {path} with mux {key_mux}')
-            config_h_lines.append(generate_define(key, str(key_mux).replace('[', '{').replace(']', '}')))
+            init_keys.append(key_mux)
+            init_key_num += 1
+            if len(key) > 6 and key[-6:] == '_RIGHT':
+                key = key[:-6]
+            init_functions.append(INIT_FUNCTIONS[key])
+    if len(init_functions) > 0:
+        config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
+        # config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', str(init_functions).replace('[', '{').replace(']', '}')))
+        #TODO: This way I can define the function names as strings and have them be defined as functions
+        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
+        config_h_lines.append(generate_define('HE_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
 
 
 #MARK: Profiles
