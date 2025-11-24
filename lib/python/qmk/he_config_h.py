@@ -2,8 +2,19 @@ from qmk.constants import CHIBIOS_PROCESSORS, LUFA_PROCESSORS, VUSB_PROCESSORS
 from milc import cli
 
 # If you want to have more profiles, you also need to add the objects to keyboard.jsonschema
+#TODO: Rework profile scanning function to loop through all things in profile object
+#      and ignore things that don't start in profile_
 MAX_PROFILES = 4
 NO_KEY = ["X", None, 0, "none", "NONE"]
+INIT_KEYS = {
+    'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
+    'CALIBRATION_KEY_RIGHT': 'hall_effect.config.calibration_key_right',
+    'BOOTMAGIC_KEY': 'hall_effect.config.bootmagic_key',
+    'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right'
+    #TODO: Defining these currently causes issues
+    # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
+    # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
+}
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -27,9 +38,13 @@ def _transform_he(info_data):
 
     # Nothing needs to be done
     if 'mux_to_num' in he_hardware and 'num_to_matrix' in he_hardware:
-        return info_data
+        pass
 
     elif 'mux_to_matrix' in he_hardware:
+        if'mux_to_num' in he_hardware:
+            print("mux_to_matrix and mux_to_num defined, but num_to_matrix is missing. mux_to_num will be overwritten by mux_to_matrix.")
+        elif 'num_to_matrix' in he_hardware:
+            print("mux_to_matrix and num_to_matrix defined, but mux_to_num is missing. num_to_matrix will be overwritten by mux_to_matrix.")
         info_data = _transform_mtm(info_data)
 
     else:
@@ -108,6 +123,30 @@ def _transform_layout(info_data):
     return info_data
 
 
+#MARK: Matrix_to_mux
+# Generates a reverse matrix transformation array for the initialization keys
+def get_matrix_to_mux(info_data, config_h_lines):
+    mux_to_num = info_data['hall_effect']['hardware']['mux_to_num']
+    num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix']
+    switch_num = info_data['hall_effect']['hardware']['switch_num']
+    rows = info_data['matrix_size']['rows']
+    cols = info_data['matrix_size']['cols']
+    num_to_mux = [[] for _ in range(switch_num)]
+    for row_idx, row in enumerate(mux_to_num):
+        for col_idx, idx in enumerate(row):
+            num_to_mux[idx-1] = [row_idx, col_idx]
+    config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
+    info_data['hall_effect']['hardware']['num_to_mux'] = num_to_mux
+
+    matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+    for idx, pos in enumerate(num_to_matrix):
+        matrix_to_num[pos[0]][pos[1]] = idx + 1
+    config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
+    info_data['hall_effect']['hardware']['matrix_to_num'] = matrix_to_num
+
+    return info_data
+
+
 #MARK: Port def
 def get_port_def(json):
     if json['processor'] in CHIBIOS_PROCESSORS:
@@ -138,13 +177,26 @@ def check_mux_pins(he_json, port_def, config_h_lines, postfix=""):
         config_h_lines.append(generate_define('CONTINUOUS_MUX_PORT', f'{port_def}{port}'))
 
 
+#MARK: Init keys
+def transform_init_keys(info_data, config_h_lines):
+    #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
+    matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
+    num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
+
+    for key in INIT_KEYS:
+        path = INIT_KEYS[key]
+        if path in info_data:
+            key_pos = info_data[path]
+            key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]]-1]
+            print(f'Found key {path} with mux {key_mux}')
+            config_h_lines.append(generate_define(key, str(key_mux).replace('[', '{').replace(']', '}')))
+
+
 #MARK: Profiles
 #TODO: Remove config height options, only use profiles for that
 def generate_profile_config(he_json, config_h_lines):
     """Extract the profile configuration"""
     he_profiles = he_json['profiles']
-    if 'switch_mode' in he_profiles:
-        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{he_profiles['switch_mode'].upper()}'))
 
     switch_num = he_json['hardware']['switch_num']
     trigger_heights = []
@@ -261,8 +313,21 @@ def generate_profile_config(he_json, config_h_lines):
         else: # Profile isn't in the json
             break
 
+    # Check default profile
+    if 'switch_mode' in he_profiles:
+        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{he_profiles['switch_mode'].upper()}'))
+    else:
+        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', 'LAST'))
+
+    default_profile = he_profiles.get('default_profile', 0)
+    profile_num = 1 if profile_num <= 1 else profile_num
+    if default_profile >= profile_num:
+        print(f"Default profile {default_profile} is outside of the possible range of profiles, since only {profile_num} are defined. Defaulting to profile 0. Keep in mind that profiles are 0-indexed.")
+        default_profile = 0
+
     # Add the profile config to info_config.h
-    config_h_lines.append(generate_define('HE_PROFILE_NUM', 1 if profile_num < 1 else profile_num))
+    config_h_lines.append(generate_define('HE_PROFILE_NUM', profile_num))
+    config_h_lines.append(generate_define('HE_DEFAULT_PROFILE', default_profile))
     config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
@@ -469,6 +534,12 @@ def generate_hall_effect_config(info_data, config_h_lines):
     switch_num = len(num_to_matrix)
     info_data['hall_effect']['hardware']['switch_num'] = switch_num
     config_h_lines.append(generate_define('SWITCH_NUM', switch_num))
+
+    # Get the reverse transform arrays
+    info_data = get_matrix_to_mux(info_data, config_h_lines)
+
+    # Transform init key matrix positions to mux combinations
+    transform_init_keys(info_data, config_h_lines)
 
     #Only get the heights from the config if no profiles are defined
     if 'profiles' not in he_json:

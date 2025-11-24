@@ -20,6 +20,8 @@
 
 -Change power_before_scan to always have two active pins, if used ignore power_delay
 
+-Evtl add joystick stuff for analog output
+
 -info_defaults don't work?
 -Pins are set to input by default -> check if QMK sets unused pins to output, if not diy
 -Output is only 3.3v, maybe not enough to change mux channel?

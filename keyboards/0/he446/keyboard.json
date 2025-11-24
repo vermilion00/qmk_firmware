@@ -33,7 +33,9 @@
             "no_eeprom": true,
             "debug_scan_values": true,
             "top_values": [ 618, 636, 697, 706 ],
-            "bottom_values": [ 264, 261, 264, 243 ]
+            "bottom_values": [ 264, 261, 264, 243 ],
+            "calibration_key": [0, 1],
+            "bootmagic_key": [0, 0]
         },
         "profiles": {
             "default_profile": 0,

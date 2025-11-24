@@ -40,7 +40,6 @@
     "HE_NO_EEPROM": {"info_key": "hall_effect.config.no_eeprom", "value_type": "bool"},
     "HE_TOP_VALUES": {"info_key": "hall_effect.config.top_values", "value_type": "array.int"},
     "HE_BOTTOM_VALUES": {"info_key": "hall_effect.config.bottom_values", "value_type": "array.int"},
-    "HE_DEFAULT_PROFILE": {"info_key": "hall_effect.profiles.default_profile", "value_type": "int"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},
