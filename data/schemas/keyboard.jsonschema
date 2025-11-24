@@ -523,7 +523,6 @@
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "calibration_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "mux_to_num": {
                             "type": "array",
                             "items": {
@@ -588,6 +587,10 @@
                                 "CONTINUOUS_RAPID_TRIGGER"
                             ]
                         },
+                        "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "calibration_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "calibration_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
                         "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
                         "power_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
