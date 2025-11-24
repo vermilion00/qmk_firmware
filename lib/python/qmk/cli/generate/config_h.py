@@ -162,7 +162,7 @@ def generate_led_animations_config(feature, led_feature_json, config_h_lines, en
         if led_feature_json['animations'][animation]:
             config_h_lines.append(generate_define(f'{enable_prefix}{animation.upper()}'))
 
-
+#TODO: Make an argument to define left/right side of tractyl
 @cli.argument('filename', nargs='?', arg_only=True, type=FileType('r'), completer=FilesCompleter('.json'), help='A configurator export JSON to be compiled and flashed or a pre-compiled binary firmware file (bin/hex) to be flashed.')
 @cli.argument('-o', '--output', arg_only=True, type=normpath, help='File to write to')
 @cli.argument('-q', '--quiet', arg_only=True, action='store_true', help="Quiet mode, only output error messages")
@@ -189,16 +189,15 @@ def generate_config_h(cli):
 
     generate_matrix_size(kb_info_json, config_h_lines)
 
-    #MARK: Main function
+    # MARK: Main function
     if 'hall_effect' in kb_info_json:
-        switch_num = generate_hall_effect_config(kb_info_json['hall_effect'], config_h_lines)
+        kb_info_json = generate_hall_effect_config(kb_info_json, config_h_lines)
         port_def = get_port_def(kb_info_json)
         check_mux_pins(kb_info_json['hall_effect'], port_def, config_h_lines)
-        #TODO: Fix this, doesn't seem to cause problems but whatever
         if 'profiles' in kb_info_json['hall_effect']:
-            generate_profile_config(kb_info_json['hall_effect']['profiles'], config_h_lines, switch_num)
+            generate_profile_config(kb_info_json['hall_effect'], config_h_lines)
         #TODO: Make this less of a hack
-        config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0""")
+        config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0\n// Debouncing is not needed on Hall Effect keyboards""")
 
     if 'matrix_pins' in kb_info_json:
         config_h_lines.append(matrix_pins(kb_info_json['matrix_pins']))

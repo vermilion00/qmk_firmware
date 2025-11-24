@@ -15,6 +15,7 @@
     "ADC_PINS": {"info_key": "hall_effect.hardware.adc_pins", "value_type": "array"},
     "MUX_PINS": {"info_key": "hall_effect.hardware.mux_pins", "value_type": "array"},
     "POWER_PINS": {"info_key": "hall_effect.hardware.power_pins", "value_type": "array"},
+    "CUSTOM_POWER_BEFORE_SCAN": {"info_key": "hall_effect.hardware.custom_power_before_scan", "value_type": "bool"},
     "TRAVEL_DISTANCE": {"info_key": "hall_effect.hardware.travel_distance"},
     "HE_ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
     "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},

@@ -146,3 +146,5 @@ volatile void sensor_power_high_kb(uint8_t mux_channel);
 volatile void sensor_power_high_user(uint8_t mux_channel);
 volatile void sensor_power_low_kb(uint8_t mux_channel);
 volatile void sensor_power_low_user(uint8_t mux_channel);
+volatile void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel);
+volatile void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel);

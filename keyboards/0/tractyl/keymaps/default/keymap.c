@@ -100,7 +100,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_PASTE,MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
                        CK_MSOF, CK_MSOF,											              	   KC_PLUS, KC_EQL,
 										 _______, CK_MSOF, _______,			MO(_FN),   KC_LSFT, _______,
-												  KC_LCTL, KC_LSFT,			KC_ENT
+												  CK_MSOF, KC_LSFT,			KC_ENT
   ),
 
   [_FN] = LAYOUT(
