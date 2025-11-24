@@ -16,11 +16,23 @@
     -Then call translation function on that switch
     -Automatically move the bounds towards the center if they haven't been reached in x activations
 
--Generate a matrix_to_num array from num_to_matrix to translate calibration_key and bootmagic keys
-
 -Change power_before_scan to always have two active pins, if used ignore power_delay
+    -Likely no need to do so since mux channel is changed after, so the delay from that should be enough
+    -Gotta test it though, if not enough then change it
+
+-Poll init keys and call functions appropriately
+    -Probably done, just need to add proper bootmagic/bootloader function
 
 -Evtl add joystick stuff for analog output
+    -Can add option in rt_type, like rt_type 5 -> joystick_right
+
+-Using the bootmagic key will always reset EEPROM!
+    -Check if that is only a thing with the key, or a thing with the function
+    -If it's a thing with the function, find another way to enter bootloader on press
+
+-Check if I need to rework matrix transformation for split keyboards?
+    -Probably not, should just be part of the defining process
+    -Probably will have to add the hand offset to the scanning process if split is enabled
 
 -info_defaults don't work?
 -Pins are set to input by default -> check if QMK sets unused pins to output, if not diy
