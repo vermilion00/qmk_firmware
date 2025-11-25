@@ -11,28 +11,28 @@
 -Try a higher buffer depth and circular buffer?
 -Implement dynamic calibration as an alternative
 -Add always inline stuff
--To implement dynamic calibration
+-*Implement dynamic calibration
     -Check if the value is outside the bounds, if yes, save the new value to the switch
     -Then call translation function on that switch
     -Automatically move the bounds towards the center if they haven't been reached in x activations
+    -OR: Every few boots the value on every key is moved slightly towards the center, and updated every press
 
--Change power_before_scan to always have two active pins, if used ignore power_delay
+-*Change power_before_scan to always have two active pins, if used ignore power_delay
     -Likely no need to do so since mux channel is changed after, so the delay from that should be enough
     -Gotta test it though, if not enough then change it
 
--Poll init keys and call functions appropriately
-    -Probably done, just need to add proper bootmagic/bootloader function
+-*Poll init keys and call functions appropriately
+    -Probably done, just need to add proper bootmagic function
+    -Make sure the default bootmagic definition can be used
 
 -Evtl add joystick stuff for analog output
     -Can add option in rt_type, like rt_type 5 -> joystick_right
 
--Using the bootmagic key will always reset EEPROM!
-    -Check if that is only a thing with the key, or a thing with the function
-    -If it's a thing with the function, find another way to enter bootloader on press
-
 -Check if I need to rework matrix transformation for split keyboards?
     -Probably not, should just be part of the defining process
     -Probably will have to add the hand offset to the scanning process if split is enabled
+
+-When MUX_PINS isn't defined, compilation fails due to mux_to_num and mux_channels
 
 -info_defaults don't work?
 -Pins are set to input by default -> check if QMK sets unused pins to output, if not diy
