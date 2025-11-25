@@ -543,10 +543,13 @@ def generate_hall_effect_config(info_data, config_h_lines):
     if 'adc_pins' in he_json['hardware']:
         adc_pin_num = len(he_json['hardware']['adc_pins'])
         config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
+
+    mux_pin_num = 0
     if 'mux_pins' in he_json['hardware']:
         mux_pin_num = len(he_json['hardware']['mux_pins'])
         config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-        config_h_lines.append(generate_define('MUX_CHANNELS', 1 << mux_pin_num))
+    config_h_lines.append(generate_define('MUX_CHANNELS', 1 << mux_pin_num))
+
     if 'power_pins' in he_json['hardware']:
         power_pin_num = len(he_json['hardware']['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
