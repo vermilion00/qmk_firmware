@@ -18,6 +18,7 @@
  * Each height param is an array holding the values for all profiles.
  */
 
+
 typedef struct Profile {
     layer_state_t layers;
     // #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
@@ -32,6 +33,7 @@ typedef struct Profile {
     // #endif
 } Profile;
 
+//TODO: Bit fields are an option to cut down on space, but it will cause a performance hit
 typedef struct Switch {
     uint8_t pressed;
     // Is rapid trigger enabled for this switch?
@@ -128,6 +130,16 @@ volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT
 #endif
 #ifdef POWER_SELECT_DELAY
 #   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
+#endif
+#if DYNAMIC_CALIBRATION == TRUE
+// Absolute distance in adc counts
+#ifndef HE_DC_DELTA
+#   define HE_DC_DELTA 7
+#endif
+// Needs to be less than one
+#ifndef HE_DC_FACTOR
+#   define HE_DC_FACTOR 0.9
+#endif
 #endif
 
 /* Profile switching stuff */

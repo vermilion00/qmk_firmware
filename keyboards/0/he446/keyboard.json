@@ -21,8 +21,7 @@
     },
     "hall_effect": {
         "hardware": {
-            "mux_pins": ["B12"],
-            "adc_pins": ["A0", "A6", "A4"],
+            "adc_pins": ["A0", "A6"],
             "power_pins": ["B13", "B14"],
             "travel_distance": 4.0,
             "smoothing": 1,
@@ -32,10 +31,9 @@
             "scans_without_change": 250000,
             "no_eeprom": true,
             "debug_scan_values": true,
-            "top_values": [ 618, 636, 697, 706 ],
-            "bottom_values": [ 264, 261, 264, 243 ],
-            "calibration_key": [0, 1],
-            "bootmagic_key": [0, 0]
+            "top_values": [ 618, 636 ],
+            "bottom_values": [ 264, 261 ],
+            "bootloader_key": [0, 0]
         },
         "profiles": {
             "default_profile": 0,
@@ -67,9 +65,7 @@
         "LAYOUT": {
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
-                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]},
-                {"matrix": [0, 2], "x": 0, "y": 0, "mux": [0, 2]},
-                {"matrix": [0, 3], "x": 0, "y": 0, "mux": [1, 2]}
+                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]}
             ]
         }
     }

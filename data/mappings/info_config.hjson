@@ -40,6 +40,9 @@
     "HE_NO_EEPROM": {"info_key": "hall_effect.config.no_eeprom", "value_type": "bool"},
     "HE_TOP_VALUES": {"info_key": "hall_effect.config.top_values", "value_type": "array.int"},
     "HE_BOTTOM_VALUES": {"info_key": "hall_effect.config.bottom_values", "value_type": "array.int"},
+    "DYNAMIC_CALIBRATION": {"info_key": "hall_effect.config.dynamic_calibration", "value_type": "bool"},
+    "HE_DC_DELTA": {"info_key": "hall_effect.config.dynamic_calibration_delta", "value_type": "int"},
+    "HE_DC_FACTOR": {"info_key": "hall_effect.config.dynamic_calibration_factor", "value_type": "int"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},

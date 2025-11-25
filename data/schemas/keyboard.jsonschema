@@ -599,6 +599,9 @@
                         "debug_scan_values": {"type": "boolean"},
                         "debug_scan_no_input": {"type": "boolean"},
                         "debug_calibration": {"type": "boolean"},
+                        "dynamic_calibration": {"type": "boolean"},
+                        "dynamic_calibration_delta":  {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "dynamic_calibration_factor":  {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "no_eeprom": {"type": "boolean"},
                         "top_values": {
                             "type": "array",
