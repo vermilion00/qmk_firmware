@@ -5,17 +5,18 @@ from milc import cli
 #TODO: Rework profile scanning function to loop through all things in profile object
 #      and ignore things that don't start in profile_
 MAX_PROFILES = 4
-NO_KEY = ["X", None, 0, "none", "NONE"]
+#Above this values, the key modes for special keys start. If for some reason I need more modes, increase this
+MODE_NUM = 9
+NO_KEY = [0, "X", "none","None", "NONE"]
 INIT_KEYS = {
     'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
     'CALIBRATION_KEY_RIGHT': 'hall_effect.config.calibration_key_right',
     'BOOTMAGIC_KEY': 'hall_effect.config.bootmagic_key',
     'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right',
     'BOOTLOADER_KEY': 'hall_effect.config.bootloader_key',
-    'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right'
-    #TODO: Defining these in json currently causes issues
-    # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
-    # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
+    'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right',
+    'BOOTMAGIC_KEY': 'bootmagic.matrix',
+    'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
 }
 
 # _RIGHT keys automatically translate to their left variant
@@ -47,7 +48,7 @@ def _transform_he(info_data):
     he_hardware = info_data['hall_effect']['hardware']
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
-        info_data = _get_row_split(info_data)
+        info_data = _get_split_config(info_data)
 
         #TODO: Either disallow mux_to_num configs etc or add translations
         # Currently only layout mux definitons are allowed when using split keyboards
@@ -151,7 +152,7 @@ def _transform_layout_split(info_data):
     he_hardware = info_data['hall_effect']['hardware']
 
     if 'adc_pins' in he_hardware:
-        adc_pins = len(he_hardware['adc_pins'])
+        adc_pin_num = len(he_hardware['adc_pins'])
     else:
         cli.log.error("No ADC pins defined!")
         return info_data
@@ -160,9 +161,9 @@ def _transform_layout_split(info_data):
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
-        mux_to_num_l = [[0 for _ in range(adc_pins)] for _ in range(mux_channels)]
+        mux_to_num_l = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         num_to_matrix_l = [-1 for _ in range(len(layout_data['layout']))]
-        mux_to_num_r = [[0 for _ in range(adc_pins)] for _ in range(mux_channels)]
+        mux_to_num_r = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         #Oversize this since we don't know how many keys are there per side, then trim after
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
         key_index_l = 0
@@ -214,66 +215,107 @@ def _transform_layout_split(info_data):
     return info_data
 
 
-# Returns the row index at which the halves are separated
-#MARK: Get row split
-#TODO: Make this a thing
-def _get_row_split(info_data):
+# Generates the row split index and the global to local transformations
+#MARK: Get split config
+def _get_split_config(info_data):
+    # Get the row index that splits the two keyboard halves
     for layout_name, layout_data in info_data['layouts'].items():
         highest_row = 0
         for key_data in layout_data['layout']:
             if 'matrix' in key_data:
                 if key_data['matrix'][0] > highest_row:
                     highest_row = key_data['matrix'][0]
-        # Rows are doubled up when using split keyboards
-        #TODO: Fix this
-        info_data['hall_effect']['hardware']['row_split'] = (highest_row + 1) // 2
-        cli.log.info(f"Row split detected at row {(highest_row + 1) // 2} in {layout_name}")
-
+            else:
+                cli.log.error("Matrix data not defined!")
         break
+
+    # Rows are doubled up when using split keyboards
+    row_split = (highest_row + 1) // 2
+    info_data['hall_effect']['hardware']['row_split'] = row_split
+    # cli.log.info(f"Row split detected at row {row_split} in {layout_name}")
+
+    # Generate global to local index transformation
+    g_to_l_index = []
+    l_to_g_index = [[], []]
+    l_index_r = 0
+    l_index_l = 0
+    g_index = 0
+    for layout_name, layout_data in info_data['layouts'].items():
+        for key_data in layout_data['layout']:
+            if 'matrix' in key_data:
+                if key_data['matrix'][0] >= row_split:
+                    g_to_l_index.append([1, l_index_r])
+                    l_to_g_index[1].append(g_index)
+                    l_index_r += 1
+
+                else:
+                    g_to_l_index.append([0, l_index_l])
+                    l_to_g_index[0].append(g_index)
+                    l_index_l += 1
+
+                g_index += 1
+        break
+
+    info_data['hall_effect']['hardware']['global_to_local_index'] = g_to_l_index
+    info_data['hall_effect']['hardware']['local_to_global_index'] = l_to_g_index[0]
+    info_data['hall_effect']['hardware']['local_to_global_index_right'] = l_to_g_index[1]
+
     return info_data
 
 
-#TODO: Update this with split stuff in mind
 #MARK: Matrix_to_mux
 # Generates a reverse matrix transformation array for the initialization keys
 def get_matrix_to_mux(info_data, config_h_lines):
     mux_to_num = info_data['hall_effect']['hardware']['mux_to_num']
     num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix']
     switch_num = info_data['hall_effect']['hardware']['switch_num']
-    rows = info_data['matrix_size']['rows']
     cols = info_data['matrix_size']['cols']
+    # if 'split' in info_data and info_data['split'].get('enabled', False):
+    #     #TODO: If scanning left side causes issues try using normal row num
+    #     rows = info_data['matrix_size']['rows'] // 2
+    # else:
+    #     rows = info_data['matrix_size']['rows']
+
+    rows = info_data['matrix_size']['rows']
+
     num_to_mux = [[] for _ in range(switch_num)]
     for row_idx, row in enumerate(mux_to_num):
         for col_idx, idx in enumerate(row):
             num_to_mux[idx-1] = [row_idx, col_idx]
+
     config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
     info_data['hall_effect']['hardware']['num_to_mux'] = num_to_mux
 
     matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+
     for idx, pos in enumerate(num_to_matrix):
         matrix_to_num[pos[0]][pos[1]] = idx + 1
+
     config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
     info_data['hall_effect']['hardware']['matrix_to_num'] = matrix_to_num
 
-    if 'split' in info_data:
-        if info_data['split'].get('enabled', False):
-            mux_to_num = info_data['hall_effect']['hardware']['mux_to_num_r']
-            num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix_r']
-            switch_num = info_data['hall_effect']['hardware']['switch_num_r']
-            rows = info_data['matrix_size']['rows']
-            cols = info_data['matrix_size']['cols']
-            num_to_mux = [[] for _ in range(switch_num)]
-            for row_idx, row in enumerate(mux_to_num):
-                for col_idx, idx in enumerate(row):
-                    num_to_mux[idx-1] = [row_idx, col_idx]
-            config_h_lines.append(generate_define('NUM_TO_MUX_RIGHT', str(num_to_mux).replace('[', '{').replace(']', '}')))
-            info_data['hall_effect']['hardware']['num_to_mux_r'] = num_to_mux
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        mux_to_num = info_data['hall_effect']['hardware']['mux_to_num_right']
+        num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix_right']
+        switch_num = info_data['hall_effect']['hardware']['switch_num_right']
+        rows = info_data['matrix_size']['rows'] # Use normal row len for offset
+        cols = info_data['matrix_size']['cols']
+        num_to_mux = [[] for _ in range(switch_num)]
 
-            matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
-            for idx, pos in enumerate(num_to_matrix):
-                matrix_to_num[pos[0]][pos[1]] = idx + 1
-            config_h_lines.append(generate_define('MATRIX_TO_NUM_RIGHT', str(matrix_to_num).replace('[', '{').replace(']', '}')))
-            info_data['hall_effect']['hardware']['matrix_to_num_r'] = matrix_to_num
+        for row_idx, row in enumerate(mux_to_num):
+            for col_idx, idx in enumerate(row):
+                num_to_mux[idx-1] = [row_idx, col_idx]
+
+        config_h_lines.append(generate_define('NUM_TO_MUX_RIGHT', str(num_to_mux).replace('[', '{').replace(']', '}')))
+        info_data['hall_effect']['hardware']['num_to_mux_right'] = num_to_mux
+
+        matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+
+        for idx, pos in enumerate(num_to_matrix):
+            matrix_to_num[pos[0]][pos[1]] = idx + 1
+
+        config_h_lines.append(generate_define('MATRIX_TO_NUM_RIGHT', str(matrix_to_num).replace('[', '{').replace(']', '}')))
+        info_data['hall_effect']['hardware']['matrix_to_num_right'] = matrix_to_num
 
 
     return info_data
@@ -300,51 +342,98 @@ def check_mux_pins(he_json, port_def, config_h_lines):
             port = mux_pins[0][:1]
             offset = int(mux_pins[0][1:])
             init_offset = offset
+
             for pin in mux_pins:
                 if pin[:1] == port and int(pin[1:]) == offset:
                     offset += 1
                 else:
                     return
+
             config_h_lines.append(generate_define(f'MUX_PINS{postfix.upper()}_CONTINUOUS'))
             config_h_lines.append(generate_define(f'MUX_PIN{postfix.upper()}_OFFSET', f'{init_offset}'))
             config_h_lines.append(generate_define(f'CONTINUOUS_MUX_PORT{postfix.upper()}', f'{port_def}{port}'))
 
 
+# MARK: Power pins
+def check_power_pins(he_json, port_def, config_h_lines):
+    """Check if mux pins are continuous on one port, and set the defines
+    """
+    for postfix in ['', '_right']:
+        if f'power_pins{postfix}' in he_json['hardware']:
+            power_pins = he_json['hardware'][f'power_pins{postfix}']
+            port = power_pins[0][:1]
+            offset = int(power_pins[0][1:])
+            init_offset = offset
+
+            for pin in power_pins:
+                if pin[:1] == port and int(pin[1:]) == offset:
+                    offset += 1
+                else:
+                    return
+
+            config_h_lines.append(generate_define(f'POWER_PINS{postfix.upper()}_CONTINUOUS'))
+            config_h_lines.append(generate_define(f'POWER_PIN{postfix.upper()}_OFFSET', f'{init_offset}'))
+            config_h_lines.append(generate_define(f'CONTINUOUS_POWER_PORT{postfix.upper()}', f'{port_def}{port}'))
+
+
+#TODO: Split init keys by side
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
     #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
     matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
+    matrix_to_num_r = info_data['hall_effect']['hardware'].get('matrix_to_num_right', '')
     num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
+    num_to_mux_r = info_data['hall_effect']['hardware'].get('num_to_mux_right', '')
+    used_pos= []
     init_functions = []
+    init_functions_r = []
     init_keys = []
+    init_keys_r = []
     init_key_num = 0
+    init_key_num_r = 0
 
     for key in INIT_KEYS:
         path = INIT_KEYS[key]
         if path in info_data:
             key_pos = info_data[path]
-            key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
-            #TODO: Remove this
-            cli.echo(f'Found key {path} with mux {key_mux}')
-            init_keys.append(key_mux)
-            init_key_num += 1
+            if key_pos in used_pos:
+                cli.log.error(f"Key {key_pos} has multiple initialization functions! Skipping {path}")
+                continue
+            else:
+                used_pos.append(key_pos)
             if len(key) > 6 and key[-6:] == '_RIGHT':
                 key = key[:-6]
-            init_functions.append(INIT_FUNCTIONS[key])
+                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0]][key_pos[1]] - 1]
+                init_keys_r.append(key_mux)
+                init_key_num_r += 1
+                init_functions_r.append(INIT_FUNCTIONS[key])
+            else:
+                key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
+                init_keys.append(key_mux)
+                init_key_num += 1
+                init_functions.append(INIT_FUNCTIONS[key])
+            #TODO: Remove this
+            cli.echo(f'Found key {path} with matrix {key_pos}, mux {key_mux} executing function {INIT_FUNCTIONS[key]}()')
+
+    config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
     if len(init_functions) > 0:
-        config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
         config_h_lines.append(generate_define('HE_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
         #TODO: This way I can define the function names as strings and have them be defined as functions
         config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
 
+    config_h_lines.append(generate_define('HE_INIT_KEY_NUM_R', init_key_num))
+    if len(init_functions_r) > 0:
+        config_h_lines.append(generate_define('HE_INIT_KEYS_R', str(init_keys).replace('[', '{').replace(']', '}')))
+        #TODO: This way I can define the function names as strings and have them be defined as functions
+        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions))} }}'))
 
 #MARK: Profiles
 #TODO: Remove config height options, only use profiles for that
-def generate_profile_config(he_json, config_h_lines):
+def generate_profile_config(kb_info_json, config_h_lines):
     """Extract the profile configuration"""
-    he_profiles = he_json['profiles']
+    he_profiles = kb_info_json['hall_effect']['profiles']
 
-    switch_num = he_json['hardware']['switch_num']
+    switch_num = kb_info_json['hall_effect']['hardware']['switch_num'] + kb_info_json['hall_effect']['hardware'].get('switch_num_right', 0)
     trigger_heights = []
     release_heights = []
     press_distances = []
@@ -352,46 +441,49 @@ def generate_profile_config(he_json, config_h_lines):
     profile_config = []
     rt_type = []
     rt_num = []
+    key_modes = []
     profile_num = 0
+
     for profile in range(MAX_PROFILES):
         if f'profile_{profile}' in he_profiles:
             profile_num += 1
-            if 'trigger_height' in he_profiles[f'profile_{profile}']:
-                trigger_height = he_profiles[f'profile_{profile}']['trigger_height']
+            profile_data = he_profiles[f'profile_{profile}']
+            if 'trigger_height' in profile_data:
+                trigger_height = profile_data['trigger_height']
                 if len(trigger_height) == 1:
-                    trigger_height = [trigger_height[0] for num in range(switch_num)]
+                    trigger_height = [trigger_height[0] for _ in range(switch_num)]
                 trigger_heights.append(trigger_height)
 
-                if 'release_height' in he_profiles[f'profile_{profile}']:
-                    release_height = he_profiles[f'profile_{profile}']['release_height']
+                if 'release_height' in profile_data:
+                    release_height = profile_data['release_height']
                     if len(release_height) == 1:
-                        release_height = [release_height[0] for num in range(switch_num)]
+                        release_height = [release_height[0] for _ in range(switch_num)]
                     release_heights.append(release_height)
                 #If no release height is defined, set it to the trigger height
                 else:
                     release_heights.append(trigger_height)
             else:   # No trigger height defined
-                trigger_heights.append([])
-                release_heights.append([])
+                trigger_heights.append([0 for _ in range(switch_num)])
+                release_heights.append([0 for _ in range(switch_num)])
 
-            if 'rapid_trigger_type' in he_profiles[f'profile_{profile}']:
+            if 'rapid_trigger_type' in profile_data:
                 rt_types = {
                     'NONE': 0,
                     'RAPID_TRIGGER': 1,
                     'CONTINUOUS_RAPID_TRIGGER': 2,
                     'CONSTANT_RAPID_TRIGGER': 3
                 }
-                rt_num.append(rt_types[he_profiles[f'profile_{profile}']['rapid_trigger_type'].upper()])
-                rt_type.append(he_profiles[f'profile_{profile}']['rapid_trigger_type'].upper())
+                rt_num.append(rt_types[profile_data['rapid_trigger_type'].upper()])
+                rt_type.append(profile_data['rapid_trigger_type'].upper())
 
                 if rt_type[profile] != 'NONE':
-                    rt_press_distance = he_profiles[f'profile_{profile}']['rt_press_distance']
+                    rt_press_distance = profile_data['rt_press_distance']
                     if len(rt_press_distance) == 1:
                         rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
                     press_distances.append(rt_press_distance)
 
-                    if 'rt_release_distance' in he_profiles[f'profile_{profile}']:
-                        rt_release_distance = he_profiles[f'profile_{profile}']['rt_release_distance']
+                    if 'rt_release_distance' in profile_data:
+                        rt_release_distance = profile_data['rt_release_distance']
                         if len(rt_release_distance) == 1:
                             rt_release_distance = [rt_release_distance[0] for _ in range(switch_num)]
                         release_distances.append(rt_release_distance)
@@ -399,61 +491,55 @@ def generate_profile_config(he_json, config_h_lines):
                     else:
                         release_distances.append(rt_press_distance)
                 else:   #RT type = 'NONE'
-                    press_distances.append([])
-                    release_distances.append([])
+                    press_distances.append([0 for _ in range(switch_num)])
+                    release_distances.append([0 for _ in range(switch_num)])
 
             else:   #No RT defined
                 rt_type.append('NONE')
                 rt_num.append(0)
-                press_distances.append([])
-                release_distances.append([])
-
-            #TODO: What is this?
-            profile_config.append([])
+                press_distances.append([0 for _ in range(switch_num)])
+                release_distances.append([0 for _ in range(switch_num)])
 
             # Rest of the profile config
-            if 'layers' in he_profiles[f'profile_{profile}']:
+            profile_config.append([])
+            if 'layers' in profile_data:
                 profile_layers = 0
-                for num in set(he_profiles[f'profile_{profile}']['layers']):
+                for num in profile_data['layers']:
                     profile_layers |= (1 << num)
                 profile_config[profile].append(profile_layers)
             else:
                 profile_config[profile].append(0)
 
-            if 'rapid_trigger_type' in he_profiles[f'profile_{profile}']:
+            if 'rapid_trigger_type' in profile_data:
                 profile_config[profile].append(rt_num[profile])
             else:
                 profile_config[profile].append(0)
 
-            #TODO: When switching to per-key rt modes, change this accordingly
-            #      Prob just allow setting 2 and 3 in the array
-            if 'rapid_trigger_keys' in he_profiles[f'profile_{profile}']:
-                rapid_trigger_keys = he_profiles[f'profile_{profile}']['rapid_trigger_keys']
-                rt_mask = []
-                rest = switch_num
-                if len(rapid_trigger_keys) == 1:
-                    if rapid_trigger_keys[0] == 1:
-                        while rest > 0:
-                            if rest // 16 > 1:
-                                rt_mask.append(65535)
-                                rest -= 16
-                            else:
-                                rt_mask.append((1 << rest) - 1)
-                                break
-                    # If all keys are set to 0, you can leave them blank
-                else:
-                    while True:
-                        # Divide the list into 16 bit slices
-                        row = rapid_trigger_keys[:16]
-                        value = 0
-                        for bit in row:
-                            value = (value << 1) | bit
-                        rt_mask.append(value)
-                        if len(row) < 16:
-                            break
-                profile_config[profile].append(rt_mask)
+            #TODO: This can be merged with the section directly above
+            #MARK: Key modes
+            if 'rapid_trigger_type' in profile_data:
+                rt_types = {
+                    'NONE': 0,
+                    'RAPID_TRIGGER': 1,
+                    'CONTINUOUS_RAPID_TRIGGER': 2,
+                    'CONSTANT_RAPID_TRIGGER': 3
+                }
+                # If a rapid_trigger_type is defined for the profile, set the mode to it for
+                # all keys except the ones with disabled RT or special keys
+                if 'key_modes' in profile_data:
+                    rt_int = rt_types[profile_data['rapid_trigger_type'].upper()]
+                    key_mode = []
+                    for mode in profile_data['key_modes']:
+                        if mode > MODE_NUM or mode == 0:
+                            key_mode.append(mode)
+                        else:
+                            key_mode.append(rt_int)
+                    key_modes.append(key_mode)
+
+                else: #RT defined but no key_modes
+                    key_modes.append([rt_types[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
             else:
-                profile_config[profile].append([])
+                key_modes.append(profile_data['key_modes'])
 
         else: # Profile isn't in the json
             break
@@ -470,18 +556,57 @@ def generate_profile_config(he_json, config_h_lines):
         print(f"Default profile {default_profile} is outside of the possible range of profiles, since only {profile_num} are defined. Defaulting to profile 0. Keep in mind that profiles are 0-indexed.")
         default_profile = 0
 
+    # Split up the height configs if necessary
+    if 'split' in kb_info_json and kb_info_json['split'].get('enabled', False):
+        g_to_l_index = kb_info_json['hall_effect']['hardware']['global_to_local_index']
+        profile_num = len(trigger_heights)
+        split_trigger_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
+        split_release_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
+        split_press_distances = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
+        split_release_distances = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
+        split_key_modes = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
+        for idx, _ in enumerate(trigger_heights[0]):
+            for profile in range(profile_num):
+                #TODO: Check if I need the local index or just the half
+                if g_to_l_index[idx][0] == 0:
+                    split_trigger_heights[0][profile].append(trigger_heights[profile][idx])
+                    split_release_heights[0][profile].append(release_heights[profile][idx])
+                    split_press_distances[0][profile].append(press_distances[profile][idx])
+                    split_release_distances[0][profile].append(release_distances[profile][idx])
+                    split_key_modes[0][profile].append(key_modes[profile][idx])
+                else:
+                    split_trigger_heights[1][profile].append(trigger_heights[profile][idx])
+                    split_release_heights[1][profile].append(release_heights[profile][idx])
+                    split_press_distances[1][profile].append(press_distances[profile][idx])
+                    split_release_distances[1][profile].append(release_distances[profile][idx])
+                    split_key_modes[1][profile].append(key_modes[profile][idx])
+
+        config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(split_trigger_heights[0]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(split_release_heights[0]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(split_press_distances[0]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(split_release_distances[0]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('TRIGGER_HEIGHT_R', f'{str(split_trigger_heights[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RELEASE_HEIGHT_R', f'{str(split_release_heights[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_PRESS_DISTANCE_R', f'{str(split_press_distances[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE_R', f'{str(split_release_distances[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('KEY_MODES', f'{str(split_key_modes[0]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('KEY_MODES_R', f'{str(split_key_modes[1]).replace('[', '{').replace(']', '}')}'))
+
+    else:
+        config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
+
     # Add the profile config to info_config.h
     config_h_lines.append(generate_define('HE_PROFILE_NUM', profile_num))
     config_h_lines.append(generate_define('HE_DEFAULT_PROFILE', default_profile))
-    config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define('HE_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
-    rt_set = set(rt_type)
-    for type in rt_set:
+    for type in set(rt_type):
         config_h_lines.append(generate_define(f'USE_{type}'))
+
 
 #MARK: Mux_to_matrix
 def validate_mux_to_matrix(mux_to_matrix):
@@ -548,40 +673,41 @@ def validate_hall_effect_config(info_data):
         for profile in range(MAX_PROFILES):
             if f'profile_{profile}' not in he_profiles:
                 break
+            profile_data = he_profiles[f'profile_{profile}']
 
-            if 'rapid_trigger_type' in he_profiles[f'profile_{profile}']:
-                if he_profiles[f'profile_{profile}']['rapid_trigger_type'] != 'constant_rapid_trigger':
-                    if 'trigger_height' not in he_profiles[f'profile_{profile}']:
+            if 'rapid_trigger_type' in profile_data:
+                if profile_data['rapid_trigger_type'] != 'constant_rapid_trigger':
+                    if 'trigger_height' not in profile_data:
                         valid = False
                         print(f"trigger_height needs to be set if constant rapid trigger isn't used in profile_{profile}")
-                    if 'rt_press_distance' not in he_profiles[f'profile_{profile}'] and he_profiles[f'profile_{profile}']['rapid_trigger_type'].upper() != 'NONE':
+                    if 'rt_press_distance' not in profile_data and profile_data['rapid_trigger_type'].upper() != 'NONE':
                         valid = False
                         print(f"rt_press_distance needs to be set if rapid trigger is used in profile_{profile}")
             else:
-                if 'trigger_height' not in he_profiles[f'profile_{profile}']:
+                if 'trigger_height' not in profile_data:
                     valid = False
                     print(f"Trigger height needs to be set if constant rapid trigger isn't used in profile_{profile}")
 
-            if 'trigger_height' in he_profiles[f'profile_{profile}']:
-                trigger_height_len = len(he_profiles[f'profile_{profile}']['trigger_height'])
+            if 'trigger_height' in profile_data:
+                trigger_height_len = len(profile_data['trigger_height'])
                 if trigger_height_len != 1 and trigger_height_len != mux_to_num_len:
                     valid = False
                     print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
 
-            if 'release_height' in he_profiles[f'profile_{profile}']:
-                release_height_len = len(he_profiles[f'profile_{profile}']['release_height'])
+            if 'release_height' in profile_data:
+                release_height_len = len(profile_data['release_height'])
                 if release_height_len != 1 and release_height_len != mux_to_num_len:
                     valid = False
                     print(f"The amount of release_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
 
-            if 'rt_press_distance' in he_profiles[f'profile_{profile}']:
-                rt_press_len = len(he_profiles[f'profile_{profile}']['rt_press_distance'])
+            if 'rt_press_distance' in profile_data:
+                rt_press_len = len(profile_data['rt_press_distance'])
                 if rt_press_len != 1 and rt_press_len != mux_to_num_len:
                     valid = False
                     print(f"The amount of rt_press_distance values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
 
-            if 'rt_release_distance' in he_profiles[f'profile_{profile}']:
-                rt_release_len = len(he_profiles[f'profile_{profile}']['rt_release_distance'])
+            if 'rt_release_distance' in profile_data:
+                rt_release_len = len(profile_data['rt_release_distance'])
                 if rt_release_len != 1 and rt_release_len != mux_to_num_len:
                     valid = False
                     print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
@@ -643,9 +769,10 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 
         for profile in range(len(he_profiles)):
             if f'profile_{profile}' in he_profiles:
-                if 'trigger_height' in he_profiles[f'profile_{profile}'] and 'release_height' in he_profiles[f'profile_{profile}']:
-                    for idx, i in enumerate(he_profiles[f'profile_{profile}']['trigger_height']):
-                        if i < he_profiles[f'profile_{profile}']['release_height'][idx]:
+                profile_data = he_profiles[f'profile_{profile}']
+                if 'trigger_height' in profile_data and 'release_height' in profile_data:
+                    for idx, i in enumerate(profile_data['trigger_height']):
+                        if i < profile_data['release_height'][idx]:
                             valid = False
                             print(f'\nThe trigger height for key {idx} in profile {profile} is higher than the release height when it needs to be lower or equal.\n')
 
@@ -658,9 +785,10 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 
         for profile in range(len(he_profiles)):
             if f'profile_{profile}' in he_profiles:
-                if 'trigger_height' in he_profiles[f'profile_{profile}'] and 'release_height' in he_profiles[f'profile_{profile}']:
-                    for idx, i in enumerate(he_profiles[f'profile_{profile}']['trigger_height']):
-                        if i > he_profiles[f'profile_{profile}']['release_height'][idx]:
+                profile_data = he_profiles[f'profile_{profile}']
+                if 'trigger_height' in profile_data and 'release_height' in profile_data:
+                    for idx, i in enumerate(profile_data['trigger_height']):
+                        if i > profile_data['release_height'][idx]:
                             valid = False
                             print(f'\nThe trigger height for key {idx} in profile {profile} is lower than the release height when it needs to be higher or equal.\n')
 
@@ -670,25 +798,37 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 #MARK: General config
 def generate_hall_effect_config(info_data, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
-    he_json = info_data['hall_effect']
     # validate_hall_effect_config(info_data)
 
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        info_data = check_right_side_pins(info_data)
+
+    he_json = info_data['hall_effect']
+    he_hardware = info_data['hall_effect']['hardware']
     #Hardware stuff
-    adc_pin_num = len(he_json['hardware'].get('adc_pins', ''))
+    adc_pin_num = len(he_hardware.get('adc_pins', ''))
     config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
 
-    mux_pin_num = len(he_json['hardware'].get('mux_pins', ''))
-    config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
+    port_def = get_port_def(info_data)
 
-    if 'power_pins' in he_json['hardware']:
-        power_pin_num = len(he_json['hardware']['power_pins'])
+    if 'mux_pins' in he_hardware:
+        mux_pin_num = len(he_hardware.get('mux_pins', ''))
+        config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
+        check_mux_pins(info_data['hall_effect'], port_def, config_h_lines)
+    else:
+        #TODO: Is this necessary?
+        config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
+
+    if 'power_pins' in he_hardware:
+        power_pin_num = len(he_hardware['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
         config_h_lines.append(generate_define('POWER_BEFORE_SCAN', 'TRUE'))
+        check_power_pins(info_data['hall_effect'], port_def, config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights
     #TODO: Since the heights are defined in one array, make a transform matrix that transforms
     #      the global index into the index and side, to be used in the translation function
-    switch_num = he_json['hardware'].get('switch_num', 0) + he_json['hardware'].get('switch_num_right', 0)
+    switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
 
     # Get the reverse transform arrays
     info_data = get_matrix_to_mux(info_data, config_h_lines)
@@ -737,15 +877,26 @@ def generate_hall_effect_config(info_data, config_h_lines):
                 config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{{{{ {", ".join(map(str, rt_press_distance))} }}}}'))
 
     # Validate trigger_heights separately after setting, in case of a len 1 define
-    if 'invert_adc' in he_json['hardware']:
-        invert_adc = he_json['hardware']['invert_adc']
-    else:
-        invert_adc = False
-    if 'distance_from_bottom' in he_json['config']:
-        from_bottom = he_json['config']['distance_from_bottom']
-    else:
-        from_bottom = False
+    invert_adc = he_hardware.get('invert_adc', False)
+    from_bottom = he_json['config'].get('distance_from_bottom', False)
 
     # validate_height_config(he_json, invert_adc, from_bottom)
+
+    return info_data
+
+
+
+#MARK: Right side pins
+def check_right_side_pins(info_data):
+    he_hardware = info_data['hall_effect']['hardware']
+
+    if 'adc_pins_right' not in he_hardware:
+        info_data['hall_effect']['hardware']['adc_pins_right'] = he_hardware['adc_pins']
+
+    if 'mux_pins' in he_hardware and 'mux_pins_right' not in he_hardware:
+        info_data['hall_effect']['hardware']['mux_pins_right'] = he_hardware['mux_pins']
+
+    if 'power_pins' in he_hardware and 'power_pins_right' not in he_hardware:
+        info_data['hall_effect']['hardware']['power_pins_right'] = he_hardware['power_pins']
 
     return info_data
