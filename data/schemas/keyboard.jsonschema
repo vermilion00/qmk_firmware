@@ -518,9 +518,15 @@
                         "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
                         "mux_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "mux_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "mux_channels": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "mux_channels_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "switch_num": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "switch_num_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "adc_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "adc_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "power_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
-                        "test_pin": {"$ref": "./definitions.jsonschema#/mcu_pin"},
+                        "power_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
@@ -531,7 +537,18 @@
                                 "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                             }
                         },
+                        "mux_to_num_right": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
+                            }
+                        },
                         "num_to_matrix": {
+                            "type": "array",
+                            "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                        },
+                        "num_to_matrix_right": {
                             "type": "array",
                             "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
                         },

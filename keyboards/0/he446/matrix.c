@@ -6,8 +6,6 @@
 #include <sys/cdefs.h>
 #include "action_layer.h"
 #include "analog.h"
-#include "bootloader.h"
-#include "bootmagic/bootmagic.h"
 #include "debug.h"
 #include "gpio.h"
 #include "hal_pal.h"
@@ -43,12 +41,60 @@ static inline void delay_ns(uint16_t delay);
 // Initialize the keys to be checked at initialization
 void scan_init_keys(void);
 
+//TODO: Sync current profile between halves
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+
+#if HE_INIT_KEY_NUM > 0
+volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
+volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
+#endif
+
+#ifdef SPLIT_KEYBOARD
+#if KEYBOARD_SIDE == RIGHT
+bool keyboard_side = RIGHT;
+const uint8_t switch_num = SWITCH_NUM_R;
+#elif KEYBOARD_LEFT
+bool keyboard_side = LEFT;
+const uint8_t switch_num = SWTICH_NUM;
+#else // KEYBOARD_SIDE == UNKNOWN
+SPLIT_MUTABLE uint8_t switch_num;
+bool keyboard_side;
+#endif
+#else // if defined SPLIT_KEYBOARD
+const uint8_t switch_num = SWITCH_NUM;
+#endif // else defined SPLIT_KEYBOARD
 
 //MARK: Init
 void matrix_init_custom(void) {
-    // TODO: initialize hardware and global matrix state here
-    // Set mux pins to output, HE pins to analog input
+    //TODO: Determine side first
+    #ifdef SPLIT_KEYBOARD
+    // Determine keyboard half
+
+    if(keyboard_side == RIGHT){
+        // TODO: Array assignment isn't possible
+        //       Try declaring all arrays to have equal sizes, then use memcpy()
+        //       Or use pointers to the arrays everywhere, and just swap those out
+        switch_num = SWITCH_NUM_R;
+        adc_pins = ADC_PINS_R;
+        #ifdef MUX_PINS
+        mux_pins = MUX_PINS_R;
+        #endif
+        #ifdef POWER_PINS
+        power_pins = POWER_PINS_R;
+        #endif
+        #if INIT_KEY_NUM > 0
+        //TODO: This won't work
+        init_keys = HE_INIT_KEYS_R;
+        (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS_r;
+        #endif
+
+
+
+    }
+
+    // Set switch num based on side
+    #endif
+
     for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
         palSetLineMode(adc_pins[i], PAL_MODE_INPUT_ANALOG);
         // Convert adc pins to adc mux combination
@@ -60,7 +106,7 @@ void matrix_init_custom(void) {
         gpio_write_pin_low(mux_pins[i]);
     }
     #endif
-    #if POWER_BEFORE_SCAN == TRUE || POWER_BEFORE_SCAN_MIDDLE == TRUE
+    #if POWER_BEFORE_SCAN == TRUE
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
@@ -86,7 +132,7 @@ void matrix_init_custom(void) {
     }
 
     // Translate the trigger height etc into the equivalent ADC value
-    for(uint8_t index = 0; index < SWITCH_NUM; index++) {
+    for(uint8_t index = 0; index < switch_num; index++) {
         translate_mm_to_value(index);
     }
 
@@ -104,8 +150,6 @@ void matrix_init_custom(void) {
 #if HE_INIT_KEY_NUM > 0
 void scan_init_keys(void) {
     uint16_t adc_value;
-    uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
-    void (*init_function[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
     // Long delay needed for correct init key reading after being plugged in
     delay_ns(15000);
 
@@ -134,7 +178,7 @@ void scan_init_keys(void) {
             //TODO: Figure this out
             // If the key is activated, call the respective function
             // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
-            (*init_function[idx])();
+            (*init_functions[idx])();
         }
     }
 }
@@ -277,24 +321,24 @@ bool get_calibration_data(void) {
     #endif
 
     #if DYNAMIC_CALIBRATION == FALSE
-    for(uint8_t key = 0; key < SWITCH_NUM; key++) {
+    for(uint8_t key = 0; key < switch_num; key++) {
         he_matrix[key].top_value = top_values[key];
         he_matrix[key].bottom_value = bottom_values[key];
     }
     #else
     #if INVERT_ADC == FALSE
-    for(uint8_t key = 0; key < SWITCH_NUM; key++) {
+    for(uint8_t key = 0; key < switch_num; key++) {
         // HE_DC_FACTOR should be defined as < 1
         he_matrix[key].top_value = HE_DC_FACTOR * top_values[key];
         he_matrix[key].bottom_value = (2 - HE_DC_FACTOR) * bottom_values[key];
     }
-    #else
-    for(uint8_t key = 0; key < SWITCH_NUM; key++) {
+    #else // INVERT_ADC == TRUE
+    for(uint8_t key = 0; key < switch_num; key++) {
         he_matrix[key].top_value = (2 - HE_DC_FACTOR) * top_values[key];
         he_matrix[key].bottom_value = HE_DC_FACTOR * bottom_values[key];
     }
-    #endif
-    #endif
+    #endif // INVERT_ADC
+    #endif // DYNAMIC_CALIBRATION
 
     return true;
     // return false;
@@ -403,17 +447,17 @@ void calibrate_switches(void) {
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
             print("\"top_values\": [ ");
-            for(uint8_t index = 0; index < SWITCH_NUM; index++){
-                if(index < SWITCH_NUM - 1){
+            for(uint8_t index = 0; index < switch_num; index++){
+                if(index < switch_num - 1){
                     printf("%u, ", he_matrix[index].top_value);
                 }else{
                     printf("%u ],\n", he_matrix[index].top_value);
                 }
             }
             print("\"bottom_values\": [ ");
-            for(uint8_t index = 0; index < SWITCH_NUM; index++){
+            for(uint8_t index = 0; index < switch_num; index++){
                 // dprintf("%2u | %3u | %3u\n", index, he_matrix[index].top_value, he_matrix[index].bottom_value);
-                if(index < SWITCH_NUM - 1){
+                if(index < switch_num - 1){
                     printf("%u, ", he_matrix[index].bottom_value);
                 }else{
                     printf("%u ]\n", he_matrix[index].bottom_value);
@@ -464,7 +508,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             case continuous_rapid_trigger:
 
 #           if defined USE_CONTINUOUS_RAPID_TRIGGER
-            static bool rt_active[SWITCH_NUM] = {[0 ... SWITCH_NUM-1] = false };
+            static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
             // Rapid trigger activates below the trigger height, but only stops when fully released
             if(rt_active[index] || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
                 rt_active[index] = true;
@@ -561,7 +605,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
             case continuous_rapid_trigger:
             #if defined USE_CONTINUOUS_RAPID_TRIGGER
-            static bool rt_active[SWITCH_NUM] = {[0 ... SWITCH_NUM-1] = false };
+            static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
             // Rapid trigger activates below the trigger height, but only stops when fully released
             if(rt_active[index] || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
                 rt_active[index] = true;
@@ -659,16 +703,18 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
 //MARK: Switch data
 // Populates the key matrix with the static config params, heights are populated separately
 void get_switch_data(void) {
-    for(uint8_t key = 0; key < SWITCH_NUM; key++) {
+    for(uint8_t key = 0; key < switch_num; key++) {
         uint8_t row = num_to_matrix[key][0];
         uint8_t col = num_to_matrix[key][1];
         he_matrix[key].row = row;
         he_matrix[key].col = col;
+
         #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
         //TODO: Check if this works
         // Use 2*col if setting mode is allowed per key, if one mode per profile then use col and smaller type
         // he_matrix[key].rt_type = (profiles[HE_DEFAULT_PROFILE].rt_mask[row] & (3 << (2*col)));
         // he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = (profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << key%16));
+
         if(profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << (key % 16))) {
             he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = 1;
         }
@@ -692,7 +738,7 @@ void switch_to_profile(uint8_t profile) {
     // Keep these in case I switch to the replacement method later
     // if(profile == current_he_profile) { return; }
 
-    // for(uint8_t key = 0; key < SWITCH_NUM; key++){
+    // for(uint8_t key = 0; key < switch_num; key++){
     //     //TODO: Add per key rapid trigger here as well
     //     #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
     //     he_matrix[key].trigger_value = trigger_value[profile][key];
@@ -713,11 +759,6 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
     uint8_t highest_layer = get_highest_layer(state);
     for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
         // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
-        //TODO: Make this a thing, use python
-        // if(profile_layers[profile] & (1 << highest_layer)){
-        //     // A check if the profile is active already happens in the function, since it can be called from elsewhere
-        //     switch_to_profile(profile);
-        // }
         // If the highest active layer is in the layers list of that profile, activate it
         if(profiles[profile].layers & (1 << highest_layer)) {
             switch_to_profile(profile);
@@ -757,12 +798,12 @@ __attribute__((weak)) void sensor_power_toggle_user(uint8_t mux_channel, uint8_t
 
 
 
-
+//TODO: I think I only need these for the full replacement
 /* Standard weak defines */
-__attribute__((weak)) void matrix_init_kb(void) { matrix_init_user(); }
+// __attribute__((weak)) void matrix_init_kb(void) { matrix_init_user(); }
 
-__attribute__((weak)) void matrix_scan_kb(void) { matrix_scan_user(); }
+// __attribute__((weak)) void matrix_scan_kb(void) { matrix_scan_user(); }
 
-__attribute__((weak)) void matrix_init_user(void) {}
+// __attribute__((weak)) void matrix_init_user(void) {}
 
-__attribute__((weak)) void matrix_scan_user(void) {}
+// __attribute__((weak)) void matrix_scan_user(void) {}
