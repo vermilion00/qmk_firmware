@@ -55,10 +55,9 @@
     -We don't need to know the global index, only the global row/col of the matrix
     -Add a global variable to the handedness functions to check side
 
--Enabling split still causes compilation issues
--Debug output works better with qhe than qhed
--Rows seem to be the problem, so I'm guessing it's a matrix size issue or smth?
+-Add trigger_height_r from config
 
+-Debug output works better with qhe than qhed
 -info_defaults don't work?
 -Pins are set to input by default -> check if QMK sets unused pins to output high
 -LED on B2 is active high

@@ -19,5 +19,18 @@
 
 #define USB_POLLING_INTERVAL_MS 1
 
-#define BOOTMAGIC_LITE_ROW 0
-#define BOOTMAGIC_LITE_COLUMN 0
+/* serial.c configuration for split keyboard */
+#define SERIAL_USART_FULL_DUPLEX  // Enable full duplex operation mode.
+#define SERIAL_USART_TX_PIN      B6
+#define SERIAL_USART_RX_PIN      B7
+#define SERIAL_USART_DRIVER      SD1
+#define SERIAL_USART_TX_PAL_MODE 7    // Pin "alternate function", see the respective datasheet for the appropriate values for your MCU. default: 7
+#define SERIAL_USART_RX_PAL_MODE 7    // Pin "alternate function", see the respective datasheet for the appropriate values for your MCU. default: 7
+#define SERIAL_USART_TIMEOUT     100  // USART driver timeout. default 100
+#define SERIAL_USART_SPEED       921600
+
+#define CRC8_USE_TABLE
+#define CRC8_OPTIMIZE_SPEED
+
+// Bayleaf stuff
+#define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC

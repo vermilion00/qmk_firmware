@@ -12,6 +12,7 @@
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
     // Hall Effect
+    "KEYBOARD_SIDE": {"info_key": "hall_effect.hardware.keyboard_side", "value_type": "int"},
     "ADC_PINS": {"info_key": "hall_effect.hardware.adc_pins", "value_type": "array"},
     "ADC_PINS_R": {"info_key": "hall_effect.hardware.adc_pins_right", "value_type": "array"},
     "MUX_PINS": {"info_key": "hall_effect.hardware.mux_pins", "value_type": "array"},
@@ -26,9 +27,9 @@
     "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
     "ADC_DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
     "MUX_TO_NUM": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
-    "MUX_TO_NUM_R": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
+    "MUX_TO_NUM_R": {"info_key": "hall_effect.hardware.mux_to_num_right", "value_type": "array.array"},
     "NUM_TO_MATRIX": {"info_key": "hall_effect.hardware.num_to_matrix", "value_type": "array.array"},
-    "NUM_TO_MATRIX_R": {"info_key": "hall_effect.hardware.num_to_matrix", "value_type": "array.array"},
+    "NUM_TO_MATRIX_R": {"info_key": "hall_effect.hardware.num_to_matrix_right", "value_type": "array.array"},
     "SWITCH_NUM": {"info_key": "hall_effect.hardware.switch_num", "value_type": "int"},
     "SWITCH_NUM_R": {"info_key": "hall_effect.hardware.switch_num_right", "value_type": "int"},
     "INVERT_ADC": {"info_key": "hall_effect.hardware.invert_adc", "value_type": "bool"},

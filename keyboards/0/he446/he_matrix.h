@@ -19,7 +19,7 @@
  * matrix is an array of Switch structs, which hold all information relevant to the switch
  * Each height param is an array holding the values for all profiles.
  * During scanning, the current_profile variable is checked to see which height to evaluate
- * To switch profiles, only the current_profile variable needs to be changed.
+ * To switch profiles, only the current_he_profile variable needs to be changed.
  */
 
 typedef struct Profile {
@@ -32,6 +32,7 @@ typedef struct Profile {
     rt_type_t rt_type;
     // uint16_t rt_press_value[SWITCH_NUM];
     // uint16_t rt_release_value[SWITCH_NUM];
+    //TODO: Remove this when not needed anymore
     uint16_t rt_mask[CEILING((SWITCH_NUM + SWITCH_NUM_R), 16)];
     // #endif
 } Profile;
@@ -42,7 +43,7 @@ typedef struct Switch {
     uint8_t pressed;
     // Is rapid trigger enabled for this switch?
     //TODO: Maybe allow setting the mode for each individual switch, if it's already uint8
-    rt_type_t rt_type[HE_PROFILE_NUM];
+    uint8_t mode[HE_PROFILE_NUM];
 #   if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
@@ -74,10 +75,8 @@ volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
 #ifdef POWER_PINS
 volatile static SPLIT_MUTABLE pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
 #endif
-// #if HE_INIT_KEY_NUM > 0
-// volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
-// volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
-// #endif
+
+volatile static SPLIT_MUTABLE uint8_t key_modes[HE_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
 
 // Used to translate from the ADC pin/Mux combination to the switch number
 volatile static SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
