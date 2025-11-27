@@ -511,6 +511,7 @@
                 "hardware": {
                     "type": "object",
                     "properties": {
+                        "keyboard_side": {"type": "integer", "enum": [0, 1, 2]},
                         "power_before_scan": {"type": "boolean"},
                         "custom_power_before_scan": {"type": "boolean"},
                         "power_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
@@ -560,7 +561,7 @@
                                         {"$ref": "./definitions.jsonschema#/matrix_position"},
                                         {
                                             "type": "string",
-                                            "enum": ["X", "none", "NONE"]
+                                            "enum": ["X", "none","None", "NONE"]
                                         },
                                         {
                                             "type": "integer",
@@ -667,9 +668,9 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
-                                "rapid_trigger_keys": {
+                                "key_modes": {
                                     "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",

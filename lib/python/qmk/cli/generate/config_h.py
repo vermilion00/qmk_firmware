@@ -192,10 +192,8 @@ def generate_config_h(cli):
     # MARK: Main function
     if 'hall_effect' in kb_info_json:
         kb_info_json = generate_hall_effect_config(kb_info_json, config_h_lines)
-        port_def = get_port_def(kb_info_json)
-        check_mux_pins(kb_info_json['hall_effect'], port_def, config_h_lines)
         if 'profiles' in kb_info_json['hall_effect']:
-            generate_profile_config(kb_info_json['hall_effect'], config_h_lines)
+            generate_profile_config(kb_info_json, config_h_lines)
         #TODO: Make this less of a hack
         config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0\n// Debouncing is not needed on Hall Effect keyboards""")
 

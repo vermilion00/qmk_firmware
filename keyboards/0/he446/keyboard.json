@@ -16,8 +16,24 @@
         "debounce_type": "sym_eager_pk"
 	},
     "features": {
-        "mousekey": true,
+        "bootmagic": true,
+        "nkro": true,
         "console": true
+    },
+    "bootmagic": {
+        "matrix": [0, 0]
+    },
+    "split": {
+        "enabled": true,
+        "handedness": {
+            "pin": "C14"
+        },
+        "serial": {
+            "driver": "usart"
+        },
+        "bootmagic": {
+            "matrix": [1, 0]
+        }
     },
     "hall_effect": {
         "hardware": {
@@ -64,7 +80,9 @@
         "LAYOUT": {
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
-                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]}
+                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]},
+                {"matrix": [1, 0], "x": 0, "y": 0, "mux": [0, 0]},
+                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [0, 1]}
             ]
         }
     }

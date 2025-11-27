@@ -39,10 +39,11 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value);
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
 // Initialize the keys to be checked at initialization
-void scan_init_keys(void);
+static void scan_init_keys(void);
 
 //TODO: Sync current profile between halves
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
 #if HE_INIT_KEY_NUM > 0
 volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
@@ -52,48 +53,44 @@ volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_F
 #ifdef SPLIT_KEYBOARD
 #if KEYBOARD_SIDE == RIGHT
 bool keyboard_side = RIGHT;
-const uint8_t switch_num = SWITCH_NUM_R;
 #elif KEYBOARD_LEFT
 bool keyboard_side = LEFT;
-const uint8_t switch_num = SWTICH_NUM;
 #else // KEYBOARD_SIDE == UNKNOWN
-SPLIT_MUTABLE uint8_t switch_num;
 bool keyboard_side;
 #endif
-#else // if defined SPLIT_KEYBOARD
-const uint8_t switch_num = SWITCH_NUM;
-#endif // else defined SPLIT_KEYBOARD
+#endif // if defined SPLIT_KEYBOARD
+
 
 //MARK: Init
 void matrix_init_custom(void) {
     //TODO: Determine side first
     #ifdef SPLIT_KEYBOARD
     // Determine keyboard half
-
+    #if KEYBOARD_SIDE == UNKNOWN
     if(keyboard_side == RIGHT){
         // TODO: Array assignment isn't possible
         //       Try declaring all arrays to have equal sizes, then use memcpy()
         //       Or use pointers to the arrays everywhere, and just swap those out
-        switch_num = SWITCH_NUM_R;
-        adc_pins = ADC_PINS_R;
-        #ifdef MUX_PINS
-        mux_pins = MUX_PINS_R;
-        #endif
-        #ifdef POWER_PINS
-        power_pins = POWER_PINS_R;
-        #endif
-        #if INIT_KEY_NUM > 0
-        //TODO: This won't work
-        init_keys = HE_INIT_KEYS_R;
-        (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS_r;
-        #endif
+        // switch_num = SWITCH_NUM_R;
+        // adc_pins = ADC_PINS_R;
+        // #ifdef MUX_PINS
+        // mux_pins = MUX_PINS_R;
+        // #endif
+        // #ifdef POWER_PINS
+        // power_pins = POWER_PINS_R;
+        // #endif
+        // #if INIT_KEY_NUM > 0
+        // //TODO: This won't work
+        // init_keys = HE_INIT_KEYS_R;
+        // (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS_R;
+        // #endif
 
 
 
     }
-
+    #endif // if KEYBOARD_SIDE == UNKNOWN
     // Set switch num based on side
-    #endif
+    #endif // defined SPLIT_KEYBOARD
 
     for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
         palSetLineMode(adc_pins[i], PAL_MODE_INPUT_ANALOG);
@@ -148,7 +145,7 @@ void matrix_init_custom(void) {
 
 //MARK: Init keys
 #if HE_INIT_KEY_NUM > 0
-void scan_init_keys(void) {
+static void scan_init_keys(void) {
     uint16_t adc_value;
     // Long delay needed for correct init key reading after being plugged in
     delay_ns(15000);
@@ -480,62 +477,16 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 //TODO: Evtl remake this to be changeable at runtime (if performance is enough)
 //Basically just check a var in the function call to check which to call, if via is not defined it'll be const
     bool prev_pressed = he_matrix[index].pressed;
+    #define INVERT_ADC TRUE
 
 #if INVERT_ADC == TRUE
-    if(he_matrix[index].rt_type[current_he_profile]) {
-        switch(profiles[current_he_profile].rt_type) {
-            case rapid_trigger:
+    switch(he_matrix[index].mode[current_he_profile]) {
+        case rapid_trigger:
 #           if defined USE_RAPID_TRIGGER
-            // Rapid trigger is only active when the switch is lower than the trigger and release height
-            if(value > he_matrix[index].trigger_value + ADC_SMOOTHING) {
-                // Set the new lowest value if needed
-                if(value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) {
-                    he_matrix[index].pressed = true;
-                    he_matrix[index].rt_press_threshold = value;
-                // Check if the key has been released past the threshold
-                } else if((value + he_matrix[index].rt_press_threshold + ADC_SMOOTHING) < he_matrix[index].rt_release_value[current_he_profile]) {
-                    he_matrix[index].pressed = false;
-                    // Set the new activation threshold
-                    he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
-                }
-            } else if(value + ADC_SMOOTHING < he_matrix[index].release_value[current_he_profile]) {
-                // If the switch is not pressed past the threshold, reset it
-                he_matrix[index].pressed = false;
-                he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-            }
-            break;
-#           endif
-            case continuous_rapid_trigger:
-
-#           if defined USE_CONTINUOUS_RAPID_TRIGGER
-            static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
-            // Rapid trigger activates below the trigger height, but only stops when fully released
-            if(rt_active[index] || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
-                rt_active[index] = true;
-                // Set the new lowest value if needed
-                if(value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) {
-                    he_matrix[index].pressed = true;
-                    he_matrix[index].rt_press_threshold = value;
-                // Check if the key has been released past the threshold
-                } else if((value + he_matrix[index].rt_press_threshold + ADC_SMOOTHING) < he_matrix[index].rt_release_value[current_he_profile]) {
-                    he_matrix[index].pressed = false;
-                    // Set the new activation threshold
-                    he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
-                }
-            // Check if the switch has been released completely
-            } else if(value < he_matrix[index].top_value + ADC_DEADZONE) {
-                he_matrix[index].pressed = false;
-                he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-                rt_active[index] = false;
-            }
-            break;
-            #endif
-            case constant_rapid_trigger:
-
-            #if defined USE_CONSTANT_RAPID_TRIGGER
-            // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-            if((value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) ||
-                value > he_matrix[index].bottom_value - ADC_DEADZONE) {
+        // Rapid trigger is only active when the switch is lower than the trigger and release height
+        if(value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING) {
+            // Set the new lowest value if needed
+            if(value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) {
                 he_matrix[index].pressed = true;
                 he_matrix[index].rt_press_threshold = value;
             // Check if the key has been released past the threshold
@@ -543,96 +494,90 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
                 he_matrix[index].pressed = false;
                 // Set the new activation threshold
                 he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
-            // Check if the key has been completely released
-            } else if(value < he_matrix[index].top_value + ADC_DEADZONE) {
+            }
+        } else if(value + ADC_SMOOTHING < he_matrix[index].release_value[current_he_profile]) {
+            // If the switch is not pressed past the threshold, reset it
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
+        }
+        break;
+#           endif
+
+        case continuous_rapid_trigger:
+#           if defined USE_CONTINUOUS_RAPID_TRIGGER
+//TODO: Check if this works
+        static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
+        // Rapid trigger activates below the trigger height, but only stops when fully released
+        if(rt_active[index] || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
+            rt_active[index] = true;
+            // Set the new lowest value if needed
+            if(value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) {
+                he_matrix[index].pressed = true;
+                he_matrix[index].rt_press_threshold = value;
+            // Check if the key has been released past the threshold
+            } else if((value + he_matrix[index].rt_press_threshold + ADC_SMOOTHING) < he_matrix[index].rt_release_value[current_he_profile]) {
                 he_matrix[index].pressed = false;
+                // Set the new activation threshold
                 he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
             }
-            break;
-            #endif
-            case none:
-
-            #if defined USE_NONE
-            if(value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING) {
-                he_matrix[index].pressed = true;
-            } else if(value + ADC_SMOOTHING < he_matrix[index].release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
-            } else {
-                return false;
-            }
-            break;
-            #endif //defined RAPID_TRIGGER
+        // Check if the switch has been released completely
+        } else if(value < he_matrix[index].top_value + ADC_DEADZONE) {
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
+            rt_active[index] = false;
         }
-    } else { // rt_type[current_he_profile]
-    #if defined USE_NONE
-        if(value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING) {
+        break;
+        #endif
+
+        case constant_rapid_trigger:
+        #if defined USE_CONSTANT_RAPID_TRIGGER
+        // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
+        if((value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) ||
+            value > he_matrix[index].bottom_value - ADC_DEADZONE) {
             he_matrix[index].pressed = true;
-        } else if(value - ADC_SMOOTHING > he_matrix[index].release_value[current_he_profile]) {
+            he_matrix[index].rt_press_threshold = value;
+        // Check if the key has been released past the threshold
+        } else if((value + he_matrix[index].rt_press_threshold + ADC_SMOOTHING) < he_matrix[index].rt_release_value[current_he_profile]) {
+            he_matrix[index].pressed = false;
+            // Set the new activation threshold
+            he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
+        // Check if the key has been completely released
+        } else if(value < he_matrix[index].top_value + ADC_DEADZONE) {
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
+        }
+        break;
+        #endif
+
+        case none:
+        #if defined USE_NONE
+        if(value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING) {
+            he_matrix[index].pressed = true;
+        } else if(value + ADC_SMOOTHING < he_matrix[index].release_value[current_he_profile]) {
             he_matrix[index].pressed = false;
         } else {
             return false;
         }
-    #endif //defined USE_NONE
+        break;
+        #endif //defined RAPID_TRIGGER
+
+        default:
+        #if defined USE_SPECIAL
+        //TODO: Call special key eval function here
+        //evaluate_special(index, value)
+        #endif //defined USE_SPECIAL
     }
 
 #else //defined INVERT_ADC
-// #   if RAPID_TRIGGER_TYPE == RAPID_TRIGGER
+    //TODO: When the switch to modes per key is done, update this appropriately
     //TODO: The current implementation here uses one mode per profile
-    if(he_matrix[index].rt_type[current_he_profile]) {
-        switch(profiles[current_he_profile].rt_type) {
-            case rapid_trigger:
-            #if defined USE_RAPID_TRIGGER
-            // Rapid trigger is only active when the switch is lower than the trigger and release height
-            if(value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING) {
-                // Set the new lowest value if needed
-                if(value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) {
-                    he_matrix[index].pressed = true;
-                    he_matrix[index].rt_press_threshold = value;
-                // Check if the key has been released past the threshold
-                } else if((value - he_matrix[index].rt_press_threshold - ADC_SMOOTHING) > he_matrix[index].rt_release_value[current_he_profile]) {
-                    he_matrix[index].pressed = false;
-                    // Set the new activation threshold
-                    he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
-                }
-            //TODO: Check if it is faster to check if the key state is released, and only set values if they're not set already
-            } else if(value - ADC_SMOOTHING > he_matrix[index].release_value[current_he_profile]) {
-                // If the switch is not pressed past the threshold, reset it
-                he_matrix[index].pressed = false;
-                he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-            }
-            break;
-            #endif // defined USE_RAPID_TRIGGER
-
-            case continuous_rapid_trigger:
-            #if defined USE_CONTINUOUS_RAPID_TRIGGER
-            static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
-            // Rapid trigger activates below the trigger height, but only stops when fully released
-            if(rt_active[index] || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
-                rt_active[index] = true;
-                // Set the new lowest value if needed
-                if(value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) {
-                    he_matrix[index].pressed = true;
-                    he_matrix[index].rt_press_threshold = value;
-                // Check if the key has been released past the threshold
-                } else if((value - he_matrix[index].rt_press_threshold - ADC_SMOOTHING) > he_matrix[index].rt_release_value[current_he_profile]) {
-                    he_matrix[index].pressed = false;
-                    // Set the new activation threshold
-                    he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
-                }
-            // Check if the switch has been released completely
-            } else if(value > he_matrix[index].top_value - ADC_DEADZONE) {
-                he_matrix[index].pressed = false;
-                he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-                rt_active[index] = false;
-            }
-            break;
-            #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
-
-            case constant_rapid_trigger:
-            #if defined USE_CONSTANT_RAPID_TRIGGER
-            // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-            if((value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) ||
-                value < he_matrix[index].bottom_value + ADC_DEADZONE) {
+    switch(he_matrix[index].mode[current_he_profile]) {
+        case rapid_trigger:
+        #if defined USE_RAPID_TRIGGER
+        // Rapid trigger is only active when the switch is lower than the trigger and release height
+        if(value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING) {
+            // Set the new lowest value if needed
+            if(value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) {
                 he_matrix[index].pressed = true;
                 he_matrix[index].rt_press_threshold = value;
             // Check if the key has been released past the threshold
@@ -640,28 +585,64 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
                 he_matrix[index].pressed = false;
                 // Set the new activation threshold
                 he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
-            // Check if the key has been completely released
-            } else if(value > he_matrix[index].top_value - ADC_DEADZONE) {
+            }
+        //TODO: Check if it is faster to check if the key state is released, and only set values if they're not set already
+        } else if(value - ADC_SMOOTHING > he_matrix[index].release_value[current_he_profile]) {
+            // If the switch is not pressed past the threshold, reset it
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
+        }
+        break;
+        #endif // defined USE_RAPID_TRIGGER
+
+        case continuous_rapid_trigger:
+        #if defined USE_CONTINUOUS_RAPID_TRIGGER
+        //TODO: Check if this works
+        static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
+        // Rapid trigger activates below the trigger height, but only stops when fully released
+        if(rt_active[index] || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
+            rt_active[index] = true;
+            // Set the new lowest value if needed
+            if(value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) {
+                he_matrix[index].pressed = true;
+                he_matrix[index].rt_press_threshold = value;
+            // Check if the key has been released past the threshold
+            } else if((value - he_matrix[index].rt_press_threshold - ADC_SMOOTHING) > he_matrix[index].rt_release_value[current_he_profile]) {
                 he_matrix[index].pressed = false;
+                // Set the new activation threshold
                 he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
             }
-            break;
-            #endif // defined USE_CONSTANT_RAPID_TRIGGER
-
-            case none:
-            #if defined USE_NONE
-            if(value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING) {
-                he_matrix[index].pressed = true;
-            } else if(value - ADC_SMOOTHING > he_matrix[index].release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
-            } else {
-                return false;
-            }
-            break;
-            #endif //defined USE_NONE
+        // Check if the switch has been released completely
+        } else if(value > he_matrix[index].top_value - ADC_DEADZONE) {
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
+            rt_active[index] = false;
         }
-    } else { // rt_type[current_he_profile]
-    #if defined USE_NONE
+        break;
+        #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
+
+        case constant_rapid_trigger:
+        #if defined USE_CONSTANT_RAPID_TRIGGER
+        // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
+        if((value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) ||
+            value < he_matrix[index].bottom_value + ADC_DEADZONE) {
+            he_matrix[index].pressed = true;
+            he_matrix[index].rt_press_threshold = value;
+        // Check if the key has been released past the threshold
+        } else if((value - he_matrix[index].rt_press_threshold - ADC_SMOOTHING) > he_matrix[index].rt_release_value[current_he_profile]) {
+            he_matrix[index].pressed = false;
+            // Set the new activation threshold
+            he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
+        // Check if the key has been completely released
+        } else if(value > he_matrix[index].top_value - ADC_DEADZONE) {
+            he_matrix[index].pressed = false;
+            he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
+        }
+        break;
+        #endif // defined USE_CONSTANT_RAPID_TRIGGER
+
+        case none:
+        #if defined USE_NONE
         if(value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING) {
             he_matrix[index].pressed = true;
         } else if(value - ADC_SMOOTHING > he_matrix[index].release_value[current_he_profile]) {
@@ -669,7 +650,14 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         } else {
             return false;
         }
-    #endif //defined USE_NONE
+        break;
+        #endif //defined USE_NONE
+
+        default:
+        #if defined USE_SPECIAL
+        //TODO: Call special key eval function here
+        //evaluate_special(index, value)
+        #endif //defined USE_SPECIAL
     }
 #endif //else defined INVERT_ADC
     return !(prev_pressed == he_matrix[index].pressed);
@@ -709,16 +697,20 @@ void get_switch_data(void) {
         he_matrix[key].row = row;
         he_matrix[key].col = col;
 
-        #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+        for(uint8_t profile; profile < HE_PROFILE_NUM; profile++){
+            he_matrix[key].mode[profile] = key_modes[profile][key];
+        }
+
+        // #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
         //TODO: Check if this works
         // Use 2*col if setting mode is allowed per key, if one mode per profile then use col and smaller type
         // he_matrix[key].rt_type = (profiles[HE_DEFAULT_PROFILE].rt_mask[row] & (3 << (2*col)));
         // he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = (profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << key%16));
 
-        if(profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << (key % 16))) {
-            he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = 1;
-        }
-        #endif
+        // if(profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << (key % 16))) {
+        //     he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = 1;
+        // }
+        // #endif
     }
 }
 
