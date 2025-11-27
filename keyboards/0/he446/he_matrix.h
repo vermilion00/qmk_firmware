@@ -12,12 +12,15 @@
 #include "constants.h"
 #include "matrix.h"
 #include "util.h"
+#include "bootloader.h"
+#include "bootmagic/bootmagic.h"
 
 /* Current matrix implementation:
  * matrix is an array of Switch structs, which hold all information relevant to the switch
  * Each height param is an array holding the values for all profiles.
+ * During scanning, the current_profile variable is checked to see which height to evaluate
+ * To switch profiles, only the current_profile variable needs to be changed.
  */
-
 
 typedef struct Profile {
     layer_state_t layers;
@@ -29,11 +32,12 @@ typedef struct Profile {
     rt_type_t rt_type;
     // uint16_t rt_press_value[SWITCH_NUM];
     // uint16_t rt_release_value[SWITCH_NUM];
-    uint16_t rt_mask[CEILING(SWITCH_NUM, 16)];
+    uint16_t rt_mask[CEILING((SWITCH_NUM + SWITCH_NUM_R), 16)];
     // #endif
 } Profile;
 
 //TODO: Bit fields are an option to cut down on space, but it will cause a performance hit
+//      because all values will have to be bitshifted every access
 typedef struct Switch {
     uint8_t pressed;
     // Is rapid trigger enabled for this switch?
@@ -62,37 +66,45 @@ typedef struct Switch {
 
 volatile static Switch he_matrix[SWITCH_NUM];
 #ifdef MUX_PINS
-volatile static const pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
+volatile static SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif
-volatile static const pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
+volatile static SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
 // During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
 volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
-
-//TODO: Make one user defined mux_to_matrix[MUX_CHANNELS][ADC_PIN_NUM][2] thing
-//      and split it into these two using python
-//      Add a parameter to the layout macro and derive it from there
-// Used to translate from the ADC pin/Mux combination to the switch number
-volatile static const uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
-// Used to translate from the switch number to the QMK layout position
-volatile static const uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
-// Used to translate from the QMK layout position to the switch number
-// volatile static const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
-// Used to translate from the matrix index to the ADC pin/Mux combination
-// volatile static const uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
-
 #ifdef POWER_PINS
-volatile static const pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
+volatile static SPLIT_MUTABLE pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
 #endif
+// #if HE_INIT_KEY_NUM > 0
+// volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
+// volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
+// #endif
+
+// Used to translate from the ADC pin/Mux combination to the switch number
+volatile static SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
+// Used to translate from the switch number to the QMK layout position
+volatile static SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
+// Used to translate from the QMK layout position to the switch number
+volatile static SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+// Used to translate from the matrix index to the ADC pin/Mux combination
+volatile static SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
 
 #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-volatile static const float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-volatile static const float release_height[HE_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
+volatile static SPLIT_MUTABLE float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+volatile static SPLIT_MUTABLE float release_height[HE_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
 #endif
 
 #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-volatile static const float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-volatile static const float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+volatile static SPLIT_MUTABLE float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
 #endif
+
+// Only need these for split keyboards
+#ifdef SPLIT_KEYBOARD
+// volatile static const uint8_t local_to_global_index[SWITCH_NUM][2] = L_TO_G_INDEX;
+
+#else // defined SPLIT_KEYBOARD
+#define SPLIT_MUTABLE const
+#endif // else defined SPLIT_KEYBOARD
 
 
 /* Configuration defaults */

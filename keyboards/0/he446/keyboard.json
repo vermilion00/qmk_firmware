@@ -22,7 +22,6 @@
     "hall_effect": {
         "hardware": {
             "adc_pins": ["A0", "A6"],
-            "power_pins": ["B13", "B14"],
             "travel_distance": 4.0,
             "smoothing": 1,
             "deadzone": 3

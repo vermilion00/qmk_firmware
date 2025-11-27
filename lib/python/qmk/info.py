@@ -525,33 +525,49 @@ def _extract_split_transport(info_data, config_c):
 
 
 #TODO: Might need to add mappings for he pins here
+#MARK: Split right pins
 def _extract_split_right_pins(info_data, config_c):
     # Figure out the right half matrix pins
-    row_pins = config_c.get('MATRIX_ROW_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
-    col_pins = config_c.get('MATRIX_COL_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
-    direct_pins = config_c.get('DIRECT_PINS_RIGHT', '').replace(' ', '')[1:-1]
+    if 'hall_effect' not in info_data:
+        row_pins = config_c.get('MATRIX_ROW_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+        col_pins = config_c.get('MATRIX_COL_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+        direct_pins = config_c.get('DIRECT_PINS_RIGHT', '').replace(' ', '')[1:-1]
 
-    if row_pins or col_pins or direct_pins:
-        if info_data.get('split', {}).get('matrix_pins', {}).get('right', None):
-            _log_warning(info_data, 'Right hand matrix data is specified in both info.json and config.h, the config.h values win.')
+        if row_pins or col_pins or direct_pins:
+            if info_data.get('split', {}).get('matrix_pins', {}).get('right', None):
+                _log_warning(info_data, 'Right hand matrix data is specified in both info.json and config.h, the config.h values win.')
 
-        if 'split' not in info_data:
-            info_data['split'] = {}
+            if 'split' not in info_data:
+                info_data['split'] = {}
 
-        if 'matrix_pins' not in info_data['split']:
-            info_data['split']['matrix_pins'] = {}
+            if 'matrix_pins' not in info_data['split']:
+                info_data['split']['matrix_pins'] = {}
 
-        if 'right' not in info_data['split']['matrix_pins']:
-            info_data['split']['matrix_pins']['right'] = {}
+            if 'right' not in info_data['split']['matrix_pins']:
+                info_data['split']['matrix_pins']['right'] = {}
 
-        if col_pins:
-            info_data['split']['matrix_pins']['right']['cols'] = _extract_pins(col_pins)
+            if col_pins:
+                info_data['split']['matrix_pins']['right']['cols'] = _extract_pins(col_pins)
 
-        if row_pins:
-            info_data['split']['matrix_pins']['right']['rows'] = _extract_pins(row_pins)
+            if row_pins:
+                info_data['split']['matrix_pins']['right']['rows'] = _extract_pins(row_pins)
 
-        if direct_pins:
-            info_data['split']['matrix_pins']['right']['direct'] = _extract_direct_matrix(direct_pins)
+            if direct_pins:
+                info_data['split']['matrix_pins']['right']['direct'] = _extract_direct_matrix(direct_pins)
+
+    else: #'hall_effect' in info_data
+        mux_pins = config_c.get('MUX_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+        adc_pins = config_c.get('ADC_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+        power_pins = config_c.get('POWER_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+
+        if mux_pins and not info_data['hall_effect']['hardware'].get('mux_pins_right'):
+            info_data['hall_effect']['hardware']['mux_pins_right'] = _extract_pins(mux_pins)
+
+        if adc_pins and not info_data['hall_effect']['hardware'].get('adc_pins_right'):
+            info_data['hall_effect']['hardware']['adc_pins_right'] = _extract_pins(adc_pins)
+
+        if power_pins and not info_data['hall_effect']['hardware'].get('power_pins_right'):
+            info_data['hall_effect']['hardware']['power_pins_right'] = _extract_pins(power_pins)
 
 
 def _extract_matrix_info(info_data, config_c):

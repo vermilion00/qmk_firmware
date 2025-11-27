@@ -38,7 +38,7 @@ def generate_define(define, value=None):
 #    define {define}{value}
 #endif // {define}"""
 
-
+#MARK: Transform
 # Called by info.py before the rest of the functions here
 def _transform_he(info_data):
     if 'hall_effect' not in info_data:
@@ -46,19 +46,28 @@ def _transform_he(info_data):
 
     he_hardware = info_data['hall_effect']['hardware']
 
-    # Nothing needs to be done
-    if 'mux_to_num' in he_hardware and 'num_to_matrix' in he_hardware:
-        pass
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        info_data = _get_row_split(info_data)
 
-    elif 'mux_to_matrix' in he_hardware:
-        if'mux_to_num' in he_hardware:
-            print("mux_to_matrix and mux_to_num defined, but num_to_matrix is missing. mux_to_num will be overwritten by mux_to_matrix.")
-        elif 'num_to_matrix' in he_hardware:
-            print("mux_to_matrix and num_to_matrix defined, but mux_to_num is missing. num_to_matrix will be overwritten by mux_to_matrix.")
-        info_data = _transform_mtm(info_data)
+        #TODO: Either disallow mux_to_num configs etc or add translations
+        # Currently only layout mux definitons are allowed when using split keyboards
+        info_data = _transform_layout_split(info_data)
 
-    else:
-        info_data = _transform_layout(info_data)
+    else: # split not in info_data
+        if 'mux_to_num' in he_hardware and 'num_to_matrix' in he_hardware:
+            info_data['hall_effect']['hardware']['mux_channels'] = len(he_hardware['mux_to_num'])
+            info_data['hall_effect']['hardware']['switch_num'] = len(he_hardware['num_to_matrix'])
+
+        elif 'mux_to_matrix' in he_hardware:
+            if'mux_to_num' in he_hardware:
+                print("mux_to_matrix and mux_to_num defined, but num_to_matrix is missing. mux_to_num will be overwritten by mux_to_matrix.")
+            elif 'num_to_matrix' in he_hardware:
+                print("mux_to_matrix and num_to_matrix defined, but mux_to_num is missing. num_to_matrix will be overwritten by mux_to_matrix.")
+            info_data = _transform_mtm(info_data)
+
+        # Since checking if 'mux' is set in the layout is hard to do cleanly, just call the function and check there
+        else:
+            info_data = _transform_layout(info_data)
 
     return info_data
 
@@ -89,6 +98,8 @@ def _transform_mtm(info_data):
 
     info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num
     info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix
+    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix)
+    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num)
 
     return info_data
 
@@ -98,15 +109,14 @@ def _transform_mtm(info_data):
 def _transform_layout(info_data):
     """Transforms the mux matrix defined in the layout into mux_to_num and num_to_matrix"""
     he_hardware = info_data['hall_effect']['hardware']
+
     if 'adc_pins' in he_hardware:
         adc_pins = len(he_hardware['adc_pins'])
     else:
         cli.log.error("No ADC pins defined!")
         return info_data
-    if 'mux_pins' in he_hardware:
-        mux_channels = 1 << len(he_hardware['mux_pins'])
-    else:
-        mux_channels = 1
+
+    mux_channels = 1 << len(he_hardware.get('mux_pins', ''))
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
@@ -127,12 +137,103 @@ def _transform_layout(info_data):
             else:
                 cli.log.error(f"Missing mux info on key {key_index} in layout {layout_name}!")
                 return info_data
+        break
     info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num
     info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix
+    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix)
+    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num)
 
     return info_data
 
 
+#MARK: Layout split
+def _transform_layout_split(info_data):
+    he_hardware = info_data['hall_effect']['hardware']
+
+    if 'adc_pins' in he_hardware:
+        adc_pins = len(he_hardware['adc_pins'])
+    else:
+        cli.log.error("No ADC pins defined!")
+        return info_data
+    mux_channels = 1 << len(he_hardware.get('mux_pins', ''))
+    row_split = he_hardware['row_split']
+
+    # We only need one layout, hence the break at the end
+    for layout_name, layout_data in info_data['layouts'].items():
+        mux_to_num_l = [[0 for _ in range(adc_pins)] for _ in range(mux_channels)]
+        num_to_matrix_l = [-1 for _ in range(len(layout_data['layout']))]
+        mux_to_num_r = [[0 for _ in range(adc_pins)] for _ in range(mux_channels)]
+        #Oversize this since we don't know how many keys are there per side, then trim after
+        num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
+        key_index_l = 0
+        key_index_r = 0
+        used_positions_l = []
+        used_positions_r = []
+        for key_data in layout_data['layout']:
+            if 'mux' in key_data:
+                if key_data['matrix'][0] < row_split:
+                    key_index_l += 1
+                    mux, adc = key_data['mux']
+                    mux_to_num_l[mux][adc] = key_index_l
+                    num_to_matrix_l[key_index_l-1] = key_data['matrix']
+                    if [mux, adc] not in used_positions_l:
+                        used_positions_l.append([mux, adc])
+                    else: # Mux combo already used
+                        cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the left half of the layout!")
+                else: # Right hand side
+                    key_index_r += 1
+                    mux, adc = key_data['mux']
+                    mux_to_num_r[mux][adc] = key_index_r
+                    num_to_matrix_r[key_index_r-1] = key_data['matrix']
+                    if [mux, adc] not in used_positions_r:
+                        used_positions_r.append([mux, adc])
+                    else: # Mux combo already used
+                        cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the right half of the layout!")
+
+            else: # No mux definition in key data
+                cli.log.error(f"Missing mux info on key {key_index_l + key_index_r} in layout {layout_name}!")
+                return info_data
+        break
+
+    # Trim the num_to_matrixes
+    num_to_matrix_l = [i for i in num_to_matrix_l if i != -1]
+    num_to_matrix_r = [i for i in num_to_matrix_r if i != -1]
+
+    #TODO: Do I actually need this many _right defines?
+    info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num_l
+    info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix_l
+    info_data['hall_effect']['hardware']['mux_to_num_right'] = mux_to_num_r
+    info_data['hall_effect']['hardware']['num_to_matrix_right'] = num_to_matrix_r
+    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num_l)
+    info_data['hall_effect']['hardware']['mux_channels_right'] = len(mux_to_num_r)
+    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix_l)
+    info_data['hall_effect']['hardware']['switch_num_right'] = len(num_to_matrix_r)
+    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num_l)
+    info_data['hall_effect']['hardware']['mux_channels_right'] = len(mux_to_num_r)
+
+    return info_data
+
+
+# Returns the row index at which the halves are separated
+#MARK: Get row split
+#TODO: Make this a thing
+def _get_row_split(info_data):
+    for layout_name, layout_data in info_data['layouts'].items():
+        highest_row = 0
+        for key_data in layout_data['layout']:
+            if 'matrix' in key_data:
+                if key_data['matrix'][0] > highest_row:
+                    highest_row = key_data['matrix'][0]
+        # Rows are doubled up when using split keyboards
+        #TODO: Fix this
+        info_data['hall_effect']['hardware']['row_split'] = (highest_row + 1) // 2
+        cli.log.info(f"Row split detected at row {(highest_row + 1) // 2} in {layout_name}")
+
+        break
+    return info_data
+
+
+#TODO: Update this with split stuff in mind
 #MARK: Matrix_to_mux
 # Generates a reverse matrix transformation array for the initialization keys
 def get_matrix_to_mux(info_data, config_h_lines):
@@ -154,6 +255,27 @@ def get_matrix_to_mux(info_data, config_h_lines):
     config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
     info_data['hall_effect']['hardware']['matrix_to_num'] = matrix_to_num
 
+    if 'split' in info_data:
+        if info_data['split'].get('enabled', False):
+            mux_to_num = info_data['hall_effect']['hardware']['mux_to_num_r']
+            num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix_r']
+            switch_num = info_data['hall_effect']['hardware']['switch_num_r']
+            rows = info_data['matrix_size']['rows']
+            cols = info_data['matrix_size']['cols']
+            num_to_mux = [[] for _ in range(switch_num)]
+            for row_idx, row in enumerate(mux_to_num):
+                for col_idx, idx in enumerate(row):
+                    num_to_mux[idx-1] = [row_idx, col_idx]
+            config_h_lines.append(generate_define('NUM_TO_MUX_RIGHT', str(num_to_mux).replace('[', '{').replace(']', '}')))
+            info_data['hall_effect']['hardware']['num_to_mux_r'] = num_to_mux
+
+            matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+            for idx, pos in enumerate(num_to_matrix):
+                matrix_to_num[pos[0]][pos[1]] = idx + 1
+            config_h_lines.append(generate_define('MATRIX_TO_NUM_RIGHT', str(matrix_to_num).replace('[', '{').replace(']', '}')))
+            info_data['hall_effect']['hardware']['matrix_to_num_r'] = matrix_to_num
+
+
     return info_data
 
 
@@ -169,22 +291,23 @@ def get_port_def(json):
 
 
 # MARK: Mux pins
-def check_mux_pins(he_json, port_def, config_h_lines, postfix=""):
-    """Check if mux pins are continuously on one port, and set the defines
+def check_mux_pins(he_json, port_def, config_h_lines):
+    """Check if mux pins are continuous on one port, and set the defines
     """
-    if 'mux_pins' in he_json['hardware']:
-        mux_pins = he_json['hardware']['mux_pins']
-        port = mux_pins[0][:1]
-        offset = int(mux_pins[0][1:])
-        init_offset = offset
-        for pin in mux_pins:
-            if pin[:1] == port and int(pin[1:]) == offset:
-                offset += 1
-            else:
-                return
-        config_h_lines.append(generate_define('MUX_PINS_CONTINUOUS'))
-        config_h_lines.append(generate_define('MUX_PIN_OFFSET', f'{init_offset}'))
-        config_h_lines.append(generate_define('CONTINUOUS_MUX_PORT', f'{port_def}{port}'))
+    for postfix in ['', '_right']:
+        if f'mux_pins{postfix}' in he_json['hardware']:
+            mux_pins = he_json['hardware'][f'mux_pins{postfix}']
+            port = mux_pins[0][:1]
+            offset = int(mux_pins[0][1:])
+            init_offset = offset
+            for pin in mux_pins:
+                if pin[:1] == port and int(pin[1:]) == offset:
+                    offset += 1
+                else:
+                    return
+            config_h_lines.append(generate_define(f'MUX_PINS{postfix.upper()}_CONTINUOUS'))
+            config_h_lines.append(generate_define(f'MUX_PIN{postfix.upper()}_OFFSET', f'{init_offset}'))
+            config_h_lines.append(generate_define(f'CONTINUOUS_MUX_PORT{postfix.upper()}', f'{port_def}{port}'))
 
 
 #MARK: Init keys
@@ -200,8 +323,9 @@ def transform_init_keys(info_data, config_h_lines):
         path = INIT_KEYS[key]
         if path in info_data:
             key_pos = info_data[path]
-            key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]]-1]
-            print(f'Found key {path} with mux {key_mux}')
+            key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
+            #TODO: Remove this
+            cli.echo(f'Found key {path} with mux {key_mux}')
             init_keys.append(key_mux)
             init_key_num += 1
             if len(key) > 6 and key[-6:] == '_RIGHT':
@@ -209,10 +333,9 @@ def transform_init_keys(info_data, config_h_lines):
             init_functions.append(INIT_FUNCTIONS[key])
     if len(init_functions) > 0:
         config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
-        # config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', str(init_functions).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('HE_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
         #TODO: This way I can define the function names as strings and have them be defined as functions
         config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
-        config_h_lines.append(generate_define('HE_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
 
 
 #MARK: Profiles
@@ -248,7 +371,6 @@ def generate_profile_config(he_json, config_h_lines):
                 else:
                     release_heights.append(trigger_height)
             else:   # No trigger height defined
-                #TODO: Check if uneven arrays cause issues in c
                 trigger_heights.append([])
                 release_heights.append([])
 
@@ -390,6 +512,18 @@ def validate_hall_effect_config(info_data):
 
     valid = True
 
+    #TODO: Add validation for _right pins (or leave them off tbh)
+    if 'power_pins' in he_hardware:
+        if len(he_hardware.get('mux_to_num', '')) != len(he_hardware.get('power_pins', '')) \
+            and not he_hardware.get('custom_power_before_scan', False):
+            valid = False
+            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as you use mux_channels.")
+    if 'power_pins_right' in he_hardware:
+        if len(he_hardware.get('mux_to_num_right', '')) != len(he_hardware.get('power_pins_right', '')) \
+            and not he_hardware.get('custom_power_before_scan', False):
+            valid = False
+            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as you mux_channels are used.")
+
     if 'mux_to_num' not in he_hardware:
         valid = False
         print("You have to define a way to translate the ADC/MUX combination to the matrix position, using either the mux parameter in the layout, defining mux_to_matrix, or defining a combination of mux_to_num and num_to_matrix!")
@@ -452,7 +586,7 @@ def validate_hall_effect_config(info_data):
                     valid = False
                     print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
 
-    else:
+    else: # Profiles not defined
         if 'rapid_trigger_type' in he_config:
             if he_config['rapid_trigger_type'] != 'constant_rapid_trigger':
                 if 'trigger_height' not in he_config and 'trigger_height' not in he_profiles['profiles']:
@@ -537,29 +671,24 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 def generate_hall_effect_config(info_data, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
     he_json = info_data['hall_effect']
-    validate_hall_effect_config(info_data)
+    # validate_hall_effect_config(info_data)
 
     #Hardware stuff
-    if 'adc_pins' in he_json['hardware']:
-        adc_pin_num = len(he_json['hardware']['adc_pins'])
-        config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
+    adc_pin_num = len(he_json['hardware'].get('adc_pins', ''))
+    config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
 
-    mux_pin_num = 0
-    if 'mux_pins' in he_json['hardware']:
-        mux_pin_num = len(he_json['hardware']['mux_pins'])
-        config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-    config_h_lines.append(generate_define('MUX_CHANNELS', 1 << mux_pin_num))
+    mux_pin_num = len(he_json['hardware'].get('mux_pins', ''))
+    config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
 
     if 'power_pins' in he_json['hardware']:
         power_pin_num = len(he_json['hardware']['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
         config_h_lines.append(generate_define('POWER_BEFORE_SCAN', 'TRUE'))
 
-    # These are automatically generated by this point if they haven't been defined by the user
-    num_to_matrix = he_json['hardware']['num_to_matrix']
-    switch_num = len(num_to_matrix)
-    info_data['hall_effect']['hardware']['switch_num'] = switch_num
-    config_h_lines.append(generate_define('SWITCH_NUM', switch_num))
+    # This is the total switch num to be used with the trigger_heights
+    #TODO: Since the heights are defined in one array, make a transform matrix that transforms
+    #      the global index into the index and side, to be used in the translation function
+    switch_num = he_json['hardware'].get('switch_num', 0) + he_json['hardware'].get('switch_num_right', 0)
 
     # Get the reverse transform arrays
     info_data = get_matrix_to_mux(info_data, config_h_lines)
@@ -617,6 +746,6 @@ def generate_hall_effect_config(info_data, config_h_lines):
     else:
         from_bottom = False
 
-    validate_height_config(he_json, invert_adc, from_bottom)
+    # validate_height_config(he_json, invert_adc, from_bottom)
 
     return info_data
