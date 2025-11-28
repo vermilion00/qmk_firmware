@@ -10,9 +10,9 @@
 #include "gpio.h"
 #include "hal_pal.h"
 #include "hal_pal_lld.h"
-#include "he_config.h"
 #include "he_matrix.h"
 #include "info_config.h"
+#include "keyboard.h"
 #include "keycodes.h"
 #include "multiplexer.h"
 #include "atomic_util.h"
@@ -40,6 +40,8 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value);
 static inline void delay_ns(uint16_t delay);
 // Initialize the keys to be checked at initialization
 static void scan_init_keys(void);
+// Set the sensor power pins and delay, if defined
+static inline void sensor_power(uint8_t index);
 
 //TODO: Sync current profile between halves
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
@@ -52,14 +54,13 @@ volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_F
 
 #ifdef SPLIT_KEYBOARD
 #if KEYBOARD_SIDE == RIGHT
-bool keyboard_side = RIGHT;
-#elif KEYBOARD_LEFT
-bool keyboard_side = LEFT;
+const bool keyboard_side = RIGHT;
+#elif KEYBOARD_SIDE == LEFT
+const bool keyboard_side = LEFT;
 #else // KEYBOARD_SIDE == UNKNOWN
 bool keyboard_side;
 #endif
 #endif // if defined SPLIT_KEYBOARD
-
 
 //MARK: Init
 void matrix_init_custom(void) {
@@ -67,27 +68,8 @@ void matrix_init_custom(void) {
     #ifdef SPLIT_KEYBOARD
     // Determine keyboard half
     #if KEYBOARD_SIDE == UNKNOWN
-    if(keyboard_side == RIGHT){
-        // TODO: Array assignment isn't possible
-        //       Try declaring all arrays to have equal sizes, then use memcpy()
-        //       Or use pointers to the arrays everywhere, and just swap those out
-        // switch_num = SWITCH_NUM_R;
-        // adc_pins = ADC_PINS_R;
-        // #ifdef MUX_PINS
-        // mux_pins = MUX_PINS_R;
-        // #endif
-        // #ifdef POWER_PINS
-        // power_pins = POWER_PINS_R;
-        // #endif
-        // #if INIT_KEY_NUM > 0
-        // //TODO: This won't work
-        // init_keys = HE_INIT_KEYS_R;
-        // (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS_R;
-        // #endif
+    keyboard_side = is_keyboard_left();
 
-
-
-    }
     #endif // if KEYBOARD_SIDE == UNKNOWN
     // Set switch num based on side
     #endif // defined SPLIT_KEYBOARD
@@ -111,12 +93,13 @@ void matrix_init_custom(void) {
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     sensor_power_init_kb();
     #endif
+
     //TODO: Remove this after testing, only is an issue since qmk sets all unused pins to high,
     //      and I have all mux select pins connected
-    GPIOB->MODER = 0b01010101010101010101010101010101;
-    GPIOB->OTYPER = 0x0000;
-    GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
-    GPIOB->ODR = 0x0000;
+    // GPIOB->MODER = 0b01010101010101010101010101010101;
+    // GPIOB->OTYPER = 0x0000;
+    // GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
+    // GPIOB->ODR = 0x0000;
 
     get_switch_data();
 
@@ -190,13 +173,11 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 
     for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
         #if POWER_BEFORE_SCAN == TRUE
-        gpio_write_pin_high(power_pins[mux_channel]);
-        #ifdef POWER_SELECT_DELAY
-        delay_ns(POWER_SELECT_CYCLES);
-        #endif
+        sensor_power(mux_channel);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_high_kb(mux_channel);
         #endif
+
         set_mux_channel(mux_channel);
         #ifdef MUX_SELECT_DELAY
         delay_ns(MUX_SELECT_CYCLES);
@@ -243,9 +224,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
         #if DEBUG_SCAN_VALUES == TRUE
         dprint("\n");
         #endif
-        #if POWER_BEFORE_SCAN == TRUE
-        gpio_write_pin_low(power_pins[mux_channel]);
-        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_low_kb(mux_channel);
         #endif
     }
@@ -477,7 +456,6 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 //TODO: Evtl remake this to be changeable at runtime (if performance is enough)
 //Basically just check a var in the function call to check which to call, if via is not defined it'll be const
     bool prev_pressed = he_matrix[index].pressed;
-    #define INVERT_ADC TRUE
 
 #if INVERT_ADC == TRUE
     switch(he_matrix[index].mode[current_he_profile]) {
@@ -532,8 +510,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
         // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-        if((value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) ||
-            value > he_matrix[index].bottom_value - ADC_DEADZONE) {
+        if((value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) || value > he_matrix[index].bottom_value - ADC_DEADZONE) {
             he_matrix[index].pressed = true;
             he_matrix[index].rt_press_threshold = value;
         // Check if the key has been released past the threshold
@@ -688,6 +665,7 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
     return false;
 }
 
+
 //MARK: Switch data
 // Populates the key matrix with the static config params, heights are populated separately
 void get_switch_data(void) {
@@ -701,18 +679,33 @@ void get_switch_data(void) {
             he_matrix[key].mode[profile] = key_modes[profile][key];
         }
 
-        // #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-        //TODO: Check if this works
-        // Use 2*col if setting mode is allowed per key, if one mode per profile then use col and smaller type
-        // he_matrix[key].rt_type = (profiles[HE_DEFAULT_PROFILE].rt_mask[row] & (3 << (2*col)));
-        // he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = (profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << key%16));
-
         // if(profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << (key % 16))) {
         //     he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = 1;
         // }
         // #endif
     }
 }
+
+
+//MARK: Power pins
+#ifdef POWER_PINS
+static inline void sensor_power(uint8_t index) {
+    #ifdef POWER_PINS_CONTINUOUS
+    CONTINUOUS_POWER_PORT->ODR = (CONTINUOUS_POWER_PORT->ODR & ~((1 << POWER_PIN_NUM) - 1)) | (index << POWER_PIN_OFFSET);
+    #else
+    if(index == 0) {
+        gpio_write_pin_low(power_pins[POWER_PIN_NUM - 1]);
+        gpio_write_pin_high(power_pins[0]);
+    } else {
+        gpio_write_pin_low(power_pins[index-1]);
+        gpio_write_pin_high(power_pins[index]);
+    }
+    #endif
+    #ifdef POWER_SELECT_DELAY
+    delay_ns(POWER_SELECT_CYCLES);
+    #endif
+}
+#endif
 
 
 //MARK: Delay
@@ -740,6 +733,8 @@ void switch_to_profile(uint8_t profile) {
     //     he_matrix[key].rt_press_value = rt_press_value[profile][key];
     //     he_matrix[key].rt_release_value = rt_release_value[profile][key];
     //     #endif
+
+    //     he_matrix[key].mode = key_modes[profile][key];
     // }
     current_he_profile = profile;
 }
@@ -754,9 +749,16 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         // If the highest active layer is in the layers list of that profile, activate it
         if(profiles[profile].layers & (1 << highest_layer)) {
             switch_to_profile(profile);
+
             // Only the lowest number profile should apply
             break;
         }
+        // If profile switch mode is default, switch to the default profile if layer is not set for any profile
+        #if PROFILE_SWITCH_MODE == DEFAULT
+        else {
+            switch_to_profile(HE_DEFAULT_PROFILE);
+        }
+        #endif
     }
 
     // Need to return state for it to work correctly
