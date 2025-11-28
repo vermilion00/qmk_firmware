@@ -196,6 +196,20 @@ def _transform_layout_split(info_data):
                 return info_data
         break
 
+    # Trim the mux_to_nums
+    last_row = 0
+    for num, row in enumerate(mux_to_num_l):
+        for idx in row:
+            if idx != 0:
+                last_row = num
+    mux_to_num_l = mux_to_num_l[:last_row + 1]
+
+    for num, row in enumerate(mux_to_num_r):
+        for idx in row:
+            if idx != 0:
+                last_row = num
+    mux_to_num_r = mux_to_num_r[:last_row + 1]
+
     # Trim the num_to_matrixes
     num_to_matrix_l = [i for i in num_to_matrix_l if i != -1]
     num_to_matrix_r = [i for i in num_to_matrix_r if i != -1]
@@ -306,7 +320,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
             for col_idx, idx in enumerate(row):
                 num_to_mux[idx-1] = [row_idx, col_idx]
 
-        config_h_lines.append(generate_define('NUM_TO_MUX_RIGHT', str(num_to_mux).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('NUM_TO_MUX_R', str(num_to_mux).replace('[', '{').replace(']', '}')))
         info_data['hall_effect']['hardware']['num_to_mux_right'] = num_to_mux
 
         matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
@@ -314,7 +328,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
         for idx, pos in enumerate(num_to_matrix):
             matrix_to_num[pos[0]][pos[1]] = idx + 1
 
-        config_h_lines.append(generate_define('MATRIX_TO_NUM_RIGHT', str(matrix_to_num).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('MATRIX_TO_NUM_R', str(matrix_to_num).replace('[', '{').replace(']', '}')))
         info_data['hall_effect']['hardware']['matrix_to_num_right'] = matrix_to_num
 
 
@@ -528,13 +542,16 @@ def generate_profile_config(kb_info_json, config_h_lines):
                 # all keys except the ones with disabled RT or special keys
                 if 'key_modes' in profile_data:
                     rt_int = rt_types[profile_data['rapid_trigger_type'].upper()]
-                    key_mode = []
-                    for mode in profile_data['key_modes']:
+                    key_mode = profile_data['key_modes']
+                    if len(key_mode) == 1:
+                        key_mode = [key_mode[0] for _ in range(switch_num)]
+                    modes = []
+                    for mode in key_mode:
                         if mode > MODE_NUM or mode == 0:
-                            key_mode.append(mode)
+                            modes.append(mode)
                         else:
-                            key_mode.append(rt_int)
-                    key_modes.append(key_mode)
+                            modes.append(rt_int)
+                    key_modes.append(modes)
 
                 else: #RT defined but no key_modes
                     key_modes.append([rt_types[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
@@ -597,12 +614,12 @@ def generate_profile_config(kb_info_json, config_h_lines):
         config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Add the profile config to info_config.h
     config_h_lines.append(generate_define('HE_PROFILE_NUM', profile_num))
     config_h_lines.append(generate_define('HE_DEFAULT_PROFILE', default_profile))
     config_h_lines.append(generate_define('HE_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     for type in set(rt_type):
         config_h_lines.append(generate_define(f'USE_{type}'))
@@ -801,7 +818,7 @@ def generate_hall_effect_config(info_data, config_h_lines):
     # validate_hall_effect_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
-        info_data = check_right_side_pins(info_data)
+        info_data = check_right_side_pins(info_data, config_h_lines)
 
     he_json = info_data['hall_effect']
     he_hardware = info_data['hall_effect']['hardware']
@@ -887,16 +904,13 @@ def generate_hall_effect_config(info_data, config_h_lines):
 
 
 #MARK: Right side pins
-def check_right_side_pins(info_data):
+def check_right_side_pins(info_data, config_h_lines):
     he_hardware = info_data['hall_effect']['hardware']
 
-    if 'adc_pins_right' not in he_hardware:
-        info_data['hall_effect']['hardware']['adc_pins_right'] = he_hardware['adc_pins']
-
-    if 'mux_pins' in he_hardware and 'mux_pins_right' not in he_hardware:
-        info_data['hall_effect']['hardware']['mux_pins_right'] = he_hardware['mux_pins']
-
-    if 'power_pins' in he_hardware and 'power_pins_right' not in he_hardware:
-        info_data['hall_effect']['hardware']['power_pins_right'] = he_hardware['power_pins']
+    for pins in ['adc_pins', 'mux_pins', 'power_pins']:
+        if pins in he_hardware and f'{pins}_right' not in he_hardware:
+            pins_r = he_hardware[pins]
+            info_data['hall_effect']['hardware'][f'{pins}_right'] = pins_r
+            config_h_lines.append(generate_define(f'{pins.upper()}_R', f'{{ {", ".join(map(str, pins_r))} }}'))
 
     return info_data
