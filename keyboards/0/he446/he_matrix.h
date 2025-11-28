@@ -5,8 +5,6 @@
 #include <sys/cdefs.h>
 #include "action_layer.h"
 #include "gpio.h"
-#include "he_config.h"
-#include "he_matrix.h"
 #include "info_config.h"
 #include "analog.h"
 #include "constants.h"
@@ -33,7 +31,7 @@ typedef struct Profile {
     // uint16_t rt_press_value[SWITCH_NUM];
     // uint16_t rt_release_value[SWITCH_NUM];
     //TODO: Remove this when not needed anymore
-    uint16_t rt_mask[CEILING((SWITCH_NUM + SWITCH_NUM_R), 16)];
+    // uint16_t rt_mask[CEILING((SWITCH_NUM + SWITCH_NUM_R), 16)];
     // #endif
 } Profile;
 
@@ -41,9 +39,14 @@ typedef struct Profile {
 //      because all values will have to be bitshifted every access
 typedef struct Switch {
     uint8_t pressed;
-    // Is rapid trigger enabled for this switch?
-    //TODO: Maybe allow setting the mode for each individual switch, if it's already uint8
+    // 0 = None, 1-3 = RT, 4-9 = Reserved, 10+ = Special keys (Gamepad etc)
     uint8_t mode[HE_PROFILE_NUM];
+#   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+    // The switch is counted as pressed below this value
+    uint16_t trigger_value[HE_PROFILE_NUM];
+    // The switch is counted as released above this value
+    uint16_t release_value[HE_PROFILE_NUM];
+#   endif
 #   if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
@@ -52,12 +55,6 @@ typedef struct Switch {
     uint16_t rt_press_value[HE_PROFILE_NUM];
     // The distance that the switch is required to travel upwards before it's registered as released
     uint16_t rt_release_value[HE_PROFILE_NUM];
-#   endif
-#   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-    // The switch is counted as pressed below this value
-    uint16_t trigger_value[HE_PROFILE_NUM];
-    // The switch is counted as released above this value
-    uint16_t release_value[HE_PROFILE_NUM];
 #   endif
     uint16_t bottom_value;
     uint16_t top_value;

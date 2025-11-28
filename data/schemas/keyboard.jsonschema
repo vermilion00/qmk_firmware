@@ -517,16 +517,16 @@
                         "power_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
                         "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
+                        "adc_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "adc_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "power_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "power_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "mux_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "mux_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "mux_channels": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "mux_channels_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "switch_num": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "switch_num_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "adc_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
-                        "adc_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
-                        "power_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
-                        "power_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
@@ -632,6 +632,18 @@
                             "items": {
                                 "type": "integer"
                             }
+                        },
+                        "top_values_right": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        },
+                        "bottom_values_right": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
                         }
                     }
                 },
@@ -707,7 +719,7 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
-                                "rapid_trigger_keys": {
+                                "key_modes": {
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/bit"}
                                 },
@@ -746,7 +758,7 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
-                                "rapid_trigger_keys": {
+                                "key_modes": {
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/bit"}
                                 },
@@ -785,7 +797,7 @@
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
                                 },
-                                "rapid_trigger_keys": {
+                                "key_modes": {
                                     "type": "array",
                                     "items": {"$ref": "./definitions.jsonschema#/bit"}
                                 },
