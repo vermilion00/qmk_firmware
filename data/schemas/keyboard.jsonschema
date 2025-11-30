@@ -722,7 +722,7 @@
                                 },
                                 "key_modes": {
                                     "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",
@@ -761,7 +761,7 @@
                                 },
                                 "key_modes": {
                                     "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",
@@ -800,7 +800,7 @@
                                 },
                                 "key_modes": {
                                     "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/bit"}
+                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
                                 },
                                 "rapid_trigger_type": {
                                     "type": "string",

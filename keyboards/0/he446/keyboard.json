@@ -16,31 +16,12 @@
         "debounce_type": "sym_eager_pk"
 	},
     "features": {
-        "bootmagic": true,
-        "nkro": true,
+        "bootmagic": false,
         "console": true
-    },
-    "bootmagic": {
-        "matrix": [0, 0]
-    },
-    "split": {
-        "enabled": true,
-        "handedness": {
-            "pin": "C14"
-        },
-        "serial": {
-            "driver": "usart"
-        },
-        "bootmagic": {
-            "matrix": [1, 0]
-        }
     },
     "hall_effect": {
         "hardware": {
-            "keyboard_side": 0,
-            "mux_pins": ["B12", "B13", "B14", "B15"],
             "adc_pins": ["A0", "A6"],
-            "power_pins": ["C4", "C5"],
             "travel_distance": 4.0,
             "smoothing": 1,
             "deadzone": 3
@@ -48,10 +29,8 @@
         "config": {
             "scans_without_change": 250000,
             "no_eeprom": true,
-            "debug_scan_values": true,
-            "top_values": [ 618, 636, 620, 624 ],
-            "bottom_values": [ 264, 261, 264, 264 ],
-            "bootloader_key": [0, 0]
+            "top_values": [ 618, 636 ],
+            "bottom_values": [ 264, 261 ]
         },
         "profiles": {
             "default_profile": 0,
@@ -82,13 +61,7 @@
         "LAYOUT": {
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
-                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]},
-                {"matrix": [1, 0], "x": 0, "y": 0, "mux": [1, 0]},
-                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [1, 1]},
-                {"matrix": [2, 0], "x": 0, "y": 0, "mux": [0, 0]},
-                {"matrix": [2, 1], "x": 0, "y": 0, "mux": [0, 1]},
-                {"matrix": [3, 0], "x": 0, "y": 0, "mux": [1, 0]},
-                {"matrix": [3, 1], "x": 0, "y": 0, "mux": [1, 1]}
+                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]}
             ]
         }
     }

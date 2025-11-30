@@ -22,7 +22,7 @@
 // Get the switch data configured in the json
 void get_switch_data(void);
 // Translate the user defined trigger height etc into the equivalent ADC values
-void translate_mm_to_value(uint8_t index);
+void translate_mm_to_value(void);
 // Gets the previously calibrated min/max values for each switch from the EEPROM
 //TODO: Allow saving to flash
 bool get_calibration_data(void);
@@ -35,13 +35,19 @@ void calibrate_switches(void);
 //      Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Check if the switch boundaries need updating, and update them if necessary.
+#if DYNAMIC_CALIBRATION == TRUE
 inline bool update_switch_bounds(uint8_t index, uint16_t value);
+#endif
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
+#if HE_INIT_KEY_NUM > 0
 // Initialize the keys to be checked at initialization
 static void scan_init_keys(void);
+#endif
+#ifdef POWER_PINS
 // Set the sensor power pins and delay, if defined
 static inline void sensor_power(uint8_t index);
+#endif
 
 //TODO: Sync current profile between halves
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
@@ -96,10 +102,10 @@ void matrix_init_custom(void) {
 
     //TODO: Remove this after testing, only is an issue since qmk sets all unused pins to high,
     //      and I have all mux select pins connected
-    // GPIOB->MODER = 0b01010101010101010101010101010101;
-    // GPIOB->OTYPER = 0x0000;
-    // GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
-    // GPIOB->ODR = 0x0000;
+    GPIOB->MODER = 0b01010101010101010101010101010101;
+    GPIOB->OTYPER = 0x0000;
+    GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
+    GPIOB->ODR = 0x0000;
 
     get_switch_data();
 
@@ -112,9 +118,7 @@ void matrix_init_custom(void) {
     }
 
     // Translate the trigger height etc into the equivalent ADC value
-    for(uint8_t index = 0; index < switch_num; index++) {
-        translate_mm_to_value(index);
-    }
+    translate_mm_to_value();
 
     // Check keys like the calibration key or bootmagic key before scanning begins
     #if HE_INIT_KEY_NUM > 0
@@ -136,24 +140,25 @@ static void scan_init_keys(void) {
     for(uint8_t idx = 0; idx < HE_INIT_KEY_NUM; idx++) {
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_high(power_pins[init_keys[idx][0]]);
-        #ifdef POWER_SELECT_DELAY
-        delay_ns(POWER_SELECT_CYCLES);
-        #endif // POWER_SELECT_DELAY
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_high_kb(init_keys[idx][0]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
+
         set_mux_channel(init_keys[idx][0]);
         #ifdef MUX_SELECT_DELAY
         delay_ns(MUX_SELECT_CYCLES);
         #endif // MUX_SELECT_DELAY
+
         uint8_t matrix_index = mux_to_num[init_keys[idx][0]][init_keys[idx][1]] - 1;
         delay_ns(5000);
         adc_value = adc_read(adc_pin_mux[init_keys[idx][1]]);
+
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_low(power_pins[init_keys[idx][0]]);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_low_kb(init_keys[idx][0]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
+
         if(evaluate_value(matrix_index, adc_value)) {
             //TODO: Figure this out
             // If the key is activated, call the respective function
@@ -238,45 +243,49 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 
 //MARK: Translate
 // Translate the trigger height etc of one key into the corresponding ADC values
-void translate_mm_to_value(uint8_t index) {
-    uint16_t bottom_value = he_matrix[index].bottom_value;
-    uint16_t top_value = he_matrix[index].top_value;
-
-    #if INVERT_ADC == FALSE
-    // ADC count per mm of travel
-    uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
-
-    for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
-    #   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-        #if DISTANCE_FROM_BOTTOM == FALSE
-        he_matrix[index].trigger_value[profile] = top_value - (travel_unit * trigger_height[profile][index]);
-        he_matrix[index].release_value[profile] = top_value - (travel_unit * release_height[profile][index]);
-
-        #else // if DISTANCE_FROM_BOTTOM == FALSE
-        he_matrix[index].trigger_value[profile] = travel_unit * trigger_height[profile][index] + bottom_value;
-        he_matrix[index].release_value[profile] = travel_unit * release_height[profile][index] + bottom_value;
-        #endif // else DISTANCE_FROM_BOTTOM == FALSE
-        #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-
-        #else //Inverted ADC -> Lower switch means higher value
+void translate_mm_to_value(void) {
+    for(uint8_t index = 0; index < switch_num; index++) {
+        uint16_t bottom_value = he_matrix[index].bottom_value;
+        uint16_t top_value = he_matrix[index].top_value;
+        #if INVERT_ADC == FALSE
+        // ADC count per mm of travel
+        uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
+        #else
         uint16_t travel_unit = floor((bottom_value - top_value) / TRAVEL_DISTANCE);
-
-    #   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-        #if DISTANCE_FROM_BOTTOM == FALSE
-        he_matrix[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]);
-        he_matrix[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]);
-
-        #else // if DISTANCE_FROM_BOTTOM == FALSE
-        he_matrix[index].trigger_value[profile] = bottom_value - (travel_unit * trigger_height[profile][index]);
-        he_matrix[index].release_value[profile] = bottom_value - (travel_unit * release_height[profile][index]);
-        #endif // else DISTANCE_FROM_BOTTOM == FALSE
-        #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-        #endif //else INVERT ADC == TRUE
-
-    #   if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-        he_matrix[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
-        he_matrix[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index];
         #endif
+
+        for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
+            #if INVERT_ADC == FALSE
+            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #if DISTANCE_FROM_BOTTOM == FALSE
+            he_matrix[index].trigger_value[profile] = top_value - (travel_unit * trigger_height[profile][index]);
+            he_matrix[index].release_value[profile] = top_value - (travel_unit * release_height[profile][index]);
+
+            #else // if DISTANCE_FROM_BOTTOM == FALSE
+            he_matrix[index].trigger_value[profile] = travel_unit * trigger_height[profile][index] + bottom_value;
+            he_matrix[index].release_value[profile] = travel_unit * release_height[profile][index] + bottom_value;
+            #endif // else DISTANCE_FROM_BOTTOM == FALSE
+            #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+
+            #else //Inverted ADC -> Lower switch means higher value
+
+            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #if DISTANCE_FROM_BOTTOM == FALSE
+            he_matrix[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]);
+            he_matrix[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]);
+
+            #else // if DISTANCE_FROM_BOTTOM == FALSE
+            he_matrix[index].trigger_value[profile] = bottom_value - (travel_unit * trigger_height[profile][index]);
+            he_matrix[index].release_value[profile] = bottom_value - (travel_unit * release_height[profile][index]);
+            #endif // else DISTANCE_FROM_BOTTOM == FALSE
+            #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
+            #endif //else INVERT ADC == TRUE
+
+            #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+            he_matrix[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
+            he_matrix[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index];
+            #endif
+        }
     }
 }
 
@@ -337,7 +346,7 @@ void calibrate_switches(void) {
     uint8_t matrix_index;
     // Save config values after x scans without a change
     uint32_t scans_without_change = 0;
-    bool not_first_scan[MUX_CHANNELS][ADC_PIN_NUM];
+    bool first_scan = true;
 
     while(true) {
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
@@ -345,7 +354,7 @@ void calibrate_switches(void) {
             dprintf("Mux: %i\n", mux_channel);
             #endif
             #if POWER_BEFORE_SCAN == TRUE
-            gpio_write_pin_high(power_pins[mux_channel]);
+            sensor_power(mux_channel);
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
             #endif
@@ -368,10 +377,9 @@ void calibrate_switches(void) {
                     dprintf("%i: %i,  ", adc_channel, adc_value);
                     #endif
 
-                    if(!not_first_scan[mux_channel][adc_channel]) {
+                    if(first_scan) {
                         he_matrix[matrix_index].top_value = adc_value;
                         he_matrix[matrix_index].bottom_value = adc_value;
-                        not_first_scan[mux_channel][adc_channel] = true;
                         continue;
                     }
 
@@ -389,6 +397,7 @@ void calibrate_switches(void) {
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
                     }
+
                     #else //if INVERT_ADC == TRUE
                     if(adc_value > he_matrix[matrix_index].top_value){
                         he_matrix[matrix_index].top_value = adc_value;
@@ -406,15 +415,16 @@ void calibrate_switches(void) {
                     #endif//else INVERT_ADC == TRUE
                 }
             }
+
             #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
             dprint("\n");
             #endif
-            #if POWER_BEFORE_SCAN == TRUE
-            gpio_write_pin_low(power_pins[mux_channel]);
-            #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+            #if CUSTOM_POWER_BEFORE_SCAN == TRUE
             sensor_power_low_kb(mux_channel);
             #endif
         }
+
+        first_scan = false;
         scans_without_change += 1;
         // Default is set to 10000, so 5s assuming 2000 scans per s?
         if(scans_without_change > SCANS_WITHOUT_CHANGE){
@@ -430,6 +440,7 @@ void calibrate_switches(void) {
                     printf("%u ],\n", he_matrix[index].top_value);
                 }
             }
+
             print("\"bottom_values\": [ ");
             for(uint8_t index = 0; index < switch_num; index++){
                 // dprintf("%2u | %3u | %3u\n", index, he_matrix[index].top_value, he_matrix[index].bottom_value);
@@ -453,14 +464,13 @@ void calibrate_switches(void) {
 //TODO: Dynamically change type of arg based on matrix size
 // Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
-//TODO: Evtl remake this to be changeable at runtime (if performance is enough)
 //Basically just check a var in the function call to check which to call, if via is not defined it'll be const
-    bool prev_pressed = he_matrix[index].pressed;
+    uint8_t prev_pressed = he_matrix[index].pressed;
 
 #if INVERT_ADC == TRUE
     switch(he_matrix[index].mode[current_he_profile]) {
         case rapid_trigger:
-#           if defined USE_RAPID_TRIGGER
+        #if defined USE_RAPID_TRIGGER
         // Rapid trigger is only active when the switch is lower than the trigger and release height
         if(value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING) {
             // Set the new lowest value if needed
@@ -478,12 +488,12 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
         }
+        #endif
         break;
-#           endif
 
         case continuous_rapid_trigger:
-#           if defined USE_CONTINUOUS_RAPID_TRIGGER
-//TODO: Check if this works
+        #if defined USE_CONTINUOUS_RAPID_TRIGGER
+        //TODO: Check if this works
         static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
         // Rapid trigger activates below the trigger height, but only stops when fully released
         if(rt_active[index] || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
@@ -504,8 +514,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
             rt_active[index] = false;
         }
-        break;
         #endif
+        break;
 
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
@@ -523,8 +533,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
         }
-        break;
         #endif
+        break;
 
         case none:
         #if defined USE_NONE
@@ -535,8 +545,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         } else {
             return false;
         }
-        break;
         #endif //defined RAPID_TRIGGER
+        break;
 
         default:
         #if defined USE_SPECIAL
@@ -546,8 +556,6 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     }
 
 #else //defined INVERT_ADC
-    //TODO: When the switch to modes per key is done, update this appropriately
-    //TODO: The current implementation here uses one mode per profile
     switch(he_matrix[index].mode[current_he_profile]) {
         case rapid_trigger:
         #if defined USE_RAPID_TRIGGER
@@ -569,8 +577,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
         }
-        break;
         #endif // defined USE_RAPID_TRIGGER
+        break;
 
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
@@ -595,8 +603,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
             rt_active[index] = false;
         }
-        break;
         #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
+        break;
 
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
@@ -615,8 +623,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
         }
-        break;
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
+        break;
 
         case none:
         #if defined USE_NONE
@@ -627,8 +635,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         } else {
             return false;
         }
-        break;
         #endif //defined USE_NONE
+        break;
 
         default:
         #if defined USE_SPECIAL
@@ -637,13 +645,14 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         #endif //defined USE_SPECIAL
     }
 #endif //else defined INVERT_ADC
+
     return !(prev_pressed == he_matrix[index].pressed);
 }
 
 
 //MARK: Update bounds
-inline bool update_switch_bounds(uint8_t index, uint16_t value) {
 #if DYNAMIC_CALIBRATION == TRUE
+inline bool update_switch_bounds(uint8_t index, uint16_t value) {
     #if INVERT_ADC == FALSE
     if(value > he_matrix[index].top_value + HE_DC_DELTA){
         he_matrix[index].top_value = value;
@@ -652,6 +661,7 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
         he_matrix[index].bottom_value = value;
         return true;
     }
+
     #else // if INVERT_ADC == FALSE
     if(value < he_matrix[index].top_value - HE_DC_DELTA){
         he_matrix[index].top_value = value;
@@ -661,9 +671,9 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
         return true;
     }
     #endif /// else INVERT_ADC == FALSE
-#endif
     return false;
 }
+#endif
 
 
 //MARK: Switch data
@@ -679,6 +689,7 @@ void get_switch_data(void) {
             he_matrix[key].mode[profile] = key_modes[profile][key];
         }
 
+        // //TODO: Keep this in case I switch back to a mask later, and assign special keys some other way
         // if(profiles[HE_DEFAULT_PROFILE].rt_mask[key/16] & (1 << (key % 16))) {
         //     he_matrix[key].rt_type[HE_DEFAULT_PROFILE] = 1;
         // }
@@ -691,8 +702,9 @@ void get_switch_data(void) {
 #ifdef POWER_PINS
 static inline void sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
-    CONTINUOUS_POWER_PORT->ODR = (CONTINUOUS_POWER_PORT->ODR & ~((1 << POWER_PIN_NUM) - 1)) | (index << POWER_PIN_OFFSET);
+    CONTINUOUS_POWER_PORT->ODR = CONTINUOUS_POWER_PORT->ODR & ~((((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET) | (index << POWER_PIN_OFFSET));
     #else
+
     if(index == 0) {
         gpio_write_pin_low(power_pins[POWER_PIN_NUM - 1]);
         gpio_write_pin_high(power_pins[0]);
@@ -701,6 +713,7 @@ static inline void sensor_power(uint8_t index) {
         gpio_write_pin_high(power_pins[index]);
     }
     #endif
+
     #ifdef POWER_SELECT_DELAY
     delay_ns(POWER_SELECT_CYCLES);
     #endif
@@ -711,6 +724,7 @@ static inline void sensor_power(uint8_t index) {
 //MARK: Delay
 //TODO: Scale this so that it's roughly correct
 static inline void delay_ns(uint16_t delay) {
+    // delay = (delay * 1000000000 / 180000000000);
     for(; delay > 0; delay--){
         __asm("");
     }
