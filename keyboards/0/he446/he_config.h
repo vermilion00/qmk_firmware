@@ -35,7 +35,11 @@
     -Size will be n * 20 bits by default, so 1400 bits for 70 keys
     -Check if anything needs to be saved at the end of the flash (bootloader flag?)
 
--Add trigger_height_r from config
+-Update trigger_height from config for split stuff
+
+-Add mode where a keystroke is segmented into parts with their own actions
+
+-Add json feature option for hall_effect, to apply all the relevant patches
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?

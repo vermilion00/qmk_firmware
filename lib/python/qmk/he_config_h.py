@@ -5,9 +5,10 @@ from milc import cli
 #TODO: Rework profile scanning function to loop through all things in profile object
 #      and ignore things that don't start in profile_
 MAX_PROFILES = 4
-#Above this values, the key modes for special keys start. If for some reason I need more modes, increase this
+# Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
 NO_KEY = [0, "X", "none","None", "NONE"]
+
 INIT_KEYS = {
     'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
     'CALIBRATION_KEY_RIGHT': 'hall_effect.config.calibration_key_right',
