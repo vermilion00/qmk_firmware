@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/cdefs.h>
+#include "_wait.h"
 #include "action_layer.h"
 #include "analog.h"
 #include "debug.h"
@@ -34,12 +35,13 @@ void calibrate_switches(void);
 //TODO: Dynamically change type of arg based on matrix size
 //      Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value);
-// Check if the switch boundaries need updating, and update them if necessary.
-#if DYNAMIC_CALIBRATION == TRUE
-inline bool update_switch_bounds(uint8_t index, uint16_t value);
-#endif
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
+
+#if DYNAMIC_CALIBRATION == TRUE
+// Check if the switch boundaries need updating, and update them if necessary.
+inline bool update_switch_bounds(uint8_t index, uint16_t value);
+#endif
 #if HE_INIT_KEY_NUM > 0
 // Initialize the keys to be checked at initialization
 static void scan_init_keys(void);
@@ -50,7 +52,12 @@ static inline void sensor_power(uint8_t index);
 #endif
 
 //TODO: Sync current profile between halves
+#if HE_PROFILE_NUM > 1
 uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+#else
+const uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+#endif
+
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
 #if HE_INIT_KEY_NUM > 0
@@ -58,6 +65,8 @@ volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KE
 volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
 #endif
 
+//TODO: Remove this
+// #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
 #if KEYBOARD_SIDE == RIGHT
 const bool keyboard_side = RIGHT;
@@ -65,6 +74,7 @@ const bool keyboard_side = RIGHT;
 const bool keyboard_side = LEFT;
 #else // KEYBOARD_SIDE == UNKNOWN
 bool keyboard_side;
+Switch* he_matrix = &he_matrix_l[0];
 #endif
 #endif // if defined SPLIT_KEYBOARD
 
@@ -75,6 +85,9 @@ void matrix_init_custom(void) {
     // Determine keyboard half
     #if KEYBOARD_SIDE == UNKNOWN
     keyboard_side = is_keyboard_left();
+    if(is_keyboard_left()) {
+        he_matrix[SWITCH_NUM] = he_matrix_r[0];
+    }
 
     #endif // if KEYBOARD_SIDE == UNKNOWN
     // Set switch num based on side
@@ -94,7 +107,8 @@ void matrix_init_custom(void) {
     #if POWER_BEFORE_SCAN == TRUE
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
-        gpio_write_pin_low(power_pins[i]);
+        // gpio_write_pin_low(power_pins[i]);
+        gpio_write_pin_high(power_pins[i]);
     }
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     sensor_power_init_kb();
@@ -114,7 +128,6 @@ void matrix_init_custom(void) {
     if(!get_calibration_data()) {
     // If loading the calibration data fails, start calibration immediately
         calibrate_switches();
-        // Check calibration key, if it is pressed down at this point then start calibration
     }
 
     // Translate the trigger height etc into the equivalent ADC value
@@ -160,7 +173,6 @@ static void scan_init_keys(void) {
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
         if(evaluate_value(matrix_index, adc_value)) {
-            //TODO: Figure this out
             // If the key is activated, call the respective function
             // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
             (*init_functions[idx])();
@@ -205,7 +217,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
                 // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
                 if(evaluate_value(index, adc_value)) {
                     matrix_has_changed = true;
-                    #if DEBUG_SCAN_NO_INPUT == FALSE
+                    #if DEBUG_SCAN_NO_INPUT != TRUE
                     current_matrix[he_matrix[index].row] ^= 1 << he_matrix[index].col;
                     #endif
                     // If dynamic calibration is enabled, check if the boundaries need updating
@@ -309,6 +321,8 @@ bool get_calibration_data(void) {
     for(uint8_t key = 0; key < switch_num; key++) {
         he_matrix[key].top_value = top_values[key];
         he_matrix[key].bottom_value = bottom_values[key];
+
+        he_matrix[key].pressed = false;
     }
     #else
     #if INVERT_ADC == FALSE
@@ -324,6 +338,11 @@ bool get_calibration_data(void) {
     }
     #endif // INVERT_ADC
     #endif // DYNAMIC_CALIBRATION
+
+    #if CALIBRATE == TRUE
+    calibrate_switches();
+    return true;
+    #endif
 
     return true;
     // return false;
@@ -354,7 +373,7 @@ void calibrate_switches(void) {
             dprintf("Mux: %i\n", mux_channel);
             #endif
             #if POWER_BEFORE_SCAN == TRUE
-            sensor_power(mux_channel);
+            // sensor_power(mux_channel);
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
             #endif
@@ -365,6 +384,7 @@ void calibrate_switches(void) {
             #ifdef MUX_SELECT_DELAY
             delay_ns(MUX_SELECT_CYCLES);
             #endif
+            // wait_ms(1000);
 
             for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
@@ -450,7 +470,7 @@ void calibrate_switches(void) {
                     printf("%u ]\n", he_matrix[index].bottom_value);
                 }
             }
-            print("You can paste these lines into keyboard.json\n");
+            print("You can paste these lines into keyboard.json under hall_effect.config\n");
             #endif //else NO_EEPROM == FALSE
 
             scans_without_change = 0;
@@ -464,8 +484,7 @@ void calibrate_switches(void) {
 //TODO: Dynamically change type of arg based on matrix size
 // Create a matrix_index_t enum with nested #if statements checking the matrix sizes
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
-//Basically just check a var in the function call to check which to call, if via is not defined it'll be const
-    uint8_t prev_pressed = he_matrix[index].pressed;
+    bool prev_pressed = he_matrix[index].pressed;
 
 #if INVERT_ADC == TRUE
     switch(he_matrix[index].mode[current_he_profile]) {
@@ -493,11 +512,9 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
-        //TODO: Check if this works
-        static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(rt_active[index] || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
-            rt_active[index] = true;
+        if(he_matrix[index].rt_active || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
+            he_matrix[index].rt_active = true;
             // Set the new lowest value if needed
             if(value > he_matrix[index].rt_press_threshold + ADC_SMOOTHING) {
                 he_matrix[index].pressed = true;
@@ -512,7 +529,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         } else if(value < he_matrix[index].top_value + ADC_DEADZONE) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-            rt_active[index] = false;
+            he_matrix[index].rt_active = false;
         }
         #endif
         break;
@@ -582,11 +599,9 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
-        //TODO: Check if this works
-        static bool rt_active[switch_num] = {[0 ... switch_num-1] = false };
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(rt_active[index] || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
-            rt_active[index] = true;
+        if(he_matrix[index].rt_active || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
+            he_matrix[index].rt_active = true;
             // Set the new lowest value if needed
             if(value < he_matrix[index].rt_press_threshold - ADC_SMOOTHING) {
                 he_matrix[index].pressed = true;
@@ -601,7 +616,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         } else if(value > he_matrix[index].top_value - ADC_DEADZONE) {
             he_matrix[index].pressed = false;
             he_matrix[index].rt_press_threshold = he_matrix[index].trigger_value[current_he_profile];
-            rt_active[index] = false;
+            he_matrix[index].rt_active = false;
         }
         #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
         break;
@@ -685,7 +700,7 @@ void get_switch_data(void) {
         he_matrix[key].row = row;
         he_matrix[key].col = col;
 
-        for(uint8_t profile; profile < HE_PROFILE_NUM; profile++){
+        for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++){
             he_matrix[key].mode[profile] = key_modes[profile][key];
         }
 
@@ -702,7 +717,7 @@ void get_switch_data(void) {
 #ifdef POWER_PINS
 static inline void sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
-    CONTINUOUS_POWER_PORT->ODR = CONTINUOUS_POWER_PORT->ODR & ~((((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET) | (index << POWER_PIN_OFFSET));
+    CONTINUOUS_POWER_PORT->ODR = CONTINUOUS_POWER_PORT->ODR & ~((((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET) | (1 << (index + POWER_PIN_OFFSET)));
     #else
 
     if(index == 0) {

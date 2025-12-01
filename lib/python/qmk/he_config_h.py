@@ -106,7 +106,7 @@ def _transform_mtm(info_data):
     return info_data
 
 
-#MARK: Transform matrix
+#MARK: Transform layout
 # Transform HE matrix definition from layout to mux_to_num and num_to_matrix
 def _transform_layout(info_data):
     """Transforms the mux matrix defined in the layout into mux_to_num and num_to_matrix"""
@@ -118,11 +118,11 @@ def _transform_layout(info_data):
         cli.log.error("No ADC pins defined!")
         return info_data
 
-    mux_channels = 1 << len(he_hardware.get('mux_pins', ''))
+    max_channels = 1 << len(he_hardware.get('mux_pins', ''))
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
-        mux_to_num = [[0 for _ in range(adc_pins)] for _ in range(mux_channels)]
+        mux_to_num = [[0 for _ in range(adc_pins)] for _ in range(max_channels)]
         num_to_matrix = [[0, 0] for _ in range(len(layout_data['layout']))]
         key_index = 0
         used_positions = []
@@ -140,6 +140,18 @@ def _transform_layout(info_data):
                 cli.log.error(f"Missing mux info on key {key_index} in layout {layout_name}!")
                 return info_data
         break
+
+    # Trim the mux_to_nums
+    last_row = 0
+    for num, row in enumerate(mux_to_num):
+        for idx in row:
+            if idx != 0:
+                last_row = num
+    mux_to_num = mux_to_num[:last_row + 1]
+
+    # Trim the num_to_matrixes
+    num_to_matrix = [i for i in num_to_matrix if i != -1]
+
     info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num
     info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix
     info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix)

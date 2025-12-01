@@ -12,6 +12,7 @@
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
     // Hall Effect
+    "CALIBRATE": {"info_key": "hall_effect.hardware.calibrate", "value_type": "bool"},
     "KEYBOARD_SIDE": {"info_key": "hall_effect.hardware.keyboard_side", "value_type": "int"},
     "ADC_PINS": {"info_key": "hall_effect.hardware.adc_pins", "value_type": "array"},
     "ADC_PINS_R": {"info_key": "hall_effect.hardware.adc_pins_right", "value_type": "array"},

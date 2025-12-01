@@ -5,6 +5,7 @@
 #include <sys/cdefs.h>
 #include "action_layer.h"
 #include "gpio.h"
+#include "he_matrix.h"
 #include "info_config.h"
 #include "analog.h"
 #include "constants.h"
@@ -22,17 +23,7 @@
 
 typedef struct Profile {
     layer_state_t layers;
-    // #if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-    // uint16_t trigger_value[SWITCH_NUM];
-    // uint16_t release_value[SWITCH_NUM];
-    // #endif
-    // #if RAPID_TRIGGER_TYPE != NONE
-    rt_type_t rt_type;
-    // uint16_t rt_press_value[SWITCH_NUM];
-    // uint16_t rt_release_value[SWITCH_NUM];
-    //TODO: Remove this when not needed anymore
-    // uint16_t rt_mask[CEILING((SWITCH_NUM + SWITCH_NUM_R), 16)];
-    // #endif
+    key_mode_t rt_type;
 } Profile;
 
 //TODO: Bit fields are an option to cut down on space, but it will cause a performance hit
@@ -41,13 +32,16 @@ typedef struct Switch {
     uint8_t pressed;
     // 0 = None, 1-3 = RT, 4-9 = Reserved, 10+ = Special keys (Gamepad etc)
     uint8_t mode[HE_PROFILE_NUM];
-#   if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+    #if defined USE_CONTINUOUS_RAPID_TRIGGER
+    uint8_t rt_active;
+    #endif
+    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
     // The switch is counted as pressed below this value
     uint16_t trigger_value[HE_PROFILE_NUM];
     // The switch is counted as released above this value
     uint16_t release_value[HE_PROFILE_NUM];
-#   endif
-#   if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+    #endif
+    #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
     uint16_t rt_press_threshold;
@@ -55,14 +49,20 @@ typedef struct Switch {
     uint16_t rt_press_value[HE_PROFILE_NUM];
     // The distance that the switch is required to travel upwards before it's registered as released
     uint16_t rt_release_value[HE_PROFILE_NUM];
-#   endif
+    #endif
     uint16_t bottom_value;
     uint16_t top_value;
     uint8_t row;
     uint8_t col;
 } Switch;
 
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+volatile static Switch he_matrix_l[SWITCH_NUM];
+volatile static Switch he_matrix_r[SWITCH_NUM];
+#else
 volatile static Switch he_matrix[SWITCH_NUM];
+#endif
+
 #ifdef MUX_PINS
 volatile static SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif

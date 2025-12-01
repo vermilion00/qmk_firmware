@@ -2,7 +2,7 @@
 
 /*TODO:
 -Add support for side assignment at init
-    -Get side from split_util.c
+    -*Get side from split_util.c
     -Change matrixes to pointers
     -Assign the pointers in init according to needs
 
@@ -20,15 +20,20 @@
 -Add more validation stuff
 -ADC Value changes faster at the bottom than at the top, adjust with a lut
     -Allow defining own lut
--Support for switch presets containing travel distance and lut
+    -Instead of offsetting the scan value with the lut, use it to offset the height values
+    -Support for switch presets containing travel distance and lut
 -*If no switch data is in eeprom, immediately go into calibration mode, save data to eeprom when no changes have been made for many cycles, break out
 -Change system to interrupt based?
--Check if trigger height checks happen against the actual switch or not, switch d seems not to check correctly
 -Try a higher buffer depth and circular buffer?
 -Add always inline stuff
 
--Evtl add joystick stuff for analog output
+-Special modes
     -Stored in he_matrix[key].mode[profile], 0 = Default, 1-3 = RT, 10... = Special keys
+    -Joystick axes
+    -SOCD keys
+    -Make a separate json option for SOCD and combine it with RT for eval?
+    -Only add the "lowest value" SOCD mode, since the combination with RT makes for too many combos?
+    -Dynamic Keystroke (4 press distances with separate actions)
 
 -EEPROM stuff:
     -Since we only use HE_ADC_RESOLUTION bits, we can use bitfields for the values
@@ -37,9 +42,8 @@
 
 -Update trigger_height from config for split stuff
 
--Add mode where a keystroke is segmented into parts with their own actions
-
 -Add json feature option for hall_effect, to apply all the relevant patches
+
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
