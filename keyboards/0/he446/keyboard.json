@@ -13,15 +13,21 @@
 	"build": {
 		"firmware_format": "bin",
 		"lto": false,
-        "debounce_type": "sym_eager_pk"
+        "debounce_type": "sym_eager_pr"
 	},
     "features": {
+        "rgblight": false,
+        "pointing_device": false,
         "bootmagic": false,
         "console": true
     },
     "hall_effect": {
         "hardware": {
-            "adc_pins": ["A0", "A6"],
+            "keyboard_side": 1,
+            "calibrate": false,
+            "mux_pins": ["B12", "B13", "B14", "B15"],
+            "adc_pins": ["A0"],
+            "power_pins": ["B3", "B4", "B5", "B6"],
             "travel_distance": 4.0,
             "smoothing": 1,
             "deadzone": 3
@@ -29,16 +35,19 @@
         "config": {
             "scans_without_change": 250000,
             "no_eeprom": true,
-            "top_values": [ 618, 636 ],
-            "bottom_values": [ 264, 261 ]
+            "debug_scan_values": true,
+            "debug_scan_no_input": true,
+            "top_values": [ 625, 642, 630, 630 ],
+            "bottom_values": [ 264, 263, 263, 265 ]
         },
         "profiles": {
             "default_profile": 0,
             "profile_switch_mode": "LAST",
             "profile_0": {
+                "trigger_height": [3.0],
                 "rt_press_distance": [0.3],
                 "rapid_trigger_type": "constant_rapid_trigger",
-                "key_modes": [1],
+                "key_modes": [3],
                 "layers": [0, 3, 5, 2, 4]
             },
             "profile_1": {
@@ -61,7 +70,10 @@
         "LAYOUT": {
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
-                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [0, 1]}
+                {"matrix": [0, 1], "x": 0, "y": 0, "mux": [1, 0]},
+
+                {"matrix": [1, 0], "x": 0, "y": 0, "mux": [3, 0]},
+                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [4, 0]}
             ]
         }
     }
