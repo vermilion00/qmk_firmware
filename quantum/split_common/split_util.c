@@ -138,7 +138,13 @@ static uint8_t peek_matrix_intersection(pin_t out_pin, pin_t in_pin) {
 }
 #endif
 
+//MARK: Keyboard left
 __attribute__((weak)) bool is_keyboard_left_impl(void) {
+#if KEYBOARD_SIDE == LEFT
+    return true;
+#elif KEYBOARD_SIDE == RIGHT
+    return false;
+#endif
 #if defined(SPLIT_HAND_PIN)
     gpio_set_pin_input(SPLIT_HAND_PIN);
     wait_us(100);
