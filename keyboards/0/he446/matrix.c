@@ -119,6 +119,7 @@ void matrix_init_custom(void) {
     GPIOB->MODER = 0b01010101010101010101010101010101;
     GPIOB->OTYPER = 0x0000;
     GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
+    // GPIOB->ODR = 0x007B;
     GPIOB->ODR = 0x0000;
 
     get_switch_data();
@@ -200,6 +201,9 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
         delay_ns(MUX_SELECT_CYCLES);
         #endif
 
+        // delay_ns(10);
+        // wait_us(7);
+
         for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
             index = mux_to_num[mux_channel][adc_channel];
@@ -208,7 +212,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
                 index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
                 #if DEBUG_SCAN_VALUES == TRUE
-                dprintf("%2i/%2i: %3i,  ", mux_channel, adc_channel, adc_value);
+                dprintf("%2i/%2i: %3i, ", mux_channel, adc_channel, adc_value);
                 #endif
                 #ifdef ADC_SCAN_DELAY
                 delay_ns(ADC_SCAN_CYCLES);
@@ -234,17 +238,17 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             }
             #if DEBUG_SCAN_VALUES == TRUE
             else {
-                dprintf("%2i/XX: XXX,  ", mux_channel);
+                dprintf("%2i/XX: XXX, ", mux_channel);
             }
             #endif
         }
-        #if DEBUG_SCAN_VALUES == TRUE
-        dprint("\n");
-        #endif
         #if CUSTOM_POWER_BEFORE_SCAN == TRUE
         sensor_power_low_kb(mux_channel);
         #endif
     }
+    #if DEBUG_SCAN_VALUES == TRUE
+    dprint("\n");
+    #endif
 
     // This *must* be called for correct keyboard behavior
     matrix_scan_kb();
@@ -717,7 +721,7 @@ void get_switch_data(void) {
 #ifdef POWER_PINS
 static inline void sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
-    CONTINUOUS_POWER_PORT->ODR = CONTINUOUS_POWER_PORT->ODR & ~((((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET) | (1 << (index + POWER_PIN_OFFSET)));
+    CONTINUOUS_POWER_PORT->ODR = (CONTINUOUS_POWER_PORT->ODR & ~(((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET)) | (1 << (index + POWER_PIN_OFFSET));
     #else
 
     if(index == 0) {
