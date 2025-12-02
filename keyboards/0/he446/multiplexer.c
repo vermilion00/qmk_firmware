@@ -4,7 +4,7 @@
 #include "he_matrix.h"
 #include "info_config.h"
 
-#define MUX_MASK (MUX_CHANNELS - 1)
+#define MUX_MASK ((1 << MUX_PIN_NUM) - 1)
 void set_mux_channel(uint8_t channel) {
 #if defined MUX_PINS
 #if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT
