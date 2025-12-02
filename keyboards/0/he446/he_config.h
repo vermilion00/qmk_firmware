@@ -6,6 +6,12 @@
     -Change matrixes to pointers
     -Assign the pointers in init according to needs
 
+-When powering sensors via gpio, they need ~7us to be powered and are limited to 25ma
+    -Scan rate for 1 sensor is 17160/s (quite slow)
+-Each sensor ~4-5 ma, and only 3.3V
+-Try using fast transistor, and testing the activation delay then
+-If it is still so slow, just power them always, or keep the next 2-3 powered too
+
 -Sync profile state between halves
 -If calibrating, sync calibration start/end
 -If no_eeprom, sync slave bounds to master for printing

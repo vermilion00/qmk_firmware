@@ -58,7 +58,10 @@ typedef struct Switch {
 
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 volatile static Switch he_matrix_l[SWITCH_NUM];
-volatile static Switch he_matrix_r[SWITCH_NUM];
+volatile static Switch he_matrix_r[SWITCH_NUM_R];
+volatile static const uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
+volatile static const uint8_t mux_to_num_r[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM_R;
+//etc
 #else
 volatile static Switch he_matrix[SWITCH_NUM];
 #endif
