@@ -25,9 +25,9 @@
         "hardware": {
             "keyboard_side": 1,
             "calibrate": false,
+            "power_pins": ["B3", "B4", "B5", "B6"],
             "mux_pins": ["B12", "B13", "B14", "B15"],
             "adc_pins": ["A0"],
-            "power_pins": ["B3", "B4", "B5", "B6"],
             "travel_distance": 4.0,
             "smoothing": 1,
             "deadzone": 3
@@ -35,7 +35,7 @@
         "config": {
             "scans_without_change": 250000,
             "no_eeprom": true,
-            "debug_scan_values": true,
+            "debug_scan_values": false,
             "debug_scan_no_input": true,
             "top_values": [ 625, 642, 630, 630 ],
             "bottom_values": [ 264, 263, 263, 265 ]
@@ -71,9 +71,8 @@
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
                 {"matrix": [0, 1], "x": 0, "y": 0, "mux": [1, 0]},
-
-                {"matrix": [1, 0], "x": 0, "y": 0, "mux": [3, 0]},
-                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [4, 0]}
+                {"matrix": [1, 0], "x": 0, "y": 0, "mux": [2, 0]},
+                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [3, 0]}
             ]
         }
     }
