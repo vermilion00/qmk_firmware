@@ -22,8 +22,8 @@
 #define STM32_PWM_USE_TIM2 TRUE
 
 //TODO: Check if I need this
-#undef STM32_PWM_USE_TIM3
-#define STM32_PWM_USE_TIM3 TRUE
+// #undef STM32_PWM_USE_TIM3
+// #define STM32_PWM_USE_TIM3 TRUE
 
 #undef STM32_SPI_USE_SPI1
 #define STM32_SPI_USE_SPI1           TRUE
