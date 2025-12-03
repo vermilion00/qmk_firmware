@@ -23,6 +23,7 @@ from qmk.build_targets import KeyboardKeymapBuildTarget, JsonKeymapBuildTarget
 @cli.argument('-c', '--clean', arg_only=True, action='store_true', help="Remove object files before compiling.")
 @cli.argument('-t', '--target', type=str, default=None, help="Intended alternative build target, such as `production` in `make planck/rev4:default:production`.")
 @cli.argument('--compiledb', arg_only=True, action='store_true', help="Generates the clang compile_commands.json file during build. Implies --clean.")
+@cli.argument('-s', '--side', arg_only=True, type=str, default='', help='Defines SIDE_? to allow you to change configs easily')
 @cli.subcommand('Compile a QMK Firmware.')
 @automagic_keyboard
 @automagic_keymap
@@ -56,6 +57,11 @@ def compile(cli):
 
     # Build the environment vars
     envs = build_environment(cli.args.env)
+
+    # If a side is specified, run the make clean command so the side is registered properly
+    if cli.args.side in ['left', 'right']:
+        envs['KBSIDE'] = cli.args.side
+        cli.args.clean = True
 
     # Handler for the build target
     target = None
