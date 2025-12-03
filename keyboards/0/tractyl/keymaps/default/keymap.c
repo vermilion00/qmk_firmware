@@ -45,12 +45,8 @@ static unsigned int dragscroll_timer;
 enum custom_keycodes {
 	MO_LALT = SAFE_RANGE,
 	CK_MSOF,
-	//CK_SCLN,
 	ALT_TAB,
     SFT_TAB,
-	//MC_CBR,
-	//MC_BRC,
-	//MC_PRN,
 	MC_COPY,
 	MC_PASTE,
 	MC_CUT,
@@ -95,10 +91,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_MOUSE] = LAYOUT(
      KC_ESC,  CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,
-     KC_TAB,  CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_CUT,  CK_DSCL, CK_CRET, CK_MSLK, CK_MSOF, CK_MSOF,
-     KC_BSPC, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_COPY, MS_BTN1, MS_BTN2, MS_BTN3, KC_MPLY, KC_QUOT,
-     KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 MC_PASTE,MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
-                       CK_MSOF, CK_MSOF,											              	   KC_PLUS, KC_EQL,
+     KC_TAB,  CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 CK_MSOF, CK_DSCL, CK_CRET, CK_MSLK, CK_MSOF, CK_MSOF,
+     KC_BSPC, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 CK_MSOF, MS_BTN1, MS_BTN2, MS_BTN3, KC_MPLY, KC_QUOT,
+     KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			 CK_MSOF, MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
+                       CK_MSOF, CK_MSOF,											              	   CK_MSOF, KC_EQL,
 										 _______, CK_MSOF, KC_LSFT,			MO(_FN),   KC_LSFT, _______,
 												  KC_LCTL, KC_LALT,			KC_ENT
   ),
@@ -124,11 +120,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ),
 
   [_FN2] = LAYOUT(
-     QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			 KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_BSPC,
-     KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,            	   			 KC_COMM, KC_7,   KC_8,   KC_9,   KC_SCLN, KC_NUM,
+     QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			 KC_F6,   KC_F7,  KC_F8,  KC_F9,  KC_F10, KC_BSPC,
+     KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,            	   			 KC_COMM, KC_7,   KC_8,   KC_9,   KC_SCLN,KC_NUM,
      KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,            	   			 KC_COMM, KC_4,   KC_5,   KC_6,   KC_0,   KC_F11,
      KC_LGUI, KC_PGDN, KC_PGDN, KC_HASH, SOCDON,  SOCDOFF,                 			 KC_DOT,  KC_1,   KC_2,   KC_3,   KC_0,   KC_F12,
-                       DM_PLY1, TG(_GMQW),												     		   DM_REC1, DM_REC2,
+                       DM_PLY1, TG(_GMQW),												     		  DM_REC1, DM_REC2,
 										 KC_MUTE, _______, _______,		    _______, _______, KC_LALT,
 												  _______, _______,			_______
   ),
@@ -162,6 +158,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return true;
+
 		case CK_MSOF:
 			if(record->event.pressed){
 				layer_off(_MOUSE);
@@ -171,6 +168,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				tap_code(KC_TRNS);
 			}
 			return true;
+
 		case MO_LALT:
 			if (record->event.pressed) {
 				layer_on(_LALT);
@@ -180,6 +178,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				caret_mode = false;
 			}
 			return false;
+
 		case KC_LALT:
 			if (record->event.pressed) {
 				LALT_HELD = true;
@@ -187,6 +186,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				LALT_HELD = false;
 			}
 			return true;
+
 		case ALT_TAB:
 			if (record->event.pressed) {
 					register_code(KC_LALT);
@@ -197,6 +197,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				LALT_HELD = false;
 			}
 			return false;
+
 		case MC_COPY:
 			if(record->event.pressed){
 				register_code(KC_LCTL);
@@ -204,6 +205,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				unregister_code(KC_LCTL);
 			}
 			return false;
+
 		case MC_PASTE:
 			if(record->event.pressed){
 				register_code(KC_LCTL);
@@ -211,6 +213,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				unregister_code(KC_LCTL);
 			}
 			return false;
+
 		case MC_CUT:
 			if(record->event.pressed){
 				register_code(KC_LCTL);
@@ -218,6 +221,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				unregister_code(KC_LCTL);
 			}
 			return false;
+
 		case CK_DSCL:
 			if(record->event.pressed){
 				dragscroll_timer = timer_read();
@@ -237,6 +241,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return false;
+
 		case CK_CRET:
 			if(record->event.pressed){
 				dragscroll_timer = timer_read();
@@ -256,6 +261,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				mslk = !mslk;
 			}
 			return false;
+
 		case KC_SS:
 			if(record->event.pressed){
 				register_code16(KC_LALT);
@@ -266,6 +272,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				unregister_code16(KC_LALT);
 			}
 			return false;
+
         case SFT_TAB:
             if(record->event.pressed){
                 register_code16(KC_LSFT);
@@ -273,6 +280,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 unregister_code16(KC_LSFT);
             }
             return false;
+
 		case ENCODER_RIGHT_CCW:
 			if(record->event.pressed){
 				if(LALT_HELD){
@@ -284,6 +292,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return false;
+
 		case ENCODER_RIGHT_CW:
 			if(record->event.pressed){
 				if(LALT_HELD){
@@ -309,55 +318,67 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 			}
 			mouse_timer = timer_read();
 		}
+
 	}else if((timer_elapsed(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
 		layer_off(_MOUSE);
 	}
+
 	// short x = mouse_report.x, y = mouse_report.y;
 	// x = (x > 0 ? x * x / 3 + x : -x * x / 3 + x);
 	// y = (y > 0 ? y * y / 3 + y : -y * y / 3 + y);
 
 	// mouse_report.x = constrain_hid(x);
 	// mouse_report.y = constrain_hid(y);
+
 	if(scrolling_mode){
 		caret_mode = false;
 		tempx += mouse_report.x;
 		tempy += mouse_report.y;
 		mouse_report.x = 0;
 		mouse_report.y = 0;
+
 		if(tempy > SCROLL_VAL){
 			tap_code(MS_WHLD);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempy < -SCROLL_VAL){
 			tap_code(MS_WHLU);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempx > SCROLL_VAL - 10){
 			tap_code(MS_WHLR);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempx < -SCROLL_VAL - 10){
 			tap_code(MS_WHLL);
 			tempx = 0;
 			tempy = 0;
 		}
+
 	}else if(caret_mode){
 		tempx += mouse_report.x;
 		mouse_report.x = 0;
 		tempy += mouse_report.y;
 		mouse_report.y = 0;
+
 		if(tempx > CARET_VAL){
 			tap_code(KC_RGHT);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempx < -CARET_VAL){
 			tap_code(KC_LEFT);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempy > CARET_VAL + 10){
 			tap_code(KC_DOWN);
 			tempx = 0;
 			tempy = 0;
+
 		}else if(tempy < -CARET_VAL + 10){
 			tap_code(KC_UP);
 			tempx = 0;
@@ -374,36 +395,42 @@ layer_state_t layer_state_set_user(layer_state_t state){
 				rgblight_disable_noeeprom();
 			}
             break;
+
 		case _FN:
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
 			rgblight_sethsv_noeeprom(HSV_RED);
 			break;
+
 		case _LALT:
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
 			rgblight_sethsv_noeeprom(HSV_GREEN);
 			break;
+
 		case _MOUSE:
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
 			rgblight_sethsv_noeeprom(HSV_TEAL);
 			break;
+
 		case _FN2:
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
 			rgblight_sethsv_noeeprom(HSV_PURPLE);
 			break;
+
 		case _GMCL:
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
 			rgblight_sethsv_noeeprom(HSV_TURQUOISE);
 			break;
+
         default:
             rgblight_sethsv_noeeprom(HSV_YELLOW);
             break;

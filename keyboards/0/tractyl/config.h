@@ -25,9 +25,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #endif
 
 // Pointing Device Accel
-#define POINTING_DEVICE_ACCEL_TAKEOFF 2.5      // lower/higher value = curve takes off more smoothly/abruptly
+#define POINTING_DEVICE_ACCEL_TAKEOFF 2.0      // lower/higher value = curve takes off more smoothly/abruptly
 #define POINTING_DEVICE_ACCEL_GROWTH_RATE 0.7  // lower/higher value = curve reaches its upper limit slower/faster
-#define POINTING_DEVICE_ACCEL_OFFSET 1.8       // lower/higher value = acceleration kicks in earlier/later
+#define POINTING_DEVICE_ACCEL_OFFSET 1.4       // lower/higher value = acceleration kicks in earlier/later
 #define POINTING_DEVICE_ACCEL_LIMIT 0.12       // lower limit of accel curve (minimum acceleration factor)
 
 // #define DEBUG_MATRIX_SCAN_RATE
