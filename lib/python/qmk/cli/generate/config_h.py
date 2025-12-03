@@ -167,6 +167,7 @@ def generate_led_animations_config(feature, led_feature_json, config_h_lines, en
 @cli.argument('-o', '--output', arg_only=True, type=normpath, help='File to write to')
 @cli.argument('-q', '--quiet', arg_only=True, action='store_true', help="Quiet mode, only output error messages")
 @cli.argument('-kb', '--keyboard', arg_only=True, type=keyboard_folder, completer=keyboard_completer, help='Keyboard to generate config.h for.')
+@cli.argument('-s', '--side', arg_only=True, help='Defines SIDE_RIGHT to allow you to change configs easily')
 @cli.subcommand('Used by the make system to generate info_config.h from info.json', hidden=True)
 def generate_config_h(cli):
     """Generates the info_config.h file.
@@ -184,6 +185,12 @@ def generate_config_h(cli):
 
     # Build the info_config.h file.
     config_h_lines = [GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE, '#pragma once']
+
+    #TODO: Using qmk compile doesn't regenerate info_config.h, so old def sticks around
+    if cli.args.side == 'left':
+        config_h_lines.append(generate_define('SIDE_LEFT'))
+    elif cli.args.side == 'right':
+        config_h_lines.append(generate_define('SIDE_RIGHT'))
 
     generate_config_items(kb_info_json, config_h_lines)
 

@@ -28,6 +28,7 @@ QMK_BIN ?= qmk
 # Set the filename for the final firmware binary
 KEYBOARD_FILESAFE := $(subst /,_,$(KEYBOARD))
 TARGET ?= $(KEYBOARD_FILESAFE)_$(KEYMAP)
+KBSIDE := none
 
 ifeq ($(strip $(DUMP_CI_METADATA)),yes)
     $(info CI Metadata: KEYBOARD=$(KEYBOARD))
@@ -237,9 +238,10 @@ $(INTERMEDIATE_OUTPUT)/src/keymap.c: $(KEYMAP_JSON) $(DD_CONFIG_FILES)
 	$(eval CMD=$(QMK_BIN) json2c --quiet --output $(KEYMAP_C) $(KEYMAP_JSON))
 	@$(BUILD_CMD)
 
+#MARK: side
 $(INTERMEDIATE_OUTPUT)/src/config.h: $(KEYMAP_JSON) $(DD_CONFIG_FILES)
 	@$(SILENT) || printf "$(MSG_GENERATING) $@" | $(AWK_CMD)
-	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --output $(KEYMAP_H) $(KEYMAP_JSON))
+	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --output $(KEYMAP_H) $(KEYMAP_JSON) --side $(KBSIDE))
 	@$(BUILD_CMD)
 
 $(INTERMEDIATE_OUTPUT)/src/keymap.h: $(KEYMAP_JSON) $(DD_CONFIG_FILES)
@@ -430,9 +432,10 @@ endif
 CONFIG_H += $(INTERMEDIATE_OUTPUT)/src/info_config.h
 KEYBOARD_SRC += $(INTERMEDIATE_OUTPUT)/src/default_keyboard.c
 
+#MARK: Side
 $(INTERMEDIATE_OUTPUT)/src/info_config.h: $(DD_CONFIG_FILES)
 	@$(SILENT) || printf "$(MSG_GENERATING) $@" | $(AWK_CMD)
-	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --keyboard $(KEYBOARD) --output $(INTERMEDIATE_OUTPUT)/src/info_config.h)
+	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --keyboard $(KEYBOARD) --output $(INTERMEDIATE_OUTPUT)/src/info_config.h --side $(KBSIDE))
 	@$(BUILD_CMD)
 
 $(INTERMEDIATE_OUTPUT)/src/default_keyboard.c: $(DD_CONFIG_FILES)

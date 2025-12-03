@@ -18,11 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-// TODO: Reenable this once build flags work
-// #ifdef SMAIN
+
+// Using -s right in the build command defines SIDE_RIGHT and runs make clean
+#ifndef SIDE_RIGHT
 #   define WAIT_FOR_USB
 #   define USB_POLLING_INTERVAL_MS 1
-// #endif
+#endif
 
 // Pointing Device Accel
 #define POINTING_DEVICE_ACCEL_TAKEOFF 2.5      // lower/higher value = curve takes off more smoothly/abruptly
