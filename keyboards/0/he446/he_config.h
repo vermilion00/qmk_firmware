@@ -50,10 +50,13 @@
 
 -Add json feature option for hall_effect, to apply all the relevant patches
 
+-When using STM32 mcus, set mux pins/power pins via BSR-register instead, should be faster
+
+
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
--Pins are set to input by default -> check if QMK sets unused pins to output high
+-Pins are set to input by default -> QMK sets unused pins to output high (Why not low?)
 -LED on B2 is active high
 -Button on C13 is active high
 */
