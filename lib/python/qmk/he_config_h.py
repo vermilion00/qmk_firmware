@@ -160,6 +160,7 @@ def _transform_layout(info_data):
     return info_data
 
 
+#TODO: Add check for duplicate matrix positions
 #MARK: Layout split
 def _transform_layout_split(info_data):
     he_hardware = info_data['hall_effect']['hardware']
@@ -194,11 +195,18 @@ def _transform_layout_split(info_data):
                         used_positions_l.append([mux, adc])
                     else: # Mux combo already used
                         cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the left half of the layout!")
+                #TODO: Subtract row_split from right side matrix row since offset is applied during
+                #      split transaction
                 else: # Right hand side
                     key_index_r += 1
                     mux, adc = key_data['mux']
                     mux_to_num_r[mux][adc] = key_index_r
-                    num_to_matrix_r[key_index_r-1] = key_data['matrix']
+                    # matrix = [0, 0]
+                    # matrix[0] = key_data['matrix'][0] - row_split
+                    # matrix[1] = key_data['matrix'][1]
+                    matrix = [key_data['matrix'][0] - row_split, key_data['matrix'][1]]
+                    num_to_matrix_r[key_index_r-1] = matrix
+                    # num_to_matrix_r[key_index_r-1] = key_data['matrix']
                     if [mux, adc] not in used_positions_r:
                         used_positions_r.append([mux, adc])
                     else: # Mux combo already used
