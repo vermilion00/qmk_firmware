@@ -21,11 +21,19 @@
         "bootmagic": false,
         "console": true
     },
+    "split": {
+        "enabled": true,
+        "handedness": {
+            "pin": "B1"
+        },
+        "serial": {
+            "driver": "usart"
+        }
+    },
     "hall_effect": {
         "hardware": {
             "keyboard_side": 1,
             "calibrate": false,
-            "power_pins": ["B3", "B4", "B5", "B6"],
             "mux_pins": ["B12", "B13", "B14", "B15"],
             "adc_pins": ["A0"],
             "travel_distance": 4.0,
@@ -36,15 +44,17 @@
             "scans_without_change": 250000,
             "no_eeprom": true,
             "debug_scan_values": false,
-            "debug_scan_no_input": true,
-            "top_values": [ 625, 642, 630, 630 ],
-            "bottom_values": [ 264, 263, 263, 265 ]
+            "debug_scan_no_input": false,
+            "top_values": [ 729, 659, 646, 660 ],
+            "bottom_values": [ 339, 285, 261, 261 ],
+            "top_values_right": [ 658, 581, 691, 629 ],
+            "bottom_values_right": [ 268, 269, 280, 267 ]
         },
         "profiles": {
             "default_profile": 0,
             "profile_switch_mode": "LAST",
             "profile_0": {
-                "trigger_height": [3.0],
+                "trigger_height": [1.0],
                 "rt_press_distance": [0.3],
                 "rapid_trigger_type": "constant_rapid_trigger",
                 "key_modes": [3],
@@ -71,8 +81,15 @@
             "layout": [
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
                 {"matrix": [0, 1], "x": 0, "y": 0, "mux": [1, 0]},
+
+                {"matrix": [2, 0], "x": 0, "y": 0, "mux": [0, 0]},
+                {"matrix": [2, 1], "x": 0, "y": 0, "mux": [1, 0]},
+
                 {"matrix": [1, 0], "x": 0, "y": 0, "mux": [2, 0]},
-                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [3, 0]}
+                {"matrix": [1, 1], "x": 0, "y": 0, "mux": [3, 0]},
+
+                {"matrix": [3, 0], "x": 0, "y": 0, "mux": [2, 0]},
+                {"matrix": [3, 1], "x": 0, "y": 0, "mux": [3, 0]}
             ]
         }
     }

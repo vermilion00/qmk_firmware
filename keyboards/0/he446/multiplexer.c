@@ -6,6 +6,8 @@
 
 #define MUX_MASK ((1 << MUX_PIN_NUM) - 1)
 
+//TODO: Change the port to point to the output register directly
+// STM32 needs GPIOx->ODR, AT32 needs GPIOx_ODT, AVR needs PORTx(?)
 void set_mux_channel(uint8_t channel) {
 #if defined MUX_PINS
 #if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT

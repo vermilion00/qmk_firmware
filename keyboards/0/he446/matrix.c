@@ -107,8 +107,8 @@ void matrix_init_custom(void) {
     #if POWER_BEFORE_SCAN == TRUE
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
-        // gpio_write_pin_low(power_pins[i]);
-        gpio_write_pin_high(power_pins[i]);
+        gpio_write_pin_low(power_pins[i]);
+        // gpio_write_pin_high(power_pins[i]);
     }
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     sensor_power_init_kb();
@@ -119,8 +119,8 @@ void matrix_init_custom(void) {
     GPIOB->MODER = 0b01010101010101010101010101010101;
     GPIOB->OTYPER = 0x0000;
     GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
-    // GPIOB->ODR = 0x007B;
-    GPIOB->ODR = 0x0000;
+    GPIOB->ODR = 0x007B;
+    // GPIOB->ODR = 0x0000;
 
     get_switch_data();
 

@@ -140,9 +140,9 @@ static uint8_t peek_matrix_intersection(pin_t out_pin, pin_t in_pin) {
 
 //MARK: Keyboard left
 __attribute__((weak)) bool is_keyboard_left_impl(void) {
-#if KEYBOARD_SIDE == LEFT
+#if KEYBOARD_SIDE == LEFT || defined SIDE_LEFT
     return true;
-#elif KEYBOARD_SIDE == RIGHT
+#elif KEYBOARD_SIDE == RIGHT || defined SIDE_RIGHT
     return false;
 #endif
 #if defined(SPLIT_HAND_PIN)
