@@ -608,6 +608,8 @@
                         },
                         "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "bootloader_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "bootloader_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "calibration_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "calibration_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
