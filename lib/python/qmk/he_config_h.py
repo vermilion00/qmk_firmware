@@ -16,8 +16,10 @@ INIT_KEYS = {
     'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right',
     'BOOTLOADER_KEY': 'hall_effect.config.bootloader_key',
     'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right',
-    'BOOTMAGIC_KEY': 'bootmagic.matrix',
-    'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
+    #TODO: Enabling both causes it to skip the first, since you can't have two identical keys
+    # Use normal bootmagic key for mechanical button reset
+    # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
+    # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
 }
 
 # _RIGHT keys automatically translate to their left variant
@@ -129,13 +131,13 @@ def _transform_layout(info_data):
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
                 key_index += 1
-                mux, adc = key_data['mux']
+                adc, mux = key_data['mux']
                 mux_to_num[mux][adc] = key_index
                 num_to_matrix[key_index-1] = key_data['matrix']
-                if [mux, adc] not in used_positions:
-                    used_positions.append([mux, adc])
+                if [adc, mux] not in used_positions:
+                    used_positions.append([adc, mux])
                 else:
-                    cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the layout!")
+                    cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the layout!")
             else:
                 cli.log.error(f"Missing mux info on key {key_index} in layout {layout_name}!")
                 return info_data
@@ -186,31 +188,27 @@ def _transform_layout_split(info_data):
         used_positions_r = []
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
-                if key_data['matrix'][0] < row_split:
+                if key_data['matrix'][1] < row_split:
                     key_index_l += 1
-                    mux, adc = key_data['mux']
+                    adc, mux = key_data['mux']
                     mux_to_num_l[mux][adc] = key_index_l
                     num_to_matrix_l[key_index_l-1] = key_data['matrix']
-                    if [mux, adc] not in used_positions_l:
-                        used_positions_l.append([mux, adc])
+                    if [adc, mux] not in used_positions_l:
+                        used_positions_l.append([adc, mux])
                     else: # Mux combo already used
-                        cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the left half of the layout!")
+                        cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the left half of the layout!")
                 #TODO: Subtract row_split from right side matrix row since offset is applied during
                 #      split transaction
                 else: # Right hand side
                     key_index_r += 1
-                    mux, adc = key_data['mux']
+                    adc, mux = key_data['mux']
                     mux_to_num_r[mux][adc] = key_index_r
-                    # matrix = [0, 0]
-                    # matrix[0] = key_data['matrix'][0] - row_split
-                    # matrix[1] = key_data['matrix'][1]
-                    matrix = [key_data['matrix'][0] - row_split, key_data['matrix'][1]]
+                    matrix = [key_data['matrix'][0], key_data['matrix'][1] - row_split]
                     num_to_matrix_r[key_index_r-1] = matrix
-                    # num_to_matrix_r[key_index_r-1] = key_data['matrix']
-                    if [mux, adc] not in used_positions_r:
+                    if [adc, mux] not in used_positions_r:
                         used_positions_r.append([mux, adc])
                     else: # Mux combo already used
-                        cli.log.error(f"Mux combination {[mux, adc]} appears multiple times in the right half of the layout!")
+                        cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the right half of the layout!")
 
             else: # No mux definition in key data
                 cli.log.error(f"Missing mux info on key {key_index_l + key_index_r} in layout {layout_name}!")
