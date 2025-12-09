@@ -202,7 +202,7 @@ def generate_config_h(cli):
         if 'profiles' in kb_info_json['hall_effect']:
             generate_profile_config(kb_info_json, config_h_lines)
         #TODO: Make this less of a hack
-        config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0\n// Debouncing is not needed on Hall Effect keyboards""")
+        # config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0\n// Debouncing is not needed on Hall Effect keyboards""")
 
     if 'matrix_pins' in kb_info_json:
         config_h_lines.append(matrix_pins(kb_info_json['matrix_pins']))

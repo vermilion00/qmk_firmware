@@ -1,6 +1,16 @@
 #pragma once
 
 /*TODO:
+-B key seems broken now for some reason
+    -Stuck at 146 scan value
+
+-Keys sometimes activate (repeatedly)
+-Check how much of a change in adc value is reasonable and reject differences above that?
+    -Probably won't help
+
+
+
+
 -Add support for side assignment at init
     -*Get side from split_util.c
     -Change matrixes to pointers
@@ -18,8 +28,6 @@
 
 -Try halving left matrix_to_num rows again
 
--Test an uneven matrix
-
 -Currently the _RIGHT stuff isn't being checked in mux and power functions
     -Either disallow setting different ones (preferred), or add support for it (messy)
 
@@ -36,7 +44,6 @@
 -Special modes
     -Stored in he_matrix[key].mode[profile], 0 = Default, 1-3 = RT, 10... = Special keys
     -Joystick axes
-    -SOCD keys
     -Make a separate json option for SOCD and combine it with RT for eval?
     -Only add the "lowest value" SOCD mode, since the combination with RT makes for too many combos?
     -Dynamic Keystroke (4 press distances with separate actions)
@@ -52,6 +59,19 @@
 
 -When using STM32 mcus, set mux pins/power pins via BSR-register instead, should be faster
 
+-Add option to define normal buttons to immediately jump to calibration/bootloader/reset
+    -Or even mixed matrices, for encoders etc
+    -Make it a separate matrix scan triggered off of a define
+    -Maybe just direct pins?
+
+-Add option to define heights etc using the layout macro, to make setting specific keys easier
+
+-Allow associating a color with a profile?
+    -Or just set them by layer
+
+-Switch mux and adc pin in layout mux
+
+-Add key to print current calibration values to console if dynamic calibration is enabled
 
 
 -Debug output works better with qhe than qhed
@@ -61,7 +81,7 @@
 -Button on C13 is active high
 */
 
-//DEBUG
+// //DEBUG
 // #undef HE_TOP_VALUES
 // #define HE_TOP_VALUES {[0 ... SWITCH_NUM] = 630 }
 // #undef HE_BOTTOM_VALUES
