@@ -1,15 +1,26 @@
 #pragma once
 
 /*TODO:
--B key seems broken now for some reason
-    -Stuck at 146 scan value
+\
+   ☒ Mux combination [2, 0] appears multiple times in the right half of the layout!
+ | ☒ Mux combination [2, 1] appears multiple times in the right half of the layout!
+ | ☒ Mux combination [1, 0] appears multiple times in the right half of the layout!\\
 
--Keys sometimes activate (repeatedly)
--Check how much of a change in adc value is reasonable and reject differences above that?
-    -Probably won't help
+-Shift, I, \ and H keys keep clicking (right side)
 
+-Swap init key mux and adc positions
+-Init key _R don't work
 
+-Any key seems to be spammed if no rt is enabled and key is moved slowly
+    -Do floats even work?
+    -Possible that 1.5 and 1.75 both translate to 2mm and therefore the press and release is the same
 
+-Are the sensors overheating due to being encased in hot glue?
+-Is the hot glue melting the solder joints, making them unreliable?
+    -Check glue temp with thermometer, but very possible
+
+-Add function to define keys that get scanned every scan, every other key only get scanned
+ every x scans instead for higher update rate (if I can get 8khz to work)
 
 -Add support for side assignment at init
     -*Get side from split_util.c
@@ -17,8 +28,9 @@
     -Assign the pointers in init according to needs
 
 -When powering sensors via gpio, they need ~7us to be powered and are limited to 25ma
+    -Is that because of the cap?
     -Scan rate for 1 sensor is 17160/s (quite slow)
--Each sensor ~4-5 ma, and only 3.3V
+-Each sensor ~4 ma, and only 3.3V
 -Try using fast transistor, and testing the activation delay then
 -If it is still so slow, just power them always, or keep the next 2-3 powered too
 
@@ -34,7 +46,7 @@
 -Add more validation stuff
 -ADC Value changes faster at the bottom than at the top, adjust with a lut
     -Allow defining own lut
-    -Instead of offsetting the scan value with the lut, use it to offset the height values
+    -Instead of offsetting the scan value with the lut, use it to offset the height values at init
     -Support for switch presets containing travel distance and lut
 -*If no switch data is in eeprom, immediately go into calibration mode, save data to eeprom when no changes have been made for many cycles, break out
 -Change system to interrupt based?
@@ -45,7 +57,6 @@
     -Stored in he_matrix[key].mode[profile], 0 = Default, 1-3 = RT, 10... = Special keys
     -Joystick axes
     -Make a separate json option for SOCD and combine it with RT for eval?
-    -Only add the "lowest value" SOCD mode, since the combination with RT makes for too many combos?
     -Dynamic Keystroke (4 press distances with separate actions)
 
 -EEPROM stuff:
@@ -69,10 +80,16 @@
 -Allow associating a color with a profile?
     -Or just set them by layer
 
--Switch mux and adc pin in layout mux
-
 -Add key to print current calibration values to console if dynamic calibration is enabled
+    -On split keyboards, paste left and right values separately
 
+-Allow setting heights via layout macro
+    -Also get config from heights file in keyboard folder
+    -If no heights file is available, use profile info to generate one
+    -If x and y are set correctly for the keyboard, add tabs and spaces for a correct visual representation
+
+-Add MIDI mode with velocity controlled by the change in adc value
+    -Allow triggering past a certain height instead of only at the bottom
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
@@ -83,6 +100,6 @@
 
 // //DEBUG
 // #undef HE_TOP_VALUES
-// #define HE_TOP_VALUES {[0 ... SWITCH_NUM] = 630 }
+// #define HE_TOP_VALUES {[0 ... SWITCH_NUM - 1] = 630 }
 // #undef HE_BOTTOM_VALUES
-// #define HE_BOTTOM_VALUES {[0 ... SWITCH_NUM] = 270 }
+// #define HE_BOTTOM_VALUES {[0 ... SWITCH_NUM - 1] = 270 }

@@ -116,7 +116,6 @@ def _validate_build_target(keyboard, info_data):
 def _validate_layouts(keyboard, info_data):  # noqa C901
     """Non schema checks
     """
-    #TODO: Override these checks with he
     col_num = info_data.get('matrix_size', {}).get('cols', 0)
     row_num = info_data.get('matrix_size', {}).get('rows', 0)
     layouts = info_data.get('layouts', {})

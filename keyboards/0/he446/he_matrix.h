@@ -149,7 +149,7 @@ volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_N
 #endif
 // Needs to be less than one
 #ifndef HE_DC_FACTOR
-#   define HE_DC_FACTOR 0.9
+#   define HE_DC_FACTOR 0.8
 #endif
 #endif
 

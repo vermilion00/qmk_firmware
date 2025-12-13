@@ -7,7 +7,7 @@ from milc import cli
 MAX_PROFILES = 4
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
-NO_KEY = [0, "X", "none","None", "NONE"]
+NO_KEY = [0, "X", "none", "None", "NONE"]
 
 INIT_KEYS = {
     'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
@@ -188,7 +188,7 @@ def _transform_layout_split(info_data):
         used_positions_r = []
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
-                if key_data['matrix'][1] < row_split:
+                if key_data['matrix'][0] < row_split:
                     key_index_l += 1
                     adc, mux = key_data['mux']
                     mux_to_num_l[mux][adc] = key_index_l
@@ -197,16 +197,16 @@ def _transform_layout_split(info_data):
                         used_positions_l.append([adc, mux])
                     else: # Mux combo already used
                         cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the left half of the layout!")
-                #TODO: Subtract row_split from right side matrix row since offset is applied during
-                #      split transaction
                 else: # Right hand side
                     key_index_r += 1
                     adc, mux = key_data['mux']
                     mux_to_num_r[mux][adc] = key_index_r
-                    matrix = [key_data['matrix'][0], key_data['matrix'][1] - row_split]
+                    # Subtract row_split from right side matrix row since offset is applied during split transaction
+                    matrix = [key_data['matrix'][0] - row_split, key_data['matrix'][1]]
+                    #TODO: This works, but maybe find a way without this warning?
                     num_to_matrix_r[key_index_r-1] = matrix
                     if [adc, mux] not in used_positions_r:
-                        used_positions_r.append([mux, adc])
+                        used_positions_r.append([adc, mux])
                     else: # Mux combo already used
                         cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the right half of the layout!")
 
@@ -265,7 +265,6 @@ def _get_split_config(info_data):
     # Rows are doubled up when using split keyboards
     row_split = (highest_row + 1) // 2
     info_data['hall_effect']['hardware']['row_split'] = row_split
-    # cli.log.info(f"Row split detected at row {row_split} in {layout_name}")
 
     # Generate global to local index transformation
     g_to_l_index = []
@@ -303,13 +302,10 @@ def get_matrix_to_mux(info_data, config_h_lines):
     num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix']
     switch_num = info_data['hall_effect']['hardware']['switch_num']
     cols = info_data['matrix_size']['cols']
-    # if 'split' in info_data and info_data['split'].get('enabled', False):
-    #     #TODO: If scanning left side causes issues try using normal row num
-    #     rows = info_data['matrix_size']['rows'] // 2
-    # else:
-    #     rows = info_data['matrix_size']['rows']
-
-    rows = info_data['matrix_size']['rows']
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        rows = info_data['matrix_size']['rows'] // 2
+    else:
+        rows = info_data['matrix_size']['rows']
 
     num_to_mux = [[] for _ in range(switch_num)]
     for row_idx, row in enumerate(mux_to_num):
@@ -331,7 +327,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
         mux_to_num = info_data['hall_effect']['hardware']['mux_to_num_right']
         num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix_right']
         switch_num = info_data['hall_effect']['hardware']['switch_num_right']
-        rows = info_data['matrix_size']['rows'] # Use normal row len for offset
+        rows = info_data['matrix_size']['rows'] // 2
         cols = info_data['matrix_size']['cols']
         num_to_mux = [[] for _ in range(switch_num)]
 
@@ -409,7 +405,6 @@ def check_power_pins(he_json, port_def, config_h_lines):
             config_h_lines.append(generate_define(f'CONTINUOUS_POWER_PORT{postfix.upper()}', f'{port_def}{port}'))
 
 
-#TODO: Split init keys by side
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
     #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
@@ -424,6 +419,7 @@ def transform_init_keys(info_data, config_h_lines):
     init_keys_r = []
     init_key_num = 0
     init_key_num_r = 0
+    row_split = info_data['hall_effect']['hardware'].get('row_split', 0)
 
     for key in INIT_KEYS:
         path = INIT_KEYS[key]
@@ -436,17 +432,18 @@ def transform_init_keys(info_data, config_h_lines):
                 used_pos.append(key_pos)
             if len(key) > 6 and key[-6:] == '_RIGHT':
                 key = key[:-6]
-                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0]][key_pos[1]] - 1]
-                init_keys_r.append(key_mux)
+                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0] - row_split][key_pos[1]] - 1]
+                # Flip mux to put ADC pin first
+                init_keys_r.append(key_mux[::-1])
                 init_key_num_r += 1
                 init_functions_r.append(INIT_FUNCTIONS[key])
             else:
                 key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
-                init_keys.append(key_mux)
+                init_keys.append(key_mux[::-1])
                 init_key_num += 1
                 init_functions.append(INIT_FUNCTIONS[key])
             #TODO: Remove this
-            cli.echo(f'Found key {path} with matrix {key_pos}, mux {key_mux} executing function {INIT_FUNCTIONS[key]}()')
+            # cli.echo(f'Found key {path} with matrix {key_pos}, mux {key_mux} executing function {INIT_FUNCTIONS[key]}()')
 
     config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
     if len(init_functions) > 0:
@@ -454,11 +451,12 @@ def transform_init_keys(info_data, config_h_lines):
         #TODO: This way I can define the function names as strings and have them be defined as functions
         config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
 
-    config_h_lines.append(generate_define('HE_INIT_KEY_NUM_R', init_key_num))
+    config_h_lines.append(generate_define('HE_INIT_KEY_NUM_R', init_key_num_r))
     if len(init_functions_r) > 0:
-        config_h_lines.append(generate_define('HE_INIT_KEYS_R', str(init_keys).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('HE_INIT_KEYS_R', str(init_keys_r).replace('[', '{').replace(']', '}')))
         #TODO: This way I can define the function names as strings and have them be defined as functions
-        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions))} }}'))
+        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
+
 
 #MARK: Profiles
 #TODO: Remove config height options, only use profiles for that
