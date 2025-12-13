@@ -3,3 +3,5 @@ SRC += matrix.c multiplexer.c
 ANALOG_DRIVER_REQUIRED = yes
 CUSTOM_MATRIX = lite
 # CUSTOM_MATRIX = yes
+
+POINTING_DEVICE_DRIVER = pmw3360
