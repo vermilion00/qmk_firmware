@@ -149,31 +149,36 @@ void matrix_init_custom(void) {
 static void scan_init_keys(void) {
     uint16_t adc_value;
     // Long delay needed for correct init key reading after being plugged in
-    delay_ns(15000);
+    delay_ns(20000);
 
     for(uint8_t idx = 0; idx < HE_INIT_KEY_NUM; idx++) {
         #if POWER_BEFORE_SCAN == TRUE
-        gpio_write_pin_high(power_pins[init_keys[idx][0]]);
+        gpio_write_pin_high(power_pins[init_keys[idx][1]]);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_high_kb(init_keys[idx][0]);
+        sensor_power_high_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
-        set_mux_channel(init_keys[idx][0]);
+        set_mux_channel(init_keys[idx][1]);
         #ifdef MUX_SELECT_DELAY
         delay_ns(MUX_SELECT_CYCLES);
         #endif // MUX_SELECT_DELAY
 
-        uint8_t matrix_index = mux_to_num[init_keys[idx][0]][init_keys[idx][1]] - 1;
-        delay_ns(5000);
-        adc_value = adc_read(adc_pin_mux[init_keys[idx][1]]);
+        uint8_t matrix_index = mux_to_num[init_keys[idx][1]][init_keys[idx][0]] - 1;
+        delay_ns(7000);
+        adc_value = adc_read(adc_pin_mux[init_keys[idx][0]]);
 
         #if POWER_BEFORE_SCAN == TRUE
-        gpio_write_pin_low(power_pins[init_keys[idx][0]]);
+        gpio_write_pin_low(power_pins[init_keys[idx][1]]);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_low_kb(init_keys[idx][0]);
+        sensor_power_low_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
-        if(evaluate_value(matrix_index, adc_value)) {
+        // if(evaluate_value(matrix_index, adc_value)) {
+        #ifndef INVERT_ADC
+        if(adc_value < he_matrix[matrix_index].bottom_value + 50) {
+        #else
+        if(adc_value > he_matrix[matrix_index].bottom_value - 50) {
+        #endif
             // If the key is activated, call the respective function
             // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
             (*init_functions[idx])();
@@ -212,7 +217,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
                 index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
                 #if DEBUG_SCAN_VALUES == TRUE
-                dprintf("%2i/%2i: %3i, ", mux_channel, adc_channel, adc_value);
+                dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
                 #endif
                 #ifdef ADC_SCAN_DELAY
                 delay_ns(ADC_SCAN_CYCLES);
@@ -238,7 +243,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             }
             #if DEBUG_SCAN_VALUES == TRUE
             else {
-                dprintf("%2i/XX: XXX, ", mux_channel);
+                dprintf("%u/%2u:    , ",adc_channel, mux_channel);
             }
             #endif
         }
@@ -258,7 +263,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 
 
 //MARK: Translate
-// Translate the trigger height etc of one key into the corresponding ADC values
+// Translate the trigger height etc of all keys into the corresponding ADC values
 void translate_mm_to_value(void) {
     for(uint8_t index = 0; index < switch_num; index++) {
         uint16_t bottom_value = he_matrix[index].bottom_value;
@@ -308,17 +313,21 @@ void translate_mm_to_value(void) {
 
 //MARK: Get calibration
 bool get_calibration_data(void) {
-#   if HE_NO_EEPROM == TRUE
+    #if CALIBRATE == TRUE
+    calibrate_switches();
+    return true;
+    #endif
+
+    #if HE_NO_EEPROM == TRUE
     #ifdef HE_TOP_VALUES
     const uint16_t top_values[] = HE_TOP_VALUES;
     #else
-    //TODO: Add proper checks and instructions here
-    #   error "hall_effect.config.top_values needs to be defined!"
+    #   error "hall_effect.config.top_values needs to be set if NO_EEPROM is used!"
     #endif
     #ifdef HE_BOTTOM_VALUES
     const uint16_t bottom_values[] = HE_BOTTOM_VALUES;
     #else
-    #   error "hall_effect.config.bottom_values needs to be defined!"
+    #   error "hall_effect.config.bottom_values needs to be set if NO_EEPROM is used!"
     #endif
 
     #if DYNAMIC_CALIBRATION == FALSE
@@ -343,13 +352,8 @@ bool get_calibration_data(void) {
     #endif // INVERT_ADC
     #endif // DYNAMIC_CALIBRATION
 
-    #if CALIBRATE == TRUE
-    calibrate_switches();
     return true;
-    #endif
 
-    return true;
-    // return false;
 #   else //if HE_NO_EEPROM == TRUE
     //TODO: Add eeprom support
     // Read the calibration data from EEPROM
@@ -359,7 +363,7 @@ bool get_calibration_data(void) {
     // Start calibration if necessary
     calibrate_switches();
     return true;
-#   endif //else HE_NO_EEPROM == TRUE
+    #endif //else HE_NO_EEPROM == TRUE
 }
 
 
@@ -388,7 +392,6 @@ void calibrate_switches(void) {
             #ifdef MUX_SELECT_DELAY
             delay_ns(MUX_SELECT_CYCLES);
             #endif
-            // wait_ms(1000);
 
             for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
@@ -398,7 +401,7 @@ void calibrate_switches(void) {
                     matrix_index -= 1;
                     adc_value = adc_read(adc_pin_mux[adc_channel]);
                     #if DEBUG_CALIBRATION == true || DEBUG_SCAN_VALUES == true
-                    dprintf("%i: %i,  ", adc_channel, adc_value);
+                    dprintf("%u/%2u: %i, ", adc_channel, mux_channel, adc_value);
                     #endif
 
                     if(first_scan) {
@@ -451,30 +454,22 @@ void calibrate_switches(void) {
         first_scan = false;
         scans_without_change += 1;
         // Default is set to 10000, so 5s assuming 2000 scans per s?
+        //TODO: Change this to a more precise method
         if(scans_without_change > SCANS_WITHOUT_CHANGE){
             //TODO: Save calibration data to eeprom
             #if HE_NO_EEPROM == FALSE
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
-            print("\"top_values\": [ ");
-            for(uint8_t index = 0; index < switch_num; index++){
-                if(index < switch_num - 1){
-                    printf("%u, ", he_matrix[index].top_value);
-                }else{
-                    printf("%u ],\n", he_matrix[index].top_value);
-                }
+            printf("\"top_values\": [ %u", he_matrix[0].top_value);
+            for(uint8_t index = 1; index < switch_num; index++){
+                printf(", %u", he_matrix[index].top_value);
             }
 
-            print("\"bottom_values\": [ ");
-            for(uint8_t index = 0; index < switch_num; index++){
-                // dprintf("%2u | %3u | %3u\n", index, he_matrix[index].top_value, he_matrix[index].bottom_value);
-                if(index < switch_num - 1){
-                    printf("%u, ", he_matrix[index].bottom_value);
-                }else{
-                    printf("%u ]\n", he_matrix[index].bottom_value);
-                }
+            printf(" ],\n\"bottom_values\": [ %u", he_matrix[0].bottom_value);
+            for(uint8_t index = 1; index < switch_num; index++){
+                printf(", %u", he_matrix[index].bottom_value);
             }
-            print("You can paste these lines into keyboard.json under hall_effect.config\n");
+            print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
             #endif //else NO_EEPROM == FALSE
 
             scans_without_change = 0;
@@ -774,7 +769,6 @@ void switch_to_profile(uint8_t profile) {
 
 
 //MARK: Layer state
-//TODO: Update this
 layer_state_t layer_state_set_kb(layer_state_t state) {
     uint8_t highest_layer = get_highest_layer(state);
     for(uint8_t profile = 0; profile < HE_PROFILE_NUM; profile++) {
@@ -784,18 +778,16 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
             switch_to_profile(profile);
 
             // Only the lowest number profile should apply
-            break;
+            return layer_state_set_user(state);
         }
-        // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-        #if PROFILE_SWITCH_MODE == DEFAULT
-        else {
-            switch_to_profile(HE_DEFAULT_PROFILE);
-        }
-        #endif
     }
+    // If profile switch mode is default, switch to the default profile if layer is not set for any profile
+    #if PROFILE_SWITCH_MODE == DEFAULT
+    switch_to_profile(HE_DEFAULT_PROFILE);
+    #endif
 
     // Need to return state for it to work correctly
-    return state;
+    return layer_state_set_user(state);
 }
 
 
