@@ -16,7 +16,6 @@ INIT_KEYS = {
     'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right',
     'BOOTLOADER_KEY': 'hall_effect.config.bootloader_key',
     'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right',
-    #TODO: Enabling both causes it to skip the first, since you can't have two identical keys
     # Use normal bootmagic key for mechanical button reset
     # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
     # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
@@ -28,6 +27,20 @@ INIT_FUNCTIONS = {
     'BOOTLOADER_KEY': 'bootloader_jump',
     'BOOTMAGIC_KEY': 'bootloader_jump',
     'CALIBRATION_KEY': 'calibrate_switches'
+}
+
+RT_TYPES = {
+    'NONE': 0,
+    'RAPID_TRIGGER': 1,
+    'CONTINUOUS_RAPID_TRIGGER': 2,
+    'CONSTANT_RAPID_TRIGGER': 3
+}
+
+RT_NAMES = {
+    0: 'NONE',
+    1: 'RAPID_TRIGGER',
+    2: 'CONTINUOUS_RAPID_TRIGGER',
+    3: 'CONSTANT_RAPID_TRIGGER'
 }
 
 def generate_define(define, value=None):
@@ -458,7 +471,7 @@ def transform_init_keys(info_data, config_h_lines):
         config_h_lines.append(generate_define('HE_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
 
 
-#MARK: Profiles
+#MARK: Profile config
 #TODO: Remove config height options, only use profiles for that
 def generate_profile_config(kb_info_json, config_h_lines):
     """Extract the profile configuration"""
@@ -470,8 +483,6 @@ def generate_profile_config(kb_info_json, config_h_lines):
     press_distances = []
     release_distances = []
     profile_config = []
-    rt_type = []
-    rt_num = []
     key_modes = []
     profile_num = 0
 
@@ -479,57 +490,31 @@ def generate_profile_config(kb_info_json, config_h_lines):
         if f'profile_{profile}' in he_profiles:
             profile_num += 1
             profile_data = he_profiles[f'profile_{profile}']
-            if 'trigger_height' in profile_data:
-                trigger_height = profile_data['trigger_height']
-                if len(trigger_height) == 1:
-                    trigger_height = [trigger_height[0] for _ in range(switch_num)]
-                trigger_heights.append(trigger_height)
 
-                if 'release_height' in profile_data:
-                    release_height = profile_data['release_height']
-                    if len(release_height) == 1:
-                        release_height = [release_height[0] for _ in range(switch_num)]
-                    release_heights.append(release_height)
-                #If no release height is defined, set it to the trigger height
-                else:
-                    release_heights.append(trigger_height)
-            else:   # No trigger height defined
-                trigger_heights.append([0 for _ in range(switch_num)])
-                release_heights.append([0 for _ in range(switch_num)])
+            trigger_height = profile_data.get('trigger_height', [0])
+            if len(trigger_height) == 1:
+                trigger_height = [trigger_height[0] for _ in range(switch_num)]
+            trigger_heights.append(trigger_height)
 
-            if 'rapid_trigger_type' in profile_data:
-                rt_types = {
-                    'NONE': 0,
-                    'RAPID_TRIGGER': 1,
-                    'CONTINUOUS_RAPID_TRIGGER': 2,
-                    'CONSTANT_RAPID_TRIGGER': 3
-                }
-                rt_num.append(rt_types[profile_data['rapid_trigger_type'].upper()])
-                rt_type.append(profile_data['rapid_trigger_type'].upper())
+            release_height = profile_data.get('release_height', [0])
+            if release_height == [0]:
+                release_height = trigger_height
+            elif len(release_height) == 1:
+                release_height = [release_height[0] for _ in range(switch_num)]
+            release_heights.append(release_height)
 
-                if rt_type[profile] != 'NONE':
-                    rt_press_distance = profile_data['rt_press_distance']
-                    if len(rt_press_distance) == 1:
-                        rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
-                    press_distances.append(rt_press_distance)
+            rt_press_distance = profile_data.get('rt_press_distance', [0])
+            if len(rt_press_distance) == 1:
+                rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
 
-                    if 'rt_release_distance' in profile_data:
-                        rt_release_distance = profile_data['rt_release_distance']
-                        if len(rt_release_distance) == 1:
-                            rt_release_distance = [rt_release_distance[0] for _ in range(switch_num)]
-                        release_distances.append(rt_release_distance)
-                    #If no release distance is defined, set it to the press distance
-                    else:
-                        release_distances.append(rt_press_distance)
-                else:   #RT type = 'NONE'
-                    press_distances.append([0 for _ in range(switch_num)])
-                    release_distances.append([0 for _ in range(switch_num)])
+            rt_release_distance = profile_data.get('rt_release_distance', [0])
+            if rt_release_distance == [0]:
+                rt_release_distance = rt_press_distance
+            elif len(rt_release_distance) == 1:
+                rt_release_distance = [rt_release_distance[0] for _ in range(switch_num)]
 
-            else:   #No RT defined
-                rt_type.append('NONE')
-                rt_num.append(0)
-                press_distances.append([0 for _ in range(switch_num)])
-                release_distances.append([0 for _ in range(switch_num)])
+            press_distances.append(rt_press_distance)
+            release_distances.append(rt_release_distance)
 
             # Rest of the profile config
             profile_config.append([])
@@ -541,24 +526,12 @@ def generate_profile_config(kb_info_json, config_h_lines):
             else:
                 profile_config[profile].append(0)
 
-            if 'rapid_trigger_type' in profile_data:
-                profile_config[profile].append(rt_num[profile])
-            else:
-                profile_config[profile].append(0)
-
-            #TODO: This can be merged with the section directly above
             #MARK: Key modes
             if 'rapid_trigger_type' in profile_data:
-                rt_types = {
-                    'NONE': 0,
-                    'RAPID_TRIGGER': 1,
-                    'CONTINUOUS_RAPID_TRIGGER': 2,
-                    'CONSTANT_RAPID_TRIGGER': 3
-                }
                 # If a rapid_trigger_type is defined for the profile, set the mode to it for
-                # all keys except the ones with disabled RT or special keys
+                # all RT enabled keys
                 if 'key_modes' in profile_data:
-                    rt_int = rt_types[profile_data['rapid_trigger_type'].upper()]
+                    rt_int = RT_TYPES[profile_data['rapid_trigger_type'].upper()]
                     key_mode = profile_data['key_modes']
                     if len(key_mode) == 1:
                         key_mode = [key_mode[0] for _ in range(switch_num)]
@@ -571,12 +544,23 @@ def generate_profile_config(kb_info_json, config_h_lines):
                     key_modes.append(modes)
 
                 else: #RT defined but no key_modes
-                    key_modes.append([rt_types[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
+                    key_modes.append([RT_TYPES[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
             else:
+                key_mode = profile_data.get('key_modes', [0])
+                if len(key_mode) == 1:
+                    key_mode = [key_mode[0] for _ in range(switch_num)]
+
                 key_modes.append(profile_data['key_modes'])
 
         else: # Profile isn't in the json
             break
+
+    # Set the mode definitions
+    used_modes = []
+    for profile_modes in key_modes:
+        for mode in profile_modes:
+            if RT_NAMES[mode] not in used_modes:
+                used_modes.append(RT_NAMES[mode])
 
     # Check default profile
     if 'switch_mode' in he_profiles:
@@ -638,7 +622,7 @@ def generate_profile_config(kb_info_json, config_h_lines):
     config_h_lines.append(generate_define('HE_DEFAULT_PROFILE', default_profile))
     config_h_lines.append(generate_define('HE_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
 
-    for type in set(rt_type):
+    for type in set(used_modes):
         config_h_lines.append(generate_define(f'USE_{type}'))
 
 
@@ -890,6 +874,8 @@ def generate_hall_effect_config(info_data, config_h_lines):
             else:
                 config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
 
+        #TODO: Rework this to work with per-key mode as well
+        #      Or just force defining this in a profile
         if 'rapid_trigger_type' in he_json['config']:
             rt_type = he_json['config']['rapid_trigger_type'].upper()
             config_h_lines.append(generate_define(f'USE_{rt_type}'))
