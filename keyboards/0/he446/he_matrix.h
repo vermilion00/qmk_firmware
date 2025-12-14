@@ -23,14 +23,13 @@
 
 typedef struct Profile {
     layer_state_t layers;
-    key_mode_t rt_type;
 } Profile;
 
 //TODO: Bit fields are an option to cut down on space, but it will cause a performance hit
 //      because all values will have to be bitshifted every access
 typedef struct Switch {
     uint8_t pressed;
-    // 0 = None, 1-3 = RT, 4-9 = Reserved, 10+ = Special keys (Gamepad etc)
+    // 0 = None, 1-3 = RT, 4-9 = Reserved, 10-255 = Special keys (Gamepad etc)
     uint8_t mode[HE_PROFILE_NUM];
     #if defined USE_CONTINUOUS_RAPID_TRIGGER
     uint8_t rt_active;
@@ -66,6 +65,7 @@ volatile static const uint8_t mux_to_num_r[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_N
 volatile static Switch he_matrix[SWITCH_NUM];
 #endif
 
+//TODO: If I'm reassigning the arrays anyway, SPLIT_MUTABLE should always just be const
 #ifdef MUX_PINS
 volatile static SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif
@@ -99,6 +99,7 @@ volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_N
 
 // Only need these for split keyboards
 #ifdef SPLIT_KEYBOARD
+//TODO: I don't think I actually need this
 // volatile static const uint8_t local_to_global_index[SWITCH_NUM][2] = L_TO_G_INDEX;
 
 #else // defined SPLIT_KEYBOARD

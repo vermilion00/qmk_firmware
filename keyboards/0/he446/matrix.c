@@ -114,14 +114,6 @@ void matrix_init_custom(void) {
     sensor_power_init_kb();
     #endif
 
-    //TODO: Remove this after testing, only is an issue since qmk sets all unused pins to high,
-    //      and I have all mux select pins connected
-    GPIOB->MODER = 0b01010101010101010101010101010101;
-    GPIOB->OTYPER = 0x0000;
-    GPIOB->OSPEEDR = 0b10101010101010101010101010101010;
-    GPIOB->ODR = 0x007B;
-    // GPIOB->ODR = 0x0000;
-
     get_switch_data();
 
     // TODO: Load key matrix struct with calibration and distance data from the EEPROM
@@ -265,6 +257,8 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 //MARK: Translate
 // Translate the trigger height etc of all keys into the corresponding ADC values
 void translate_mm_to_value(void) {
+    uint8_t key_modes[][SWITCH_NUM] = KEY_MODES;
+
     for(uint8_t index = 0; index < switch_num; index++) {
         uint16_t bottom_value = he_matrix[index].bottom_value;
         uint16_t top_value = he_matrix[index].top_value;
@@ -306,6 +300,9 @@ void translate_mm_to_value(void) {
             he_matrix[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
             he_matrix[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index];
             #endif
+
+            // Assign the switch mode
+            he_matrix[index].mode[profile] = key_modes[profile][index];
         }
     }
 }
@@ -456,8 +453,8 @@ void calibrate_switches(void) {
         // Default is set to 10000, so 5s assuming 2000 scans per s?
         //TODO: Change this to a more precise method
         if(scans_without_change > SCANS_WITHOUT_CHANGE){
-            //TODO: Save calibration data to eeprom
             #if HE_NO_EEPROM == FALSE
+            //TODO: Save calibration data to eeprom
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
             printf("\"top_values\": [ %u", he_matrix[0].top_value);
