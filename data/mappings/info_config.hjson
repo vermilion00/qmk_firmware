@@ -27,6 +27,8 @@
     "HE_ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
     "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing"},
     "ADC_DEADZONE": {"info_key": "hall_effect.hardware.deadzone"},
+    "ADC_TOP_DEADZONE": {"info_key": "hall_effect.hardware.top_deadzone"},
+    "ADC_BOTTOM_DEADZONE": {"info_key": "hall_effect.hardware.bottom_deadzone"},
     "MUX_TO_NUM": {"info_key": "hall_effect.hardware.mux_to_num", "value_type": "array.array"},
     "MUX_TO_NUM_R": {"info_key": "hall_effect.hardware.mux_to_num_right", "value_type": "array.array"},
     "NUM_TO_MATRIX": {"info_key": "hall_effect.hardware.num_to_matrix", "value_type": "array.array"},

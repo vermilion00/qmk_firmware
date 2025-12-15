@@ -532,6 +532,8 @@
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "top_deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
+                        "bottom_deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "mux_to_num": {
                             "type": "array",
                             "items": {
