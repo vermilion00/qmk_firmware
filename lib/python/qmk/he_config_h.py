@@ -563,10 +563,10 @@ def generate_profile_config(kb_info_json, config_h_lines):
                 used_modes.append(RT_NAMES[mode])
 
     # Check default profile
-    if 'switch_mode' in he_profiles:
-        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{he_profiles['switch_mode'].upper()}'))
+    if 'profile_switch_mode' in he_profiles:
+        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{he_profiles['profile_switch_mode'].upper()}_PROFILE'))
     else:
-        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', 'LAST'))
+        config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', 'LAST_PROFILE'))
 
     default_profile = he_profiles.get('default_profile', 0)
     profile_num = 1 if profile_num <= 1 else profile_num

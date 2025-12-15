@@ -23,12 +23,10 @@
 
 #define DEBUG_MATRIX_SCAN_RATE
 
-#define USB_POLLING_INTERVAL_MS 1
-
 // Pointing Device Accel
-#define POINTING_DEVICE_ACCEL_TAKEOFF 2.5      // lower/higher value = curve takes off more smoothly/abruptly
+#define POINTING_DEVICE_ACCEL_TAKEOFF 2.7      // lower/higher value = curve takes off more smoothly/abruptly
 #define POINTING_DEVICE_ACCEL_GROWTH_RATE 0.7  // lower/higher value = curve reaches its upper limit slower/faster
-#define POINTING_DEVICE_ACCEL_OFFSET 1.8       // lower/higher value = acceleration kicks in earlier/later
+#define POINTING_DEVICE_ACCEL_OFFSET 1.5       // lower/higher value = acceleration kicks in earlier/later
 #define POINTING_DEVICE_ACCEL_LIMIT 0.12       // lower limit of accel curve (minimum acceleration factor)
 
 /* serial.c configuration for split keyboard */
@@ -57,6 +55,7 @@
 #define WS2812_PWM_DMA_CHANNEL  5                   // DMA Channel for TIMx_UP, see the respective reference manual for the appropriate values for your MCU.
 #define WS2812_PWM_TARGET_PERIOD 800000
 #define RGBLIGHT_DISABLE_KEYCODES
+#define SPLIT_LAYER_STATE_ENABLE
 
 // /* SPI config for eeprom and pmw3360 sensor */
 #define SPI_DRIVER                           SPID1
@@ -69,7 +68,6 @@
 
 /* PMW3360 config  */
 #define PMW33XX_CS_PIN                       A15
-//Try lower divisor for higher rate?
 #define PMW33XX_SPI_DIVISOR                  32
 #define PMW33XX_SPI_MODE                     3
 #define PMW33XX_CPI                          12000
@@ -81,6 +79,10 @@
 #define POINTING_DEVICE_TASK_THROTTLE_MS 1
 #define POINTING_DEVICE_RIGHT
 
-// Bayleaf stuff
-#define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC
+// #define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC
+#define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC, HE_PROFILE_SYNC
 
+#define NO_ACTION_TAPPING
+#define NO_ACTION_ONESHOT
+
+#define SPLIT_WATCHDOG_ENABLE

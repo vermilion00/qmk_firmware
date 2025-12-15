@@ -578,35 +578,6 @@
                 "config": {
                     "type": "object",
                     "properties": {
-                        "trigger_height": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                        },
-                        "release_height": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                        },
-                        "rt_press_distance": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                        },
-                        "rt_release_distance": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                        },
-                        "rapid_trigger_type": {
-                            "type": "string",
-                            "enum": [
-                                "none",
-                                "rapid_trigger",
-                                "constant_rapid_trigger",
-                                "continuous_rapid_trigger",
-                                "NONE",
-                                "RAPID_TRIGGER",
-                                "CONSTANT_RAPID_TRIGGER",
-                                "CONTINUOUS_RAPID_TRIGGER"
-                            ]
-                        },
                         "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootloader_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
@@ -619,6 +590,7 @@
                         "scans_without_change": {"$ref": "./definitions.jsonschema#/unsigned_int_32"},
                         "distance_from_bottom": {"type": "boolean"},
                         "debug_scan_values": {"type": "boolean"},
+                        "debug_scan_value": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "debug_scan_no_input": {"type": "boolean"},
                         "debug_calibration": {"type": "boolean"},
                         "dynamic_calibration": {"type": "boolean"},
@@ -660,128 +632,13 @@
                             "enum": [
                                 "default",
                                 "last",
+                                "Default",
+                                "Last",
                                 "DEFAULT",
                                 "LAST"
                             ]
                         },
                         "profile_0": {
-                            "type": "object",
-                            "properties": {
-                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
-                                "trigger_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "release_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_press_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_release_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "key_modes": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
-                                },
-                                "rapid_trigger_type": {
-                                    "type": "string",
-                                    "enum": [
-                                        "none",
-                                        "rapid_trigger",
-                                        "constant_rapid_trigger",
-                                        "continuous_rapid_trigger",
-                                        "NONE",
-                                        "RAPID_TRIGGER",
-                                        "CONSTANT_RAPID_TRIGGER",
-                                        "CONTINUOUS_RAPID_TRIGGER"
-                                    ]
-                                }
-                            }
-                        },
-                        "profile_1": {
-                            "type": "object",
-                            "properties": {
-                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
-                                "trigger_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "release_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_press_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_release_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "key_modes": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
-                                },
-                                "rapid_trigger_type": {
-                                    "type": "string",
-                                    "enum": [
-                                        "none",
-                                        "rapid_trigger",
-                                        "constant_rapid_trigger",
-                                        "continuous_rapid_trigger",
-                                        "NONE",
-                                        "RAPID_TRIGGER",
-                                        "CONSTANT_RAPID_TRIGGER",
-                                        "CONTINUOUS_RAPID_TRIGGER"
-                                    ]
-                                }
-                            }
-                        },
-                        "profile_2": {
-                            "type": "object",
-                            "properties": {
-                                "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
-                                "trigger_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "release_height": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_press_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "rt_release_distance": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_decimal"}
-                                },
-                                "key_modes": {
-                                    "type": "array",
-                                    "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
-                                },
-                                "rapid_trigger_type": {
-                                    "type": "string",
-                                    "enum": [
-                                        "none",
-                                        "rapid_trigger",
-                                        "constant_rapid_trigger",
-                                        "continuous_rapid_trigger",
-                                        "NONE",
-                                        "RAPID_TRIGGER",
-                                        "CONSTANT_RAPID_TRIGGER",
-                                        "CONTINUOUS_RAPID_TRIGGER"
-                                    ]
-                                }
-                            }
-                        },
-                        "profile_3": {
                             "type": "object",
                             "properties": {
                                 "layers": {"type": "array", "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}},
