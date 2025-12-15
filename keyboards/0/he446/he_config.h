@@ -1,49 +1,35 @@
 #pragma once
 
 /*TODO:
-\
-   ☒ Mux combination [2, 0] appears multiple times in the right half of the layout!
- | ☒ Mux combination [2, 1] appears multiple times in the right half of the layout!
- | ☒ Mux combination [1, 0] appears multiple times in the right half of the layout!\\
+-Set the he_matrix[] size to be equal to the larger half, if it's the right side then use memcpy
+ to copy right side stuff into left side matrix
 
--Shift, I, \ and H keys keep clicking (right side)
+-Currently, some hardcoded values assume a 10 bit ADC resolution
+    -Either make the values dynamic or force the resolution to be 10 bit=
 
--Swap init key mux and adc positions
--Init key _R don't work
+-Change -s flag to force recompilation of config.h instead of deleting build dir
+    -Or at least only delete the keyboard folder
+    -Can probably just touch config.h
+    -Will that work when other files are also dependent on the flag?
 
--Any key seems to be spammed if no rt is enabled and key is moved slowly
-    -Do floats even work?
-    -Possible that 1.5 and 1.75 both translate to 2mm and therefore the press and release is the same
-
--Are the sensors overheating due to being encased in hot glue?
--Is the hot glue melting the solder joints, making them unreliable?
-    -Check glue temp with thermometer, but very possible
-
--Add function to define keys that get scanned every scan, every other key only get scanned
+-Add option to define keys that get scanned every scan, every other key only gets scanned
  every x scans instead for higher update rate (if I can get 8khz to work)
+    -8Khz is doable but the PHY situation is annoying
 
 -Add support for side assignment at init
     -*Get side from split_util.c
     -Change matrixes to pointers
     -Assign the pointers in init according to needs
 
--When powering sensors via gpio, they need ~7us to be powered and are limited to 25ma
-    -Is that because of the cap?
-    -Scan rate for 1 sensor is 17160/s (quite slow)
--Each sensor ~4 ma, and only 3.3V
--Try using fast transistor, and testing the activation delay then
--If it is still so slow, just power them always, or keep the next 2-3 powered too
-
 -Sync profile state between halves
--If calibrating, sync calibration start/end
+-If calibrating, sync calibration start/end and values every print
+    -Print data for each half independently
+    -Save finished bool per half, exit calibration if both halves are finished
 -If no_eeprom, sync slave bounds to master for printing
-
--Try halving left matrix_to_num rows again
 
 -Currently the _RIGHT stuff isn't being checked in mux and power functions
     -Either disallow setting different ones (preferred), or add support for it (messy)
 
--Add more validation stuff
 -ADC Value changes faster at the bottom than at the top, adjust with a lut
     -Allow defining own lut
     -Instead of offsetting the scan value with the lut, use it to offset the height values at init
@@ -63,8 +49,6 @@
     -Since we only use HE_ADC_RESOLUTION bits, we can use bitfields for the values
     -Size will be n * 20 bits by default, so 1400 bits for 70 keys
     -Check if anything needs to be saved at the end of the flash (bootloader flag?)
-
--Update trigger_height from config for split stuff
 
 -Add json feature option for hall_effect, to apply all the relevant patches
 
@@ -90,6 +74,10 @@
 
 -Add MIDI mode with velocity controlled by the change in adc value
     -Allow triggering past a certain height instead of only at the bottom
+
+-Add option to power all sensors through one mosfet, and turn it off when inactive
+
+-Enable multi ADC mode
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?

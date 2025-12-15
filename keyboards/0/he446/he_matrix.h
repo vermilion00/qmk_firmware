@@ -43,7 +43,7 @@ typedef struct Switch {
     #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
-    uint16_t rt_press_threshold;
+    uint16_t rt_threshold;
     // The distance that the switch is required to travel downwards before it's registered as pressed
     uint16_t rt_press_value[HE_PROFILE_NUM];
     // The distance that the switch is required to travel upwards before it's registered as released
@@ -95,6 +95,10 @@ volatile static SPLIT_MUTABLE float release_height[HE_PROFILE_NUM][SWITCH_NUM] =
 #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
 volatile static SPLIT_MUTABLE float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
 volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+#endif
+
+#ifdef DEBUG_SCAN_VALUE
+volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
 #endif
 
 // Only need these for split keyboards
@@ -161,6 +165,8 @@ volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_N
 void switch_to_profile(uint8_t profile);
 #endif // if HE_PROFILE_NUM > 1
 volatile static const Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
+
+
 
 /* Function defines */
 uint8_t get_current_profile(void);

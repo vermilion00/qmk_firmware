@@ -212,7 +212,11 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             if(index > 0){
                 index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
-                #if DEBUG_SCAN_VALUES == TRUE
+                #ifdef DEBUG_SCAN_VALUE
+                if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
+                    dprintf("%u\n", adc_value);
+                }
+                #elif DEBUG_SCAN_VALUES == TRUE
                 dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
                 #endif
                 #ifdef ADC_SCAN_DELAY
@@ -322,20 +326,16 @@ void translate_mm_to_value(void) {
 //MARK: Get calibration
 bool get_calibration_data(void) {
     #if CALIBRATE == TRUE
-    calibrate_switches();
-    return true;
+    return false;
     #endif
 
     #if HE_NO_EEPROM == TRUE
-    #ifdef HE_TOP_VALUES
+    #if !defined HE_TOP_VALUES || !defined HE_BOTTOM_VALUES
+    return false;
+    #else
+    //TODO: Add unknown side assignment stuff
     const uint16_t top_values[] = HE_TOP_VALUES;
-    #else
-    #   error "hall_effect.config.top_values needs to be set if NO_EEPROM is used!"
-    #endif
-    #ifdef HE_BOTTOM_VALUES
     const uint16_t bottom_values[] = HE_BOTTOM_VALUES;
-    #else
-    #   error "hall_effect.config.bottom_values needs to be set if NO_EEPROM is used!"
     #endif
 
     #if DYNAMIC_CALIBRATION == FALSE
@@ -353,8 +353,8 @@ bool get_calibration_data(void) {
 
         he_matrix[key].pressed = false;
     }
-    #endif
-    #else
+    #endif // else INVERT_ADC == FALSE
+    #else // DYNAMIC_CALIBRATION == FALSE
     #if INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
         // HE_DC_FACTOR should be defined as < 1
@@ -378,7 +378,6 @@ bool get_calibration_data(void) {
     // Check if the data aligns with configured matrix size
 
     // Start calibration if necessary
-    calibrate_switches();
     return true;
     #endif //else HE_NO_EEPROM == TRUE
 }
@@ -465,6 +464,8 @@ void calibrate_switches(void) {
                         #endif
                     }
                     #endif//else INVERT_ADC == TRUE
+                    // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
+                    evaluate_value(matrix_index, adc_value);
                 }
             }
 
@@ -478,16 +479,20 @@ void calibrate_switches(void) {
 
         first_scan = false;
         scans_without_change += 1;
-        // Default is set to 10000, so 5s assuming 2000 scans per s?
         //TODO: Change this to a more precise method
-        if(scans_without_change > SCANS_WITHOUT_CHANGE){
+        if(scans_without_change >= SCANS_WITHOUT_CHANGE){
             #if HE_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
+            save_calibration();
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
             printf("\"top_values\": [ %u", he_matrix[0].top_value);
+            // Reset the pressed states on all switches
+            he_matrix[0].pressed = false;
+            //TODO: If only one key is used (per half), this will cause issues
             for(uint8_t index = 1; index < switch_num; index++){
                 printf(", %u", he_matrix[index].top_value);
+                he_matrix[index].pressed = false;
             }
 
             printf(" ],\n\"bottom_values\": [ %u", he_matrix[0].bottom_value);
@@ -506,7 +511,7 @@ void calibrate_switches(void) {
 
 //MARK: Evaluate
 //TODO: Dynamically change type of arg based on matrix size
-// Create a matrix_index_t enum with nested #if statements checking the matrix sizes
+// Create a matrix_index_t enum with nested #if statements checking the matrix size
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = he_matrix[index].pressed;
 
@@ -597,7 +602,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         #endif //defined USE_SPECIAL
     }
 
-#else //defined INVERT_ADC
+#else //if INVERT_ADC == TRUE
     switch(he_matrix[index].mode[current_he_profile]) {
         case none:
         #if defined USE_NONE
@@ -685,7 +690,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         //evaluate_special(index, value)
         #endif //defined USE_SPECIAL
     }
-#endif //else defined INVERT_ADC
+#endif //if INVERT_ADC == TRUE else
 
     return !(prev_pressed == he_matrix[index].pressed);
 }
@@ -803,7 +808,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         }
     }
     // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-    #if PROFILE_SWITCH_MODE == DEFAULT
+    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
     switch_to_profile(HE_DEFAULT_PROFILE);
     #endif
 
@@ -823,16 +828,14 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
 // #endif
 
 
-// MARK: Split sync
+// MARK: Profile sync
 void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    // const uint8_t* profile = (const uint8_t*)in_data;
-    // current_he_profile = *profile;
     current_he_profile = *(const uint8_t*)in_data;
 }
 
 
+//MARK: Cal Sync
 // uint64_t data_arr[DATA_BUFFER_LEN];
-
 void sync_calibration(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
     calibrate_switches();
 
