@@ -40,7 +40,7 @@
             "calibration_key": [1, 0],
             "bootloader_key_right": [6, 5],
             "calibration_key_right": [7, 5],
-            "scans_without_change": 25000,
+            "scans_without_change": 10000,
             "no_eeprom": true,
             "debug_scan_values": false,
             "debug_scan_no_input": false,

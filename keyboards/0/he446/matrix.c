@@ -341,15 +341,15 @@ bool get_calibration_data(void) {
     #if DYNAMIC_CALIBRATION == FALSE
     #if INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = top_values[key] - ADC_DEADZONE;
-        he_matrix[key].bottom_value = bottom_values[key] + ADC_DEADZONE;
+        he_matrix[key].top_value = top_values[key] - ADC_TOP_DEADZONE;
+        he_matrix[key].bottom_value = bottom_values[key] + ADC_BOTTOM_DEADZONE;
 
         he_matrix[key].pressed = false;
     }
     #else // INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = top_values[key] + ADC_DEADZONE;
-        he_matrix[key].bottom_value = bottom_values[key] - ADC_DEADZONE;
+        he_matrix[key].top_value = top_values[key] + ADC_TOP_DEADZONE;
+        he_matrix[key].bottom_value = bottom_values[key] - ADC_BOTTOM_DEADZONE;
 
         he_matrix[key].pressed = false;
     }
@@ -358,13 +358,13 @@ bool get_calibration_data(void) {
     #if INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
         // HE_DC_FACTOR should be defined as < 1
-        he_matrix[key].top_value = HE_DC_FACTOR * top_values[key] - ADC_DEADZONE;
-        he_matrix[key].bottom_value = (2 - HE_DC_FACTOR) * bottom_values[key] + ADC_DEADZONE;
+        he_matrix[key].top_value = HE_DC_FACTOR * top_values[key] - ADC_TOP_DEADZONE;
+        he_matrix[key].bottom_value = (2 - HE_DC_FACTOR) * bottom_values[key] + ADC_BOTTOM_DEADZONE;
     }
     #else // INVERT_ADC == TRUE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = (2 - HE_DC_FACTOR) * top_values[key] + ADC_DEADZONE;
-        he_matrix[key].bottom_value = HE_DC_FACTOR * bottom_values[key] - ADC_DEADZONE;
+        he_matrix[key].top_value = (2 - HE_DC_FACTOR) * top_values[key] + ADC_TOP_DEADZONE;
+        he_matrix[key].bottom_value = HE_DC_FACTOR * bottom_values[key] - ADC_BOTTOM_DEADZONE;
     }
     #endif // INVERT_ADC
     #endif // DYNAMIC_CALIBRATION
@@ -422,27 +422,27 @@ void calibrate_switches(void) {
 
                     if(first_scan) {
                         #if INVERT_ADC == FALSE
-                        he_matrix[matrix_index].top_value = adc_value - ADC_DEADZONE;
-                        he_matrix[matrix_index].bottom_value = adc_value - 50 + ADC_DEADZONE;
+                        he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                        he_matrix[matrix_index].bottom_value = adc_value - 50 + ADC_BOTTOM_DEADZONE;
 
                         #else
-                        he_matrix[matrix_index].top_value = adc_value - 50 + ADC_DEADZONE;
-                        he_matrix[matrix_index].bottom_value = adc_value - ADC_DEADZONE;
+                        he_matrix[matrix_index].top_value = adc_value - 50 + ADC_TOP_DEADZONE;
+                        he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
 
                         continue;
                     }
 
                     #if INVERT_ADC == TRUE
-                    if(adc_value < he_matrix[matrix_index].top_value - ADC_DEADZONE){
-                        he_matrix[matrix_index].top_value = adc_value + ADC_DEADZONE;
+                    if(adc_value < he_matrix[matrix_index].top_value - ADC_TOP_DEADZONE){
+                        he_matrix[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         scans_without_change = 0;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
-                    } else if (adc_value > he_matrix[matrix_index].bottom_value + ADC_DEADZONE) {
-                        he_matrix[matrix_index].bottom_value = adc_value - ADC_DEADZONE;
+                    } else if (adc_value > he_matrix[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
+                        he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         scans_without_change = 0;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
@@ -450,14 +450,14 @@ void calibrate_switches(void) {
                     }
 
                     #else //if INVERT_ADC == TRUE
-                    if(adc_value > he_matrix[matrix_index].top_value + ADC_DEADZONE){
-                        he_matrix[matrix_index].top_value = adc_value - ADC_DEADZONE;
+                    if(adc_value > he_matrix[matrix_index].top_value + ADC_TOP_DEADZONE){
+                        he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         scans_without_change = 0;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
-                    } else if (adc_value < he_matrix[matrix_index].bottom_value - ADC_DEADZONE) {
-                        he_matrix[matrix_index].bottom_value = adc_value + ADC_DEADZONE;
+                    } else if (adc_value < he_matrix[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
+                        he_matrix[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
                         scans_without_change = 0;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
@@ -582,7 +582,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
         // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-        if((value > he_matrix[index].rt_threshold + ADC_SMOOTHING) || value > he_matrix[index].bottom_value - ADC_DEADZONE) {
+        if((value > he_matrix[index].rt_threshold + ADC_SMOOTHING) || value > he_matrix[index].bottom_value) {
             he_matrix[index].pressed = true;
             he_matrix[index].rt_threshold = value;
         // Check if the key has been released past the threshold or completely
@@ -700,20 +700,20 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 #if DYNAMIC_CALIBRATION == TRUE
 inline bool update_switch_bounds(uint8_t index, uint16_t value) {
     #if INVERT_ADC == FALSE
-    if(value > he_matrix[index].top_value + HE_DC_DELTA + ADC_DEADZONE){
-        he_matrix[index].top_value = value - ADC_DEADZONE;
+    if(value > he_matrix[index].top_value + HE_DC_DELTA + ADC_TOP_DEADZONE){
+        he_matrix[index].top_value = value - ADC_TOP_DEADZONE;
         return true;
-    } else if (value < he_matrix[index].bottom_value - HE_DC_DELTA - ADC_DEADZONE) {
-        he_matrix[index].bottom_value = value + ADC_DEADZONE;
+    } else if (value < he_matrix[index].bottom_value - HE_DC_DELTA - ADC_BOTTOM_DEADZONE) {
+        he_matrix[index].bottom_value = value + ADC_BOTTOM_DEADZONE;
         return true;
     }
 
     #else // if INVERT_ADC == FALSE
-    if(value < he_matrix[index].top_value - HE_DC_DELTA - ADC_DEADZONE){
-        he_matrix[index].top_value = value + ADC_DEADZONE;
+    if(value < he_matrix[index].top_value - HE_DC_DELTA - ADC_TOP_DEADZONE){
+        he_matrix[index].top_value = value + ADC_TOP_DEADZONE;
         return true;
-    } else if (value > he_matrix[index].bottom_value + HE_DC_DELTA + ADC_DEADZONE) {
-        he_matrix[index].bottom_value = value - ADC_DEADZONE;
+    } else if (value > he_matrix[index].bottom_value + HE_DC_DELTA + ADC_BOTTOM_DEADZONE) {
+        he_matrix[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
         return true;
     }
     #endif /// else INVERT_ADC == FALSE
