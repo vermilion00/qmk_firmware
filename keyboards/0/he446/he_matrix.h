@@ -122,18 +122,11 @@ volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
 #   define ADC_BUFFER_DEPTH 1
 #endif
 #define MAX_ADC_VALUE 1 << ADC_RESOLUTION
-#ifndef SMOOTHING_LEVEL
-#   define SMOOTHING_LEVEL 1
+#ifndef ADC_TOP_DEADZONE
+#   define ADC_TOP_DEADZONE ADC_DEADZONE
 #endif
-//TODO: Set these in python script to scale with adc resolution
-#ifndef ADC_SMOOTHING
-#   define ADC_SMOOTHING SMOOTHING_LEVEL * 2 + 1
-#endif
-#ifndef DEADZONE_LEVEL
-#   define DEADZONE_LEVEL 4
-#endif
-#ifndef ADC_DEADZONE
-#   define ADC_DEADZONE DEADZONE_LEVEL * 5 + 5
+#ifndef ADC_BOTTOM_DEADZONE
+#   define ADC_BOTTOM_DEADZONE ADC_DEADZONE
 #endif
 #ifndef SCANS_WITHOUT_CHANGE
 #   define SCANS_WITHOUT_CHANGE 20000
@@ -150,7 +143,7 @@ volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
 #if DYNAMIC_CALIBRATION == TRUE
 // Absolute distance in adc counts
 #ifndef HE_DC_DELTA
-#   define HE_DC_DELTA 7
+#   define HE_DC_DELTA 6
 #endif
 // Needs to be less than one
 #ifndef HE_DC_FACTOR
