@@ -64,6 +64,10 @@
 #ifdef WPM_ENABLE
 #    include "wpm.h"
 #endif
+//TODO: Implement this
+// #ifdef ANALOG_MATRIX_ENABLE
+// #   include "analog_matrix.h"
+// #endif
 
 #define SYNC_TIMER_OFFSET 2
 

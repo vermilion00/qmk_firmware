@@ -21,16 +21,13 @@
 #define SCROLL_VAL 40
 
 /* ===== PROBLEMS ======
--Using Right side as master doesn't work, no inputs from left side received
 -WAIT_FOR_USB or USB_POLLING_INTERVAL need to be commented out before flashing slave half, or else it won't work
 -Sensitivity bug -> Variance in distance to sensor most likely
--Fix encoder sometimes activating on keyboard boot - Maybe fixed now?
--Encoders don't work properly: Skip steps, activating the other way, etc -> Prob hardware issue
--Use Auto mouse layer?
+-Use Auto mouse layer feature?
 */
 
-static bool LALT_HELD;
 
+static bool alt_tab = false;
 static bool mouse_lock = false;
 static bool mslk = false;
 static bool caret_mode = false;
@@ -41,6 +38,7 @@ static int8_t tempy = 0;
 static bool scroll_prev = false;
 static bool caret_prev = false;
 static unsigned int dragscroll_timer;
+static bool game_layer = false;
 
 enum custom_keycodes {
 	MO_LALT = SAFE_RANGE,
@@ -55,7 +53,7 @@ enum custom_keycodes {
 	CK_MSLK,
 	KC_SS
 };
-
+// clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_CLMK] = LAYOUT(
      QK_GESC, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
@@ -63,7 +61,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_LGUI, KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
                                KC_LBRC, KC_RBRC, 								   						  	                            KC_PLUS, KC_EQL,
-										                 KC_MPLY, KC_SPC,  MO_LALT,         MO(_FN),   KC_LSFT, ALT_TAB,
+										                 ALT_TAB, KC_SPC,  MO_LALT,         MO(_FN),  KC_LSFT, KC_MPLY,
 												                      KC_LCTL, KC_LALT,			KC_ENT
   ),
 
@@ -83,7 +81,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                    			 KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_EQL,  KC_V,    KC_X,    KC_Y,    KC_C,    KC_Z,                    			 KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, TG(_GMQW),
                        KC_LBRC, KC_RBRC,													 	  	   KC_PLUS, KC_EQL,
-										 KC_MPLY, KC_SPC,  MO_LALT,			  MO(_FN), KC_LSFT, ALT_TAB,
+										 KC_O, KC_SPC,  MO_LALT,			  MO(_FN), KC_LSFT, ALT_TAB,
 												  KC_LCTL, KC_LALT,			  KC_ENT
   ),
 
@@ -101,17 +99,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_ESC,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			 KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_BSPC,
      KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	 KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			 KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
-     TG(_GMCL), KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			 KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
+     TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			 KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                        SFT_TAB, KC_TAB,  													           KC_MPRV, KC_MNXT,
 										 UG_TOGG, KC_SPC,  _______,	   		_______, KC_LSFT, QK_BOOT,
 												  KC_LCTL, KC_LALT,	   		KC_LALT
   ),
 
   [_LALT] = LAYOUT(
-     KC_ESC,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			 KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_DEL,
-     KC_TAB,  KC_PGUP, KC_LBRC, KC_COLN, KC_RBRC, KC_LPRN,             	   		     KC_COMM, KC_7,    KC_8,   KC_9,   KC_SCLN, KC_SS,
+     QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			 KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_DEL,
+     KC_TAB,  _______, KC_LBRC, KC_COLN, KC_RBRC, KC_LPRN,             	   		     KC_COMM, KC_7,    KC_8,   KC_9,   KC_SCLN, KC_SS,
      KC_DEL,  KC_RCBR, KC_LCBR, KC_UNDS, KC_RCBR, KC_AT,              	   			 KC_QUOT, KC_4,    KC_5,   KC_6,   KC_0,   KC_QUOT,
-     TG(1), KC_PGDN, KC_LPRN, KC_HASH, KC_RPRN, KC_SCLN,            	   			 KC_DOT,  KC_1,    KC_2,   KC_3,   KC_0,   KC_BSLS,
+     TG(1),   KC_MPLY, KC_LPRN, KC_HASH, KC_RPRN, KC_SCLN,            	   			 KC_DOT,  KC_1,    KC_2,   KC_3,   KC_0,   KC_BSLS,
                        KC_LABK, KC_RABK,													 	 	   _______, _______,
 										 _______, _______, _______,	  	    MO(_FN2),_______, _______,
 												  _______, KC_LSFT,	   		_______
@@ -127,6 +125,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 												  _______, _______,			_______
   ),
 };
+// clang-format on
 
 socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
@@ -134,6 +133,37 @@ socd_cleaner_t socd_opposing_pairs[] = {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
+        case KC_T:
+            if (alt_tab) {
+                if (record->event.pressed) {
+                    tap_code(KC_TAB);
+                }
+                return false;
+            }
+            return true;
+
+        case KC_R:
+            if (alt_tab) {
+                if (record->event.pressed) {
+                    register_code16(KC_LSFT);
+                    tap_code(KC_TAB);
+                    unregister_code16(KC_LSFT);
+                }
+                return false;
+            }
+            return true;
+
+        case KC_S:
+            if (alt_tab) {
+                if (record->event.pressed) {
+                    register_code16(KC_LSFT);
+                    tap_code(KC_TAB);
+                    unregister_code16(KC_LSFT);
+                }
+                return false;
+            }
+            return true;
+
 		case MS_BTN1:
 			if(record->event.pressed){
 				mouse_timer = timer_read();
@@ -164,21 +194,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				caret_mode = false;
 			}
 			return false;
-		case KC_LALT:
-			if (record->event.pressed) {
-				LALT_HELD = true;
-			} else {
-				LALT_HELD = false;
-			}
-			return true;
 		case ALT_TAB:
 			if (record->event.pressed) {
 					register_code(KC_LALT);
 					tap_code(KC_TAB);
-					LALT_HELD = true;
+					alt_tab = true;
 			} else {
 				unregister_code(KC_LALT);
-				LALT_HELD = false;
+				alt_tab = false;
 			}
 			return false;
 		case MC_COPY:
@@ -266,67 +289,66 @@ void pointing_device_init_kb(void) {
 }
 
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
-	if(mouse_report.x != 0 || mouse_report.y != 0){
-		if(!layer_state_is(_GMCL)){
-			if(!layer_state_is(_MOUSE)){
-				layer_on(_MOUSE);
-			}
-			mouse_timer = timer_read();
-		}
-	}else if((timer_elapsed(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
-		layer_off(_MOUSE);
-	}
-	// short x = mouse_report.x, y = mouse_report.y;
-	// x = (x > 0 ? x * x / 3 + x : -x * x / 3 + x);
-	// y = (y > 0 ? y * y / 3 + y : -y * y / 3 + y);
+    // Only run this code if a game layer isn't active
+    if(game_layer) return mouse_report;
 
-	// mouse_report.x = constrain_hid(x);
-	// mouse_report.y = constrain_hid(y);
-	if(scrolling_mode){
-		caret_mode = false;
-		tempx += mouse_report.x;
-		tempy += mouse_report.y;
-		mouse_report.x = 0;
-		mouse_report.y = 0;
-		if(tempy > SCROLL_VAL){
-			tap_code(MS_WHLD);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempy < -SCROLL_VAL){
-			tap_code(MS_WHLU);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempx > SCROLL_VAL - 10){
-			tap_code(MS_WHLR);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempx < -SCROLL_VAL - 10){
-			tap_code(MS_WHLL);
-			tempx = 0;
-			tempy = 0;
-		}
-	}else if(caret_mode){
-		tempx += mouse_report.x;
-		mouse_report.x = 0;
-		tempy += mouse_report.y;
-		mouse_report.y = 0;
-		if(tempx > CARET_VAL){
-			tap_code(KC_RGHT);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempx < -CARET_VAL){
-			tap_code(KC_LEFT);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempy > CARET_VAL + 10){
-			tap_code(KC_DOWN);
-			tempx = 0;
-			tempy = 0;
-		}else if(tempy < -CARET_VAL + 10){
-			tap_code(KC_UP);
-			tempx = 0;
-			tempy = 0;
-		}
+    if(mouse_report.x != 0 || mouse_report.y != 0){
+        if(!layer_state_is(_GMCL)){
+            if(!layer_state_is(_MOUSE)){
+                layer_on(_MOUSE);
+            }
+            mouse_timer = timer_read();
+        }
+    }else if((timer_elapsed(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
+        layer_off(_MOUSE);
+    }
+
+    if(scrolling_mode){
+        caret_mode = false;
+        tempx += mouse_report.x;
+        tempy += mouse_report.y;
+        mouse_report.x = 0;
+        mouse_report.y = 0;
+        if(tempy > SCROLL_VAL){
+            tap_code(MS_WHLD);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempy < -SCROLL_VAL){
+            tap_code(MS_WHLU);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempx > SCROLL_VAL - 10){
+            tap_code(MS_WHLR);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempx < -SCROLL_VAL - 10){
+            tap_code(MS_WHLL);
+            tempx = 0;
+            tempy = 0;
+        }
+
+    }else if(caret_mode){
+        tempx += mouse_report.x;
+        mouse_report.x = 0;
+        tempy += mouse_report.y;
+        mouse_report.y = 0;
+        if(tempx > CARET_VAL){
+            tap_code(KC_RGHT);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempx < -CARET_VAL){
+            tap_code(KC_LEFT);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempy > CARET_VAL + 10){
+            tap_code(KC_DOWN);
+            tempx = 0;
+            tempy = 0;
+        }else if(tempy < -CARET_VAL + 10){
+            tap_code(KC_UP);
+            tempx = 0;
+            tempy = 0;
+        }
     }
     return mouse_report;
 }
@@ -334,6 +356,7 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 layer_state_t layer_state_set_user(layer_state_t state){
     switch(get_highest_layer(state)){
 		case _CLMK:
+            game_layer = false;
             if(rgblight_is_enabled()){
 				rgblight_disable_noeeprom();
 			}
@@ -368,6 +391,15 @@ layer_state_t layer_state_set_user(layer_state_t state){
 			break;
 
 		case _GMCL:
+            game_layer = true;
+			if(!rgblight_is_enabled()){
+				rgblight_enable_noeeprom();
+			}
+			rgblight_sethsv_noeeprom(HSV_TURQUOISE);
+			break;
+
+        case _GMQW:
+            game_layer = true;
 			if(!rgblight_is_enabled()){
 				rgblight_enable_noeeprom();
 			}
@@ -382,13 +414,13 @@ layer_state_t layer_state_set_user(layer_state_t state){
 }
 
 void keyboard_post_init_user(void) {
-  rgblight_disable_noeeprom(); // Enables RGB, without saving settings
-  rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
+    rgblight_disable_noeeprom(); // Enables RGB, without saving settings
+    rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
 
-  debug_enable = true;
-//   debug_matrix = true;
-  debug_keyboard = true;
-//   debug_mouse = true;
+    debug_enable = true;
+    // debug_matrix = true;
+    // debug_keyboard = true;
+    // debug_mouse = true;
 }
 
 
