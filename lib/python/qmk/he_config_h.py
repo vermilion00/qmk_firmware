@@ -25,7 +25,7 @@ INIT_KEYS = {
 #TODO: Reassign bootmagic key to proper function, since it should also reset eeprom in case of issues
 INIT_FUNCTIONS = {
     'BOOTLOADER_KEY': 'bootloader_jump',
-    'BOOTMAGIC_KEY': 'bootloader_jump',
+    'BOOTMAGIC_KEY': '_bootmagic',
     'CALIBRATION_KEY': 'calibrate_switches'
 }
 
@@ -674,11 +674,19 @@ def validate_hall_effect_config(info_data):
     else:
         mux_to_num_len = 0
         for row in he_hardware['mux_to_num']:
-            for i in row:
-                if i > 0:
+            for pos in row:
+                if pos > 0:
                     mux_to_num_len += 1
+        num_to_matrix_len = len(he_hardware['num_to_matrix'])
+        # For split keyboards, add the right side keys for the validation to work
+        if 'split' in info_data and info_data['split'].get('enabled', False):
+            for row in he_hardware['mux_to_num_right']:
+                for pos in row:
+                    if pos > 0:
+                        mux_to_num_len += 1
+            num_to_matrix_len += len(he_hardware['num_to_matrix_right'])
 
-        if mux_to_num_len != len(he_hardware['num_to_matrix']):
+        if mux_to_num_len != num_to_matrix_len:
             valid = False
             print("The amount of keys defined in mux_to_num doesn't equal the amount of keys in num_to_matrix!")
 
@@ -700,73 +708,45 @@ def validate_hall_effect_config(info_data):
                         print(f"trigger_height needs to be set if constant rapid trigger isn't used in profile_{profile}")
                     if 'rt_press_distance' not in profile_data and profile_data['rapid_trigger_type'].upper() != 'NONE':
                         valid = False
-                        print(f"rt_press_distance needs to be set if rapid trigger is used in profile_{profile}")
+                        print(f"rt_press_distance needs to be set if rapid trigger is used in profile_{profile}!")
             else:
                 if 'trigger_height' not in profile_data:
                     valid = False
-                    print(f"Trigger height needs to be set if constant rapid trigger isn't used in profile_{profile}")
+                    print(f"Trigger height needs to be set if constant rapid trigger isn't used in profile_{profile}!")
 
             if 'trigger_height' in profile_data:
                 trigger_height_len = len(profile_data['trigger_height'])
                 if trigger_height_len != 1 and trigger_height_len != mux_to_num_len:
                     valid = False
-                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
+                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
 
             if 'release_height' in profile_data:
                 release_height_len = len(profile_data['release_height'])
                 if release_height_len != 1 and release_height_len != mux_to_num_len:
                     valid = False
-                    print(f"The amount of release_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
+                    print(f"The amount of release_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
 
             if 'rt_press_distance' in profile_data:
                 rt_press_len = len(profile_data['rt_press_distance'])
                 if rt_press_len != 1 and rt_press_len != mux_to_num_len:
                     valid = False
-                    print(f"The amount of rt_press_distance values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
+                    print(f"The amount of rt_press_distance values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
 
             if 'rt_release_distance' in profile_data:
                 rt_release_len = len(profile_data['rt_release_distance'])
                 if rt_release_len != 1 and rt_release_len != mux_to_num_len:
                     valid = False
-                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num")
+                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
 
     else: # Profiles not defined
         if 'rapid_trigger_type' in he_config:
             if he_config['rapid_trigger_type'] != 'constant_rapid_trigger':
                 if 'trigger_height' not in he_config and 'trigger_height' not in he_profiles['profiles']:
                     valid = False
-                    print("trigger_height needs to be set if constant rapid trigger isn't used")
+                    print("trigger_height needs to be set if constant rapid trigger isn't used!")
                 if 'rt_press_distance' not in he_config and he_config['rapid_trigger_type'].upper() != 'NONE':
                     valid = False
-                    print("rt_press_distance needs to be set if rapid trigger is used")
-        else:
-            if 'trigger_height' not in he_config:
-                valid = False
-                print("Trigger height needs to be set if constant rapid trigger isn't used")
-
-        if 'trigger_height' in he_config:
-            trigger_height_len = len(he_config['trigger_height'])
-            if trigger_height_len != 1 and trigger_height_len != mux_to_num_len:
-                valid = False
-                print("The amount of trigger_height values needs to be either 1 or equal to the amount of switches in mux_to_num")
-
-        if 'release_height' in he_config:
-            release_height_len = len(he_config['release_height'])
-            if release_height_len != 1 and release_height_len != mux_to_num_len:
-                valid = False
-                print("The amount of release_height values needs to be either 1 or equal to the amount of switches in mux_to_num")
-
-        if 'rt_press_distance' in he_config:
-            rt_press_len = len(he_config['rt_press_distance'])
-            if rt_press_len != 1 and rt_press_len != mux_to_num_len:
-                valid = False
-                print("The amount of rt_press_distance values needs to be either 1 or equal to the amount of switches in mux_to_num")
-
-        if 'rt_release_distance' in he_config:
-            rt_release_len = len(he_config['rt_release_distance'])
-            if rt_release_len != 1 and rt_release_len != mux_to_num_len:
-                valid = False
-                print("The amount of trigger_height values needs to be either 1 or equal to the amount of switches in mux_to_num")
+                    print("rt_press_distance needs to be set if rapid trigger is used!")
 
     return valid
 
@@ -774,17 +754,10 @@ def validate_hall_effect_config(info_data):
 #MARK: Height validation
 # Checks if the heights are defined correctly
 def validate_height_config(he_json, invert_adc, from_bottom):
-    he_config = he_json['config']
     he_profiles = he_json['profiles']
     valid = True
 
     if (invert_adc and from_bottom) or (not invert_adc and not from_bottom):
-        if 'trigger_height' in he_config and 'release_height' in he_config:
-            for idx, i in enumerate(he_config['trigger_height']):
-                if i < he_config['release_height'][idx]:
-                    valid = False
-                    print(f'\nThe trigger height for key {idx} is higher than the release height when it needs to be lower or equal.\n')
-
         for profile in range(len(he_profiles)):
             if f'profile_{profile}' in he_profiles:
                 profile_data = he_profiles[f'profile_{profile}']
@@ -795,12 +768,6 @@ def validate_height_config(he_json, invert_adc, from_bottom):
                             print(f'\nThe trigger height for key {idx} in profile {profile} is higher than the release height when it needs to be lower or equal.\n')
 
     else:
-        if 'trigger_height' in he_config and 'release_height' in he_config:
-            for idx, i in enumerate(he_config['trigger_height']):
-                if i > he_config['release_height'][idx]:
-                    valid = False
-                    print(f'\nnThe trigger height for key {idx} is lower than the release height when it needs to be higher or equal.\n')
-
         for profile in range(len(he_profiles)):
             if f'profile_{profile}' in he_profiles:
                 profile_data = he_profiles[f'profile_{profile}']
@@ -816,7 +783,7 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 #MARK: General config
 def generate_hall_effect_config(info_data, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
-    # validate_hall_effect_config(info_data)
+    validate_hall_effect_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
         info_data = check_right_side_pins(info_data, config_h_lines)
@@ -844,8 +811,6 @@ def generate_hall_effect_config(info_data, config_h_lines):
         check_power_pins(info_data['hall_effect'], port_def, config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights
-    #TODO: Since the heights are defined in one array, make a transform matrix that transforms
-    #      the global index into the index and side, to be used in the translation function
     switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
 
     # Get the reverse transform arrays
@@ -874,33 +839,11 @@ def generate_hall_effect_config(info_data, config_h_lines):
             else:
                 config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
 
-        #TODO: Rework this to work with per-key mode as well
-        #      Or just force defining this in a profile
-        if 'rapid_trigger_type' in he_json['config']:
-            rt_type = he_json['config']['rapid_trigger_type'].upper()
-            config_h_lines.append(generate_define(f'USE_{rt_type}'))
-
-            rt_press_distance = he_json['config']['rt_press_distance']
-            if len(rt_press_distance) == 1:
-                distance = rt_press_distance[0]
-                rt_press_distance = [distance for _ in range(switch_num)]
-            config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{{{{ {", ".join(map(str, rt_press_distance))} }}}}'))
-
-            if 'rt_release_distance' in he_json['config']:
-                rt_release_distance = he_json['config']['rt_release_distance']
-                if len(rt_release_distance) == 1:
-                    distance = rt_release_distance[0]
-                    rt_release_distance = [distance for _ in range(switch_num)]
-                config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{{{{ {", ".join(map(str, rt_release_distance))} }}}}'))
-            #If no release distance is defined, set it to the press distance
-            else:
-                config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{{{{ {", ".join(map(str, rt_press_distance))} }}}}'))
-
     # Validate trigger_heights separately after setting, in case of a len 1 define
     invert_adc = he_hardware.get('invert_adc', False)
     from_bottom = he_json['config'].get('distance_from_bottom', False)
 
-    # validate_height_config(he_json, invert_adc, from_bottom)
+    validate_height_config(he_json, invert_adc, from_bottom)
 
     return info_data
 
