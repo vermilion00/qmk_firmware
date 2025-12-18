@@ -530,55 +530,21 @@
                         "switch_num_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "adc_resolution": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "top_deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "bottom_deadzone": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
-                        "mux_to_num": {
-                            "type": "array",
-                            "items": {
-                                "type": "array",
-                                "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
-                            }
-                        },
-                        "mux_to_num_right": {
-                            "type": "array",
-                            "items": {
-                                "type": "array",
-                                "items": {"$ref": "./definitions.jsonschema#/unsigned_int_8"}
-                            }
-                        },
-                        "num_to_matrix": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
-                        },
-                        "num_to_matrix_right": {
-                            "type": "array",
-                            "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
-                        },
-                        "mux_to_matrix": {
-                            "type": "array",
-                            "items": {
-                                "type": "array",
-                                "items": {
-                                    "oneOf": [
-                                        {"$ref": "./definitions.jsonschema#/matrix_position"},
-                                        {
-                                            "type": "string",
-                                            "enum": ["X", "none","None", "NONE"]
-                                        },
-                                        {
-                                            "type": "integer",
-                                            "enum": [0]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
+                        "deadzone": {"type": "integer"},
+                        "top_deadzone": {"type": "integer"},
+                        "bottom_deadzone": {"type": "integer"}
                     }
                 },
                 "config": {
                     "type": "object",
                     "properties": {
+                        "priority_keys": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "./definitions.jsonschema#/matrix_position"
+                            }
+                        },
+                        "priority_level": {"type": "integer"},
                         "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootloader_key": {"$ref": "./definitions.jsonschema#/matrix_position"},

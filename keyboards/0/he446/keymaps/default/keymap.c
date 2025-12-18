@@ -44,16 +44,16 @@ enum custom_keycodes {
 	MO_LALT = SAFE_RANGE,
 	CK_MSOF,
 	ALT_TAB,
-    SFT_TAB,
-	MC_COPY,
-	MC_PASTE,
-	MC_CUT,
+    // SFT_TAB,
+	// MC_COPY,
+	// MC_PASTE,
+	// MC_CUT,
 	CK_DSCL,
 	CK_CRET,
 	CK_MSLK,
 	KC_SS
 };
-// clang-format off
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_CLMK] = LAYOUT(
      QK_GESC, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
@@ -68,10 +68,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_GMCL] = LAYOUT(
      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-     KC_BSPC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+     KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-                       KC_LBRC, KC_RBRC, 								   						  	    KC_PLUS, KC_EQL,
-						                 KC_O,    KC_SPC,  KC_LSFT,          KC_BSPC, KC_LSFT, ALT_TAB,
+                       KC_LBRC, KC_RBRC, 								   						  	    KC_MPRV, KC_MNXT,
+						                 KC_P,    KC_SPC,  KC_LSFT,          KC_BSPC, KC_LSFT, KC_MPLY,
 									              KC_LCTL, KC_LALT,			 KC_ENT
   ),
 
@@ -100,8 +100,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	 KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			 KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
      TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			 KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
-                       SFT_TAB, KC_TAB,  													           KC_MPRV, KC_MNXT,
-										 UG_TOGG, KC_SPC,  _______,	   		_______, KC_LSFT, QK_BOOT,
+                       _______, KC_TAB,  													           KC_MPRV, KC_MNXT,
+										 _______, KC_SPC,  _______,	   		_______, KC_LSFT, QK_BOOT,
 												  KC_LCTL, KC_LALT,	   		KC_LALT
   ),
 
@@ -125,7 +125,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 												  _______, _______,			_______
   ),
 };
-// clang-format on
 
 socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
@@ -176,6 +175,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return true;
+
 		case CK_MSOF:
 			if(record->event.pressed){
 				layer_off(_MOUSE);
@@ -185,6 +185,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				tap_code(KC_TRNS);
 			}
 			return true;
+
 		case MO_LALT:
 			if (record->event.pressed) {
 				layer_on(_LALT);
@@ -194,6 +195,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				caret_mode = false;
 			}
 			return false;
+
 		case ALT_TAB:
 			if (record->event.pressed) {
 					register_code(KC_LALT);
@@ -204,27 +206,31 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				alt_tab = false;
 			}
 			return false;
-		case MC_COPY:
-			if(record->event.pressed){
-				register_code(KC_LCTL);
-				tap_code(KC_C);
-				unregister_code(KC_LCTL);
-			}
-			return false;
-		case MC_PASTE:
-			if(record->event.pressed){
-				register_code(KC_LCTL);
-				tap_code(KC_V);
-				unregister_code(KC_LCTL);
-			}
-			return false;
-		case MC_CUT:
-			if(record->event.pressed){
-				register_code(KC_LCTL);
-				tap_code(KC_X);
-				unregister_code(KC_LCTL);
-			}
-			return false;
+
+		// case MC_COPY:
+		// 	if(record->event.pressed){
+		// 		register_code(KC_LCTL);
+		// 		tap_code(KC_C);
+		// 		unregister_code(KC_LCTL);
+		// 	}
+		// 	return false;
+
+		// case MC_PASTE:
+		// 	if(record->event.pressed){
+		// 		register_code(KC_LCTL);
+		// 		tap_code(KC_V);
+		// 		unregister_code(KC_LCTL);
+		// 	}
+		// 	return false;
+
+		// case MC_CUT:
+		// 	if(record->event.pressed){
+		// 		register_code(KC_LCTL);
+		// 		tap_code(KC_X);
+		// 		unregister_code(KC_LCTL);
+		// 	}
+		// 	return false;
+
 		case CK_DSCL:
 			if(record->event.pressed){
 				dragscroll_timer = timer_read();
@@ -244,6 +250,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return false;
+
 		case CK_CRET:
 			if(record->event.pressed){
 				dragscroll_timer = timer_read();
@@ -257,12 +264,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				}
 			}
 			return false;
+
 		case CK_MSLK:
 			if(record->event.pressed){
 				mouse_lock = !mouse_lock;
 				mslk = !mslk;
 			}
 			return false;
+
 		case KC_SS:
 			if(record->event.pressed){
 				register_code16(KC_LALT);
@@ -273,13 +282,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 				unregister_code16(KC_LALT);
 			}
 			return false;
-        case SFT_TAB:
-            if(record->event.pressed){
-                register_code16(KC_LSFT);
-                tap_code(KC_TAB);
-                unregister_code16(KC_LSFT);
-            }
-            return false;
+
+        // case SFT_TAB:
+        //     if(record->event.pressed){
+        //         register_code16(KC_LSFT);
+        //         tap_code(KC_TAB);
+        //         unregister_code16(KC_LSFT);
+        //     }
+        //     return false;
 	}
 	return true;
 }
