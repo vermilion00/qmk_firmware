@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/cdefs.h>
 #include "_wait.h"
 #include "action_layer.h"
@@ -72,6 +73,16 @@ volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_F
 //TODO: Remove this
 // #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
+uint8_t calibration_done = false;
+
+typedef struct _slave_to_master_t {
+    // uint64_t calibration_data[DATA_BUFFER_LEN];
+    // uint16_t calibration_data[(SWITCH_NUM + SWITCH_NUM_R) * 2];
+    uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+    uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+} slave_to_master_t;
+slave_to_master_t slave_data;
+
 #if KEYBOARD_SIDE == RIGHT
 const bool keyboard_side = RIGHT;
 #elif KEYBOARD_SIDE == LEFT
@@ -81,6 +92,18 @@ bool keyboard_side;
 Switch* he_matrix = &he_matrix_l[0];
 #endif
 #endif // if defined SPLIT_KEYBOARD
+
+//TODO: Assign correct side at init
+#ifdef PRIORITY_MUXES
+uint8_t scan_amt = 0;
+uint8_t priority_muxes[PRIORITY_MUX_NUM][3] = PRIORITY_MUXES;
+uint8_t matrix_scan_priority(matrix_row_t current_matrix[]);
+#endif
+
+#ifdef PRIORITY_INDICES
+uint8_t scan_amt = 0;
+uint8_t priority_indices[PRIORITY_INDEX_NUM] = PRIORITY_INDICES;
+#endif
 
 //MARK: Init
 void matrix_init_custom(void) {
@@ -94,7 +117,7 @@ void matrix_init_custom(void) {
     }
 
     #endif // if KEYBOARD_SIDE == UNKNOWN
-    // Set switch num based on side
+    // Set switch num based on sid
     #endif // defined SPLIT_KEYBOARD
 
     for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
@@ -134,6 +157,10 @@ void matrix_init_custom(void) {
     #if HE_INIT_KEY_NUM > 0
     scan_init_keys();
     #endif
+
+    //TODO: Remove this
+    gpio_set_pin_output_push_pull(B2);
+    gpio_write_pin_low(B2);
 
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
@@ -184,11 +211,22 @@ static void scan_init_keys(void) {
 #endif // HE_INIT_KEY NUM > 0
 
 
+//TODO: Would it be faster to save the mux info to the switch, loop through the he_matrix indices,
+//      and sort the he_matrix by mux_channel, like the priority muxes?
+//      Maybe even sort the adc channels to be ascending, then descending,
+//      so at least one adc channel is used twice in a row, if that makes a difference
 //MARK: Scan
 uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     bool matrix_has_changed = false;
     uint16_t adc_value;
     uint8_t index;
+
+    #ifdef PRIORITY_MUXES
+    if(scan_amt < PRIORITY_LEVEL) {
+        scan_amt += 1;
+        return matrix_scan_priority(current_matrix);
+    } else { scan_amt = 0; }
+    #endif
 
     for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
         #if POWER_BEFORE_SCAN == TRUE
@@ -210,8 +248,23 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
             if(index > 0){
+
+                //TODO: This doesn't seem fast enough
+                #ifdef PRIORITY_INDICES
+                if(scan_amt < PRIORITY_LEVEL) {
+                    bool scan = false;
+                    for(uint8_t idx = 0; idx < PRIORITY_INDEX_NUM; idx++) {
+                        if(index == priority_indices[idx]) {
+                            scan = true;
+                        }
+                    }
+                    if(!scan) { continue; }
+                } else { scan_amt = 0; }
+                #endif
+
                 index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
+
                 #ifdef DEBUG_SCAN_VALUE
                 if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
                     dprintf("%u\n", adc_value);
@@ -254,6 +307,12 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     #if DEBUG_SCAN_VALUES == TRUE
     dprint("\n");
     #endif
+
+    #ifdef PRIORITY_INDICES
+    scan_amt += 1;
+    printf("%u\n", scan_amt);
+    #endif
+
 
     // This *must* be called for correct keyboard behavior
     matrix_scan_kb();
@@ -388,8 +447,20 @@ void calibrate_switches(void) {
     uint16_t adc_value;
     uint8_t matrix_index;
     // Save config values after x scans without a change
-    uint32_t scans_without_change = 0;
+    uint32_t scans_without_change = SCANS_WITHOUT_CHANGE;
     bool first_scan = true;
+    char side[7] = "";
+
+    #ifdef SPLIT_KEYBOARD
+    // if(is_keyboard_master()) {
+    //     //TODO: Check if NULL size works
+    //     transaction_rpc_send(HE_CALIBRATION_M2S_SYNC, 8, &first_scan);
+    // }
+    if(!is_keyboard_left()) {
+        char right[] = "_right";
+        memcpy(&side, right, sizeof(right));
+    }
+    #endif
 
     while(true) {
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
@@ -397,7 +468,7 @@ void calibrate_switches(void) {
             dprintf("Mux: %i\n", mux_channel);
             #endif
             #if POWER_BEFORE_SCAN == TRUE
-            // sensor_power(mux_channel);
+            sensor_power(mux_channel);
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
             #endif
@@ -422,12 +493,12 @@ void calibrate_switches(void) {
 
                     if(first_scan) {
                         #if INVERT_ADC == FALSE
-                        he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
-                        he_matrix[matrix_index].bottom_value = adc_value - 50 + ADC_BOTTOM_DEADZONE;
+                        he_matrix[matrix_index].top_value = adc_value;
+                        he_matrix[matrix_index].bottom_value = adc_value - 50;
 
                         #else
-                        he_matrix[matrix_index].top_value = adc_value - 50 + ADC_TOP_DEADZONE;
-                        he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
+                        he_matrix[matrix_index].top_value = adc_value - 50;
+                        he_matrix[matrix_index].bottom_value = adc_value;
                         #endif
 
                         continue;
@@ -437,6 +508,7 @@ void calibrate_switches(void) {
                     if(adc_value < he_matrix[matrix_index].top_value - ADC_TOP_DEADZONE){
                         he_matrix[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         scans_without_change = 0;
+                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
@@ -444,6 +516,7 @@ void calibrate_switches(void) {
                     } else if (adc_value > he_matrix[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
                         he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         scans_without_change = 0;
+                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
@@ -452,16 +525,18 @@ void calibrate_switches(void) {
                     #else //if INVERT_ADC == TRUE
                     if(adc_value > he_matrix[matrix_index].top_value + ADC_TOP_DEADZONE){
                         he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
-                        scans_without_change = 0;
+                        scans_without_change = SCANS_WITHOUT_CHANGE;
+                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
                     } else if (adc_value < he_matrix[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
                         he_matrix[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
-                        scans_without_change = 0;
+                        scans_without_change = SCANS_WITHOUT_CHANGE;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
+                        calibration_done = false;
                     }
                     #endif//else INVERT_ADC == TRUE
                     // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
@@ -480,13 +555,17 @@ void calibrate_switches(void) {
         first_scan = false;
         scans_without_change += 1;
         //TODO: Change this to a more precise method
-        if(scans_without_change >= SCANS_WITHOUT_CHANGE){
+        //
+        if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
+            //TODO: Remove this
+            // gpio_toggle_pin(B2);
+
             #if HE_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
             save_calibration();
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
-            printf("\"top_values\": [ %u", he_matrix[0].top_value);
+            printf("\"top_values%s\": [ %u", side, he_matrix[0].top_value);
             // Reset the pressed states on all switches
             he_matrix[0].pressed = false;
             //TODO: If only one key is used (per half), this will cause issues
@@ -495,7 +574,7 @@ void calibrate_switches(void) {
                 he_matrix[index].pressed = false;
             }
 
-            printf(" ],\n\"bottom_values\": [ %u", he_matrix[0].bottom_value);
+            printf(" ],\n\"bottom_values%s\": [ %u", side, he_matrix[0].bottom_value);
             for(uint8_t index = 1; index < switch_num; index++){
                 printf(", %u", he_matrix[index].bottom_value);
             }
@@ -503,7 +582,40 @@ void calibrate_switches(void) {
             #endif //else NO_EEPROM == FALSE
 
             scans_without_change = 0;
-            // break;
+            calibration_done = true;
+            // #ifdef SPLIT_KEYBOARD
+            // if(is_keyboard_master()) {
+            //     // uint8_t slave_switch_num;
+            //     // if(is_keyboard_left()) {
+            //     //     slave_switch_num = SWITCH_NUM_R;
+            //     // } else {
+            //     //     slave_switch_num = SWITCH_NUM_L;
+            //     // }
+            //     bool slave_state = false;
+            //     if(transaction_rpc_recv(HE_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
+            //         printf("Received state %u\n", slave_state);
+            //     } else { print("Failed state sync\n"); }
+            //     // if(slave_state == true) {
+            //     //     #if HE_NO_EEPROM == TRUE
+            //     //     transaction_rpc_recv(HE_CALIBRATION_S2M_SYNC, sizeof(slave_data), &slave_data);
+            //     //     // Print the calibration values of each switch so that they can be adjusted in the config
+            //     //     printf("\"top_values%s\": [ %u", side, slave_data.top_values[0]);
+            //     //     //TODO: If only one key is used (per half), this will cause issues
+            //     //     for(uint8_t index = 1; index < slave_switch_num; index++){
+            //     //         printf(", %u", slave_data.top_values[index]);
+            //     //     }
+
+            //     //     printf(" ],\n\"bottom_values%s\": [ %u", side, slave_data.bottom_values[0]);
+            //     //     for(uint8_t index = 1; index < slave_switch_num; index++){
+            //     //         printf(", %u", slave_data.bottom_values[index]);
+            //     //     }
+            //     //     print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
+            //     //     #endif //else NO_EEPROM == FALSE
+
+            //     //     break;
+            //     // }
+            // }
+            // #endif
         }
     }
 }
@@ -786,6 +898,7 @@ void switch_to_profile(uint8_t profile) { current_he_profile = profile; }
 void switch_to_profile(uint8_t profile) {
     if(is_keyboard_master()) {
         current_he_profile = profile;
+        // Send the new profile to the slave
         transaction_rpc_send(HE_PROFILE_SYNC, 8, &current_he_profile);
     }
 }
@@ -833,45 +946,108 @@ void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_bufl
     current_he_profile = *(const uint8_t*)in_data;
 }
 
+void sync_calibration_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+    uint8_t* calibration_state = (uint8_t*)out_data;
+    *calibration_state = calibration_done;
+}
 
 //MARK: Cal Sync
-// uint64_t data_arr[DATA_BUFFER_LEN];
-void sync_calibration(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+// uint64_t calibration_data[DATA_BUFFER_LEN];
+
+void split_calibration(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
     calibrate_switches();
+}
+
+void send_calibration_data(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+    uint8_t slave_switch_num = 0;
+    slave_to_master_t* cal_data = (slave_to_master_t*)out_data;
+    if(is_keyboard_left()) {
+        slave_switch_num = SWITCH_NUM_R;
+    } else {
+        slave_switch_num = SWITCH_NUM_L;
+    }
 
     // Gather the slave side calibration data
-    // The top and bottom values for 3 keys are bitshifted together to save on space, since
-    // using a uint16 per value wastes 12 bits per switch, this wastes 4 bits per 3 keys + 42 bits max
-//     uint64_t key_data = 0;
-//     uint8_t index = 0;
-//     bool remainder = false;
-//     for(index = 0; index < switch_num; index++){
-//         //TODO: If changing the resolution is allowed, redo this whole thing
-//         key_data <<= 20;
-//         //TODO: Check if this shifts correctly, or if I need to do this in three steps
-//         key_data |= (he_matrix[index].top_value << 10) | he_matrix[index].bottom_value;
+    for(uint8_t index = 0; index < slave_switch_num; index++){
+        cal_data->top_values[index] = he_matrix[index].top_value;
+        cal_data->bottom_values[index] = he_matrix[index].bottom_value;
+    }
 
-//         // Save to the array when the data is full
-//         if((index + 1) % 3 == 0) {
-//             data_arr[index / 3] = key_data;
-//         } else {
-//             remainder = true;
-//         }
-//     }
-//     //TODO: Does the index persist like this?
-//     if(remainder) { data_arr[index] = key_data; }
-//     // transaction_rpc_send(HE_CALIBRATION_SYNC_MASTER, initiator2target_buffer_size, initiator2target_buffer);
 }
 
 void keyboard_post_init_kb(void) {
     transaction_register_rpc(HE_PROFILE_SYNC, sync_profile_state);
-    // transaction_register_rpc(HE_CALIBRATION_SYNC, sync_calibration);
+    transaction_register_rpc(HE_CALIBRATION_M2S_SYNC, split_calibration);
+    transaction_register_rpc(HE_CALIBRATION_S2M_SYNC, send_calibration_data);
+    transaction_register_rpc(HE_CALIBRATION_STATE_SYNC, sync_calibration_state);
 
     keyboard_post_init_user();
 }
-
-
 #endif
+
+//TODO: Check if I this is a better improvement for non-split keyboards
+//      Check how to syncing works, if it's on a timer or smth else, and if throttling
+//      the scan rate there would help
+#ifdef PRIORITY_MUXES
+uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
+    bool matrix_has_changed = false;
+    uint8_t last_channel = 0;
+    uint16_t adc_value = 0;
+    set_mux_channel(0);
+
+    //Priority mux is an array of mux_index, adc_channel_index, matrix_index
+    for(uint8_t index = 0; index < PRIORITY_MUX_NUM; index++) {
+        uint8_t mux_channel = priority_muxes[index][0];
+        uint8_t adc_channel = priority_muxes[index][1];
+        uint8_t matrix_index = priority_muxes[index][2];
+
+        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+        sensor_power_high_kb(mux_channel);
+        #endif
+        if(mux_channel != last_channel) {
+            #if POWER_BEFORE_SCAN == TRUE
+            sensor_power(mux_channel);
+            #endif
+            #ifdef POWER_SELECT_DELAY
+            delay_ns(POWER_SELECT_CYCLES);
+            #endif
+            set_mux_channel(mux_channel);
+            #ifdef MUX_SELECT_DELAY
+            delay_ns(MUX_SELECT_CYCLES);
+            #endif
+            last_channel = mux_channel;
+        }
+
+        adc_value = adc_read(adc_pin_mux[adc_channel]);
+        #ifdef DEBUG_SCAN_VALUE
+        if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
+            dprintf("%u\n", adc_value);
+        }
+        #endif
+        #ifdef ADC_SCAN_DELAY
+        delay_ns(ADC_SCAN_CYCLES);
+        #endif
+
+        if(evaluate_value(matrix_index, adc_value)) {
+            matrix_has_changed = true;
+            #if DEBUG_SCAN_NO_INPUT != TRUE
+            current_matrix[he_matrix[matrix_index].row] ^= 1 << he_matrix[matrix_index].col;
+            #endif
+        }
+
+        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+        sensor_power_low_kb(mux_channel);
+        #endif
+    }
+    matrix_scan_kb();
+
+    return matrix_has_changed;
+}
+#endif
+
+
+
+
 
 
 /* Weak defines, to allow a custom powering logic */
@@ -890,8 +1066,6 @@ __attribute__((weak)) void sensor_power_high_user(uint8_t mux_channel) {}
 __attribute__((weak)) void sensor_power_low_user(uint8_t mux_channel) {}
 
 __attribute__((weak)) void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel) {}
-
-
 
 
 //TODO: I think I only need these for the full replacement
