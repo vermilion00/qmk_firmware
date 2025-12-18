@@ -53,6 +53,7 @@
     "DYNAMIC_CALIBRATION": {"info_key": "hall_effect.config.dynamic_calibration", "value_type": "bool"},
     "HE_DC_DELTA": {"info_key": "hall_effect.config.dynamic_calibration_delta", "value_type": "int"},
     "HE_DC_FACTOR": {"info_key": "hall_effect.config.dynamic_calibration_factor", "value_type": "int"},
+    "PRIORITY_LEVEL": {"info_key": "hall_effect.config.priority_level", "value_type": "int"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},

@@ -1,10 +1,6 @@
 from qmk.constants import CHIBIOS_PROCESSORS, LUFA_PROCESSORS, VUSB_PROCESSORS
 from milc import cli
 
-# If you want to have more profiles, you also need to add the objects to keyboard.jsonschema
-#TODO: Rework profile scanning function to loop through all things in profile object
-#      and ignore things that don't start in profile_
-MAX_PROFILES = 4
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
 NO_KEY = [0, "X", "none", "None", "NONE"]
@@ -71,52 +67,7 @@ def _transform_he(info_data):
         info_data = _transform_layout_split(info_data)
 
     else: # split not in info_data
-        if 'mux_to_num' in he_hardware and 'num_to_matrix' in he_hardware:
-            info_data['hall_effect']['hardware']['mux_channels'] = len(he_hardware['mux_to_num'])
-            info_data['hall_effect']['hardware']['switch_num'] = len(he_hardware['num_to_matrix'])
-
-        elif 'mux_to_matrix' in he_hardware:
-            if'mux_to_num' in he_hardware:
-                print("mux_to_matrix and mux_to_num defined, but num_to_matrix is missing. mux_to_num will be overwritten by mux_to_matrix.")
-            elif 'num_to_matrix' in he_hardware:
-                print("mux_to_matrix and num_to_matrix defined, but mux_to_num is missing. num_to_matrix will be overwritten by mux_to_matrix.")
-            info_data = _transform_mtm(info_data)
-
-        # Since checking if 'mux' is set in the layout is hard to do cleanly, just call the function and check there
-        else:
-            info_data = _transform_layout(info_data)
-
-    return info_data
-
-#MARK: Transform mtm
-def _transform_mtm(info_data):
-    he_hardware = info_data['hall_effect']['hardware']
-    mux_to_matrix = he_hardware['mux_to_matrix']
-    used_positions = []
-    mux_to_num = []
-    mtn_row = []
-    num_to_matrix = []
-    matrix_index = 0
-    for row in mux_to_matrix:
-        for key in row:
-            # Blank matrix spot at the index
-            if key in NO_KEY:
-                mtn_row.append(0)
-            else:
-                matrix_index += 1
-                mtn_row.append(matrix_index)
-                num_to_matrix.append(key)
-                if key not in used_positions:
-                    used_positions.append(key)
-                else:
-                    cli.log.error(f"Matrix position {key} appears multiple times in mux_to_matrix!")
-        mux_to_num.append(mtn_row)
-        mtn_row = []
-
-    info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num
-    info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix
-    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix)
-    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num)
+        info_data = _transform_layout(info_data)
 
     return info_data
 
@@ -486,10 +437,9 @@ def generate_profile_config(kb_info_json, config_h_lines):
     key_modes = []
     profile_num = 0
 
-    for profile in range(MAX_PROFILES):
-        if f'profile_{profile}' in he_profiles:
-            profile_num += 1
-            profile_data = he_profiles[f'profile_{profile}']
+    while True:
+        if f'profile_{profile_num}' in he_profiles:
+            profile_data = he_profiles[f'profile_{profile_num}']
 
             trigger_height = profile_data.get('trigger_height', [0])
             if len(trigger_height) == 1:
@@ -522,9 +472,9 @@ def generate_profile_config(kb_info_json, config_h_lines):
                 profile_layers = 0
                 for num in profile_data['layers']:
                     profile_layers |= (1 << num)
-                profile_config[profile].append(profile_layers)
+                profile_config[profile_num].append(profile_layers)
             else:
-                profile_config[profile].append(0)
+                profile_config[profile_num].append(0)
 
             #MARK: Key modes
             if 'rapid_trigger_type' in profile_data:
@@ -552,6 +502,8 @@ def generate_profile_config(kb_info_json, config_h_lines):
 
                 key_modes.append(profile_data['key_modes'])
 
+            profile_num += 1
+
         else: # Profile isn't in the json
             break
 
@@ -569,7 +521,6 @@ def generate_profile_config(kb_info_json, config_h_lines):
         config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', 'LAST_PROFILE'))
 
     default_profile = he_profiles.get('default_profile', 0)
-    profile_num = 1 if profile_num <= 1 else profile_num
     if default_profile >= profile_num:
         print(f"Default profile {default_profile} is outside of the possible range of profiles, since only {profile_num} are defined. Defaulting to profile 0. Keep in mind that profiles are 0-indexed.")
         default_profile = 0
@@ -644,12 +595,18 @@ def validate_mux_to_matrix(mux_to_matrix):
     return valid
 
 
+def valid_profile_name(profile):
+    if profile[:8] == 'profile_' and len(profile) == 9:
+        return True
+    else:
+        return False
+
 #MARK: Validation
 def validate_hall_effect_config(info_data):
     """Validate the hall effect configuration."""
     he_json = info_data['hall_effect']
     he_hardware = he_json['hardware']
-    he_config = he_json['config']
+    switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
     if 'profiles' in he_json:
         he_profiles = he_json['profiles']
 
@@ -667,36 +624,9 @@ def validate_hall_effect_config(info_data):
             valid = False
             cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as you mux_channels are used.")
 
-    if 'mux_to_num' not in he_hardware:
-        valid = False
-        print("You have to define a way to translate the ADC/MUX combination to the matrix position, using either the mux parameter in the layout, defining mux_to_matrix, or defining a combination of mux_to_num and num_to_matrix!")
-
-    else:
-        mux_to_num_len = 0
-        for row in he_hardware['mux_to_num']:
-            for pos in row:
-                if pos > 0:
-                    mux_to_num_len += 1
-        num_to_matrix_len = len(he_hardware['num_to_matrix'])
-        # For split keyboards, add the right side keys for the validation to work
-        if 'split' in info_data and info_data['split'].get('enabled', False):
-            for row in he_hardware['mux_to_num_right']:
-                for pos in row:
-                    if pos > 0:
-                        mux_to_num_len += 1
-            num_to_matrix_len += len(he_hardware['num_to_matrix_right'])
-
-        if mux_to_num_len != num_to_matrix_len:
-            valid = False
-            print("The amount of keys defined in mux_to_num doesn't equal the amount of keys in num_to_matrix!")
-
     if 'profiles' in he_json:
-        heights = ['trigger_height', 'release_height', 'rt_press_distance', 'rt_release_distance']
-        for height in heights:
-            if height in he_config and height in he_profiles['profile_0']:
-                print(f'{height} is defined in the config as well as the profiles section, heights should be configured in the profiles section if profiles are used.')
-
-        for profile in range(MAX_PROFILES):
+        profile = 0
+        while True:
             if f'profile_{profile}' not in he_profiles:
                 break
             profile_data = he_profiles[f'profile_{profile}']
@@ -714,39 +644,17 @@ def validate_hall_effect_config(info_data):
                     valid = False
                     print(f"Trigger height needs to be set if constant rapid trigger isn't used in profile_{profile}!")
 
-            if 'trigger_height' in profile_data:
-                trigger_height_len = len(profile_data['trigger_height'])
-                if trigger_height_len != 1 and trigger_height_len != mux_to_num_len:
+            for config in ['trigger_height', 'release_height', 'rt_press_distance', 'rt_release_distance', 'key_modes']:
+                num = len(profile_data.get(config, []))
+                if num > 0 and num != 1 and num != switch_num:
                     valid = False
-                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
+                    print(f"The amount of {config} values in profile_{profile} needs to be either 1 or equal to the amount of switches!")
 
-            if 'release_height' in profile_data:
-                release_height_len = len(profile_data['release_height'])
-                if release_height_len != 1 and release_height_len != mux_to_num_len:
-                    valid = False
-                    print(f"The amount of release_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
-
-            if 'rt_press_distance' in profile_data:
-                rt_press_len = len(profile_data['rt_press_distance'])
-                if rt_press_len != 1 and rt_press_len != mux_to_num_len:
-                    valid = False
-                    print(f"The amount of rt_press_distance values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
-
-            if 'rt_release_distance' in profile_data:
-                rt_release_len = len(profile_data['rt_release_distance'])
-                if rt_release_len != 1 and rt_release_len != mux_to_num_len:
-                    valid = False
-                    print(f"The amount of trigger_height values in profile_{profile} needs to be either 1 or equal to the amount of switches in mux_to_num!")
+            profile += 1
 
     else: # Profiles not defined
-        if 'rapid_trigger_type' in he_config:
-            if he_config['rapid_trigger_type'] != 'constant_rapid_trigger':
-                if 'trigger_height' not in he_config and 'trigger_height' not in he_profiles['profiles']:
-                    valid = False
-                    print("trigger_height needs to be set if constant rapid trigger isn't used!")
-                if 'rt_press_distance' not in he_config and he_config['rapid_trigger_type'].upper() != 'NONE':
-                    valid = False
-                    print("rt_press_distance needs to be set if rapid trigger is used!")
+        valid = False
+        print("At least one profile needs to be defined!")
 
     return valid
 
@@ -819,6 +727,9 @@ def generate_hall_effect_config(info_data, config_h_lines):
     # Transform init key matrix positions to mux combinations
     transform_init_keys(info_data, config_h_lines)
 
+    # Transform priority key matrix positions to key indices
+    get_priority_keys(info_data, config_h_lines)
+
     #Only get the heights from the config if no profiles are defined
     if 'profiles' not in he_json:
         #Config stuff
@@ -848,7 +759,6 @@ def generate_hall_effect_config(info_data, config_h_lines):
     return info_data
 
 
-
 #MARK: Right side pins
 def check_right_side_pins(info_data, config_h_lines):
     he_hardware = info_data['hall_effect']['hardware']
@@ -860,3 +770,80 @@ def check_right_side_pins(info_data, config_h_lines):
             config_h_lines.append(generate_define(f'{pins.upper()}_R', f'{{ {", ".join(map(str, pins_r))} }}'))
 
     return info_data
+
+
+#MARK: Priority keys
+def get_priority_keys(info_data, config_h_lines):
+    if 'priority_keys' not in info_data['hall_effect']['config']:
+        return info_data
+
+    priority_keys = info_data['hall_effect']['config']['priority_keys']
+    matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
+    num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
+    rows = info_data['matrix_size']['rows']
+    row_split = info_data['hall_effect']['hardware'].get('row_split', rows)
+    priority_muxes = []
+    priority_muxes_r = []
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        matrix_to_num_r = info_data['hall_effect']['hardware']['matrix_to_num_right']
+        num_to_mux_r = info_data['hall_effect']['hardware']['num_to_mux_right']
+
+    # Convert all matrix positions in the array into mux combos
+    for key in priority_keys:
+        #TODO: Check if it's < or <=
+        if key[0] < row_split:
+            num = matrix_to_num[key[0]][key[1]] - 1
+            mux = num_to_mux[num]
+            mux.append(num)
+            # Result is a list of mux channel, adc channel, matrix index
+            priority_muxes.append(mux)
+        else:
+            num = matrix_to_num_r[key[0] - row_split][key[1]] - 1
+            mux = num_to_mux_r[num]
+            mux.append(num)
+            priority_muxes_r.append(mux)
+
+    # Sort the array by mux channels in ascending order, so that it will have to be set less often
+    priority_muxes.sort()
+    priority_muxes_r.sort()
+
+    config_h_lines.append(generate_define("PRIORITY_MUXES", f'{str(priority_muxes).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define("PRIORITY_MUX_NUM", len(priority_muxes)))
+
+    if priority_muxes_r != []:
+        config_h_lines.append(generate_define("PRIORITY_MUXES_R", f'{str(priority_muxes_r).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define("PRIORITY_MUX_NUM_R", len(priority_muxes_r)))
+
+#MARK: Priority idx
+# def get_priority_keys(info_data, config_h_lines):
+#     if 'priority_keys' not in info_data['hall_effect']['config']:
+#         return info_data
+
+#     priority_keys = info_data['hall_effect']['config']['priority_keys']
+#     matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
+#     rows = info_data['matrix_size']['rows']
+#     row_split = info_data['hall_effect']['hardware'].get('row_split', rows)
+#     priority_idx = []
+#     priority_idx_r = []
+#     if 'split' in info_data and info_data['split'].get('enabled', False):
+#         matrix_to_num_r = info_data['hall_effect']['hardware']['matrix_to_num_right']
+
+
+#     # Convert all matrix positions in the array into mux combos
+#     for key in priority_keys:
+#         #TODO: Check if it's < or <=
+#         if key[0] < row_split:
+#             idx = matrix_to_num[key[0]][key[1]]
+#             # Result is a list of mux channel, adc channel, matrix index
+#             priority_idx.append(idx)
+#         else:
+#             idx = matrix_to_num_r[key[0] - row_split][key[1]]
+#             priority_idx_r.append(idx)
+
+#     config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
+#     config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", len(priority_idx)))
+
+#     if priority_idx_r != []:
+#         config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
+#         config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", len(priority_idx_r)))
+

@@ -12,9 +12,10 @@
     -Can probably just touch config.h
     -Will that work when other files are also dependent on the flag?
 
--Add option to define keys that get scanned every scan, every other key only gets scanned
+-*Add option to define keys that get scanned every scan, every other key only gets scanned
  every x scans instead for higher update rate (if I can get 8khz to work)
     -8Khz is doable but the PHY situation is annoying
+    -Add stuff so that other half also doesn't get scanned
 
 -Add support for side assignment at init
     -*Get side from split_util.c
@@ -60,6 +61,8 @@
     -Maybe just direct pins?
 
 -Add option to define heights etc using the layout macro, to make setting specific keys easier
+    -Easy for normal keyboards, hard for split keyboards
+    -Need to find a way to split one macro into two arrays
 
 -Allow associating a color with a profile?
     -Or just set them by layer
@@ -77,7 +80,7 @@
 
 -Add option to power all sensors through one mosfet, and turn it off when inactive
 
--Enable multi ADC mode
+-Enable interleaved ADC mode for supported mcus
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
