@@ -869,7 +869,16 @@ void _bootmagic(void) {
 #ifdef POWER_PINS
 static inline void sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
+    #ifdef USE_BSRR
+    #ifdef AT32F415
+    // Set action takes priority
+    CONTINUOUS_POWER_PORT->SCR.W = (((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
+    #else
+    CONTINUOUS_POWER_PORT->BSRR.W = (((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
+    #endif
+    #else
     CONTINUOUS_POWER_PORT->ODR = (CONTINUOUS_POWER_PORT->ODR & ~(((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET)) | (1 << (index + POWER_PIN_OFFSET));
+    #endif
     #else
 
     if(index == 0) {

@@ -1,6 +1,10 @@
 from qmk.constants import CHIBIOS_PROCESSORS, LUFA_PROCESSORS, VUSB_PROCESSORS
 from milc import cli
 
+#TODO: Expand this list, need to make sure they follow the same calling structure as well
+#BSRR needs to have set priority, be 32 bits, with upper 16 bits being the reset bits
+#TODO: Make separate v2 with other bsrr config?
+BSRR_PROCESSORS = 'STM32F042', 'STM32F072', 'STM32F303', 'STM32F401', 'STM32F405', 'STM32F407', 'STM32F411', 'STM32F446', 'STM32G0B1', 'STM32G431', 'STM32G474', 'STM32H723', 'STM32H733', 'STM32L412', 'STM32L422', 'STM32L432', 'STM32L433', 'STM32L442', 'STM32L443', 'AT32F415'
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
 NO_KEY = [0, "X", "none", "None", "NONE"]
@@ -314,21 +318,29 @@ def get_matrix_to_mux(info_data, config_h_lines):
     return info_data
 
 
+#TODO: Check if I need to adjust this for the different families
 #MARK: Port def
 def get_port_def(json):
+    if json['processor'] in BSRR_PROCESSORS:
+        json['hall_effect']['hardware']['use_bsrr'] = True
+
     if json['processor'] in CHIBIOS_PROCESSORS:
-        return "GPIO"
+        json['hall_effect']['port_def'] = "GPIO"
+        return json
 
     if json['processor'] in LUFA_PROCESSORS + VUSB_PROCESSORS:
-        return "PORT"
+        json['hall_effect']['port_def'] = "PORT"
+        return json
 
     raise Exception("Unknown processor!")
 
 
 # MARK: Mux pins
-def check_mux_pins(he_json, port_def, config_h_lines):
+def check_mux_pins(he_json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
+    port_def = he_json['port_def']
+
     for postfix in ['', '_right']:
         if f'mux_pins{postfix}' in he_json['hardware']:
             mux_pins = he_json['hardware'][f'mux_pins{postfix}']
@@ -348,9 +360,11 @@ def check_mux_pins(he_json, port_def, config_h_lines):
 
 
 # MARK: Power pins
-def check_power_pins(he_json, port_def, config_h_lines):
+def check_power_pins(he_json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
+    port_def = he_json['port_def']
+
     for postfix in ['', '_right']:
         if f'power_pins{postfix}' in he_json['hardware']:
             power_pins = he_json['hardware'][f'power_pins{postfix}']
@@ -702,12 +716,14 @@ def generate_hall_effect_config(info_data, config_h_lines):
     adc_pin_num = len(he_hardware.get('adc_pins', ''))
     config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
 
-    port_def = get_port_def(info_data)
+    info_data = get_port_def(info_data)
+    if info_data['hall_effect']['hardware'].get('use_bsrr', False):
+        config_h_lines.append(generate_define('USE_BSRR'))
 
     if 'mux_pins' in he_hardware:
         mux_pin_num = len(he_hardware.get('mux_pins', ''))
         config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-        check_mux_pins(info_data['hall_effect'], port_def, config_h_lines)
+        check_mux_pins(info_data['hall_effect'], config_h_lines)
     else:
         #TODO: Is this necessary?
         config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
@@ -716,7 +732,7 @@ def generate_hall_effect_config(info_data, config_h_lines):
         power_pin_num = len(he_hardware['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
         config_h_lines.append(generate_define('POWER_BEFORE_SCAN', 'TRUE'))
-        check_power_pins(info_data['hall_effect'], port_def, config_h_lines)
+        check_power_pins(info_data['hall_effect'], config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights
     switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
