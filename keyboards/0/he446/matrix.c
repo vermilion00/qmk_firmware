@@ -21,6 +21,7 @@
 #include "atomic_util.h"
 #include "print.h"
 #include "stm32_gpio.h"
+#include "suspend.h"
 #include "transaction_id_define.h"
 #include "transactions.h"
 #include "eeconfig.h"
@@ -135,10 +136,17 @@ void matrix_init_custom(void) {
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
-        // gpio_write_pin_high(power_pins[i]);
     }
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     sensor_power_init_kb();
+    //TODO: Check side if split keyboard
+    #elif defined MATRIX_POWER_PIN
+    gpio_set_pin_output_push_pull(MATRIX_POWER_PIN);
+    #ifndef INVERT_MATRIX_POWER
+    gpio_write_pin_high(MATRIX_POWER_PIN);
+    #else
+    gpio_write_pin_low(MATRIX_POWER_PIN);
+    #endif
     #endif
 
     get_switch_data();
@@ -158,9 +166,6 @@ void matrix_init_custom(void) {
     scan_init_keys();
     #endif
 
-    //TODO: Remove this
-    gpio_set_pin_output_push_pull(B2);
-    gpio_write_pin_low(B2);
 
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
@@ -450,17 +455,20 @@ void calibrate_switches(void) {
     uint32_t scans_without_change = SCANS_WITHOUT_CHANGE;
     bool first_scan = true;
     char side[7] = "";
+    // TODO: Remove this
+    // gpio_toggle_pin(B2);
 
     #ifdef SPLIT_KEYBOARD
-    // if(is_keyboard_master()) {
-    //     //TODO: Check if NULL size works
-    //     transaction_rpc_send(HE_CALIBRATION_M2S_SYNC, 8, &first_scan);
-    // }
+    if(is_keyboard_master()) {
+        //TODO: Check if NULL size works
+        transaction_rpc_send(HE_CALIBRATION_M2S_SYNC, 8, &first_scan);
+    }
     if(!is_keyboard_left()) {
         char right[] = "_right";
         memcpy(&side, right, sizeof(right));
     }
     #endif
+    GPIOB->ODR |= 1 << 2;
 
     while(true) {
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
@@ -583,39 +591,39 @@ void calibrate_switches(void) {
 
             scans_without_change = 0;
             calibration_done = true;
-            // #ifdef SPLIT_KEYBOARD
-            // if(is_keyboard_master()) {
-            //     // uint8_t slave_switch_num;
-            //     // if(is_keyboard_left()) {
-            //     //     slave_switch_num = SWITCH_NUM_R;
-            //     // } else {
-            //     //     slave_switch_num = SWITCH_NUM_L;
-            //     // }
-            //     bool slave_state = false;
-            //     if(transaction_rpc_recv(HE_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
-            //         printf("Received state %u\n", slave_state);
-            //     } else { print("Failed state sync\n"); }
-            //     // if(slave_state == true) {
-            //     //     #if HE_NO_EEPROM == TRUE
-            //     //     transaction_rpc_recv(HE_CALIBRATION_S2M_SYNC, sizeof(slave_data), &slave_data);
-            //     //     // Print the calibration values of each switch so that they can be adjusted in the config
-            //     //     printf("\"top_values%s\": [ %u", side, slave_data.top_values[0]);
-            //     //     //TODO: If only one key is used (per half), this will cause issues
-            //     //     for(uint8_t index = 1; index < slave_switch_num; index++){
-            //     //         printf(", %u", slave_data.top_values[index]);
-            //     //     }
+            #ifdef SPLIT_KEYBOARD
+            if(is_keyboard_master()) {
+                // uint8_t slave_switch_num;
+                // if(is_keyboard_left()) {
+                //     slave_switch_num = SWITCH_NUM_R;
+                // } else {
+                //     slave_switch_num = SWITCH_NUM_L;
+                // }
+                bool slave_state = false;
+                if(transaction_rpc_recv(HE_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
+                    printf("Received state %u\n", slave_state);
+                } else { print("Failed state sync\n"); }
+                // if(slave_state == true) {
+                //     #if HE_NO_EEPROM == TRUE
+                //     transaction_rpc_recv(HE_CALIBRATION_S2M_SYNC, sizeof(slave_data), &slave_data);
+                //     // Print the calibration values of each switch so that they can be adjusted in the config
+                //     printf("\"top_values%s\": [ %u", side, slave_data.top_values[0]);
+                //     //TODO: If only one key is used (per half), this will cause issues
+                //     for(uint8_t index = 1; index < slave_switch_num; index++){
+                //         printf(", %u", slave_data.top_values[index]);
+                //     }
 
-            //     //     printf(" ],\n\"bottom_values%s\": [ %u", side, slave_data.bottom_values[0]);
-            //     //     for(uint8_t index = 1; index < slave_switch_num; index++){
-            //     //         printf(", %u", slave_data.bottom_values[index]);
-            //     //     }
-            //     //     print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
-            //     //     #endif //else NO_EEPROM == FALSE
+                //     printf(" ],\n\"bottom_values%s\": [ %u", side, slave_data.bottom_values[0]);
+                //     for(uint8_t index = 1; index < slave_switch_num; index++){
+                //         printf(", %u", slave_data.bottom_values[index]);
+                //     }
+                //     print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
+                //     #endif //else NO_EEPROM == FALSE
 
-            //     //     break;
-            //     // }
-            // }
-            // #endif
+                //     break;
+                // }
+            }
+            #endif
         }
     }
 }
@@ -972,7 +980,6 @@ void send_calibration_data(uint8_t in_buflen, const void* in_data, uint8_t out_b
         cal_data->top_values[index] = he_matrix[index].top_value;
         cal_data->bottom_values[index] = he_matrix[index].bottom_value;
     }
-
 }
 
 void keyboard_post_init_kb(void) {
@@ -1044,6 +1051,31 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
     return matrix_has_changed;
 }
 #endif
+
+void suspend_power_down_kb(void) {
+    #ifdef MATRIX_POWER_PIN
+    #ifndef INVERT_MATRIX_POWER
+    gpio_write_pin_low(MATRIX_POWER_PIN);
+    #else
+    gpio_write_pin_high(MATRIX_POWER_PIN);
+    #endif
+    #endif
+
+    suspend_power_down_user();
+}
+
+void suspend_wakeup_init_kb(void) {
+    #ifdef MATRIX_POWER_PIN
+    #ifndef INVERT_MATRIX_POWER
+    gpio_write_pin_high(MATRIX_POWER_PIN);
+    #else
+    gpio_write_pin_low(MATRIX_POWER_PIN);
+    #endif
+    wait_ms(5);
+    #endif
+
+    suspend_wakeup_init_user();
+}
 
 
 
