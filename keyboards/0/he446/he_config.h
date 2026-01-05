@@ -55,32 +55,31 @@
 
 -Add json feature option for hall_effect, to apply all the relevant patches
 
--When using STM32 mcus, set mux pins/power pins via BSR-register instead, should be faster
-
 -Add option to define normal buttons to immediately jump to calibration/bootloader/reset
     -Or even mixed matrices, for encoders etc
     -Make it a separate matrix scan triggered off of a define
     -Maybe just direct pins?
-
--Add option to define heights etc using the layout macro, to make setting specific keys easier
-    -Easy for normal keyboards, hard for split keyboards
-    -Need to find a way to split one macro into two arrays
+    -Best way would probably be to make the matrix scan task separate, include the needed ones via define
+    -Need separate matrix_size definition for he matrix though
+    -Also a way to combine both into one complete matrix for the macro?
 
 -Allow associating a color with a profile?
     -Or just set them by layer
 
--Add key to print current calibration values to console if dynamic calibration is enabled
+-Add key to print current calibration values to console (useful if dynamic calibration is enabled)
     -On split keyboards, paste left and right values separately
 
 -Allow setting heights via layout macro
     -Also get config from heights file in keyboard folder
     -If no heights file is available, use profile info to generate one
     -If x and y are set correctly for the keyboard, add tabs and spaces for a correct visual representation
+    -Easy for normal keyboards, hard for split keyboards
+    -Need to find a way to split one macro into two arrays
 
 -Add MIDI mode with velocity controlled by the change in adc value
     -Allow triggering past a certain height instead of only at the bottom
 
--Add option to power all sensors through one mosfet, and turn it off when inactive
+-*Add option to power all sensors through one mosfet, and turn it off when inactive
 
 -Enable interleaved ADC mode for supported mcus
 
