@@ -11,7 +11,17 @@
 void set_mux_channel(uint8_t channel) {
 #if defined MUX_PINS
 #if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT
+#ifdef USE_BSRR
+#ifdef AT32F415
+// Set action takes priority
+CONTINUOUS_POWER_PORT->SCR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
+#else
+// Set action takes priority
+CONTINUOUS_MUX_PORT->BSRR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
+#endif
+#else
     CONTINUOUS_MUX_PORT->ODR = (CONTINUOUS_MUX_PORT->ODR & ~(MUX_MASK << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
+#endif
 
 #else
     switch(channel){
