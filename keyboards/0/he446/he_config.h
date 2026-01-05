@@ -1,6 +1,8 @@
 #pragma once
 
 /*TODO:
+-Split init happens after matrix init, so set a flag in calibration init key func and check that later
+
 -Set the he_matrix[] size to be equal to the larger half, if it's the right side then use memcpy
  to copy right side stuff into left side matrix
 
