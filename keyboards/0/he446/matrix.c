@@ -1,30 +1,34 @@
+//TODO: Go through these and check which ones are needed
+
 #include "matrix.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
-#include <sys/cdefs.h>
-#include "_wait.h"
-#include "action_layer.h"
-#include "analog.h"
+// #include <stdio.h>
+// #include <string.h>
+// #include <sys/cdefs.h>
+// #include "_wait.h"
+// #include "action_layer.h"
+// #include "analog.h"
 #include "bootloader.h"
 #include "debug.h"
-#include "gpio.h"
-#include "hal_pal.h"
-#include "hal_pal_lld.h"
+// #include "gpio.h"
+// #include "hal_pal.h"
+// #include "hal_pal_lld.h"
 #include "he_matrix.h"
 #include "info_config.h"
 #include "keyboard.h"
-#include "keycodes.h"
+// #include "keycodes.h"
 #include "multiplexer.h"
-#include "atomic_util.h"
+// #include "atomic_util.h"
 #include "print.h"
-#include "stm32_gpio.h"
+// #include "stm32_gpio.h"
 #include "suspend.h"
 #include "transaction_id_define.h"
 #include "transactions.h"
 #include "eeconfig.h"
+
 
 // Get the switch data configured in the json
 void get_switch_data(void);
@@ -48,28 +52,120 @@ static inline void delay_ns(uint16_t delay);
 // Check if the switch boundaries need updating, and update them if necessary.
 inline bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
+
 #if HE_INIT_KEY_NUM > 0
 // Initialize the keys to be checked at initialization
 static void scan_init_keys(void);
-#endif
-#ifdef POWER_PINS
-// Set the sensor power pins and delay, if defined
-static inline void sensor_power(uint8_t index);
+SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
+void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
 #endif
 
-//TODO: Sync current profile between halves
-#if HE_PROFILE_NUM > 1
-uint8_t current_he_profile = HE_DEFAULT_PROFILE;
-#else
-const uint8_t current_he_profile = HE_DEFAULT_PROFILE;
+#if defined DEBUG_SCAN_VALUE || DEBUG_SCAN_VALUE_R
+uint8_t debug_mux[2] = DEBUG_SCAN_VALUE;
 #endif
+
+#ifdef POWER_PINS
+// Set the sensor power pins and delay, if defined
+static inline void set_sensor_power(uint8_t index);
+#endif
+
+PROFILE_MUTABLE uint8_t current_he_profile = HE_DEFAULT_PROFILE;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
-#if HE_INIT_KEY_NUM > 0
-volatile static SPLIT_MUTABLE uint8_t init_keys[HE_INIT_KEY_NUM][2] = HE_INIT_KEYS;
-volatile SPLIT_MUTABLE void (*init_functions[HE_INIT_KEY_NUM])(void) = HE_INIT_FUNCTIONS;
+/* Start of decl */
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+Switch he_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
+const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM_R;
+uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX;
+const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX_R;
+uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM_R;
+uint8_t num_to_mux[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX;
+const uint8_t num_to_mux_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX_R;
+uint8_t key_modes[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES;
+const uint8_t key_modes_r[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES_R;
+
+#if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+float trigger_height[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = TRIGGER_HEIGHT;
+float release_height[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RELEASE_HEIGHT;
+const float trigger_height_r[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = TRIGGER_HEIGHT_R;
+const float release_height_r[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RELEASE_HEIGHT_R;
 #endif
+#if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+float rt_press_distance[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_PRESS_DISTANCE;
+float rt_release_distance[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_RELEASE_DISTANCE;
+const float rt_press_distance_r[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_PRESS_DISTANCE_R;
+const float rt_release_distance_r[HE_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_RELEASE_DISTANCE_R;
+#endif
+
+//TODO: Currently, different amounts of pins per half is not supported, make sure the larger amount is defined
+pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
+#if !defined EQUAL_ADC_PINS
+const pin_t adc_pins_r[ADC_PIN_NUM] = ADC_PINS_R;
+#endif
+#if defined MUX_PINS
+pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
+#if !defined EQUAL_MUX_PINS
+const pin_t mux_pins_r[MUX_PIN_NUM] = MUX_PINS_R;
+#endif
+#endif
+#if defined POWER_PINS
+pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
+#if !defined EQUAL_POWER_PINS
+const pin_t power_pins_r[POWER_PIN_NUM] = POWER_PINS_R;
+#endif
+#endif
+
+#if HE_INIT_KEY_NUM > 0
+const uint8_t init_keys_r[HE_INIT_KEY_NUM_R][2] = HE_INIT_KEYS_R;
+const void (*init_functions_r[HE_INIT_KEY_NUM_R])(void) = HE_INIT_FUNCTIONS_R;
+#endif
+
+//TODO: Implement this
+#if defined DEBUG_SCAN_VALUE_R
+uint8_t debug_mux_r[2] = DEBUG_SCAN_VALUE_R;
+#endif
+//etc
+
+#else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+//TODO: I dont need this, just declare the left side as split mutable and only declare right
+//      side if side is unknown
+Switch he_matrix[SWITCH_NUM];
+#ifdef MUX_PINS
+SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
+#endif
+SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
+#ifdef POWER_PINS
+SPLIT_MUTABLE pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
+#endif
+
+SPLIT_MUTABLE uint8_t key_modes[HE_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
+
+// Used to translate from the ADC pin/Mux combination to the switch number
+SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
+// Used to translate from the switch number to the QMK layout position
+SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
+// Used to translate from the QMK layout position to the switch number
+SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+// Used to translate from the matrix index to the ADC pin/Mux combination
+SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
+
+#if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+SPLIT_MUTABLE float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+SPLIT_MUTABLE float release_height[HE_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
+#endif
+
+#if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+SPLIT_MUTABLE float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+#endif
+#endif
+
+// During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
+adc_mux adc_pin_mux[ADC_PIN_NUM];
+/* End of decl */
 
 //TODO: Remove this
 // #define SPLIT_KEYBOARD
@@ -85,12 +181,13 @@ typedef struct _slave_to_master_t {
 slave_to_master_t slave_data;
 
 #if KEYBOARD_SIDE == RIGHT
-const bool keyboard_side = RIGHT;
+const bool keyboard_left = RIGHT;
 #elif KEYBOARD_SIDE == LEFT
-const bool keyboard_side = LEFT;
+const bool keyboard_left = LEFT;
 #else // KEYBOARD_SIDE == UNKNOWN
-bool keyboard_side;
-Switch* he_matrix = &he_matrix_l[0];
+bool keyboard_left;
+// Switch* he_matrix = &he_matrix_l[0];
+void assign_split_side(bool side);
 #endif
 #endif // if defined SPLIT_KEYBOARD
 
@@ -108,15 +205,19 @@ uint8_t priority_indices[PRIORITY_INDEX_NUM] = PRIORITY_INDICES;
 
 //MARK: Init
 void matrix_init_custom(void) {
+    //TODO: Abstract this (Enables FPU)
+    //TODO: This seems to make the scan slightly slower (3150 instead of 3172)
+    // SCB->CPACR |= ((3UL << 20U)|(3UL << 22U));  /* set CP10 and CP11 Full Access */
     //TODO: Determine side first
     #ifdef SPLIT_KEYBOARD
     // Determine keyboard half
     #if KEYBOARD_SIDE == UNKNOWN
-    keyboard_side = is_keyboard_left();
-    if(is_keyboard_left()) {
-        he_matrix[SWITCH_NUM] = he_matrix_r[0];
-    }
+    // keyboard_left = is_keyboard_left();
+    // if((!keyboard_left)) {
+        //     *he_matrix = he_matrix_r[0];
+        // }
 
+    assign_split_side(is_keyboard_left());
     #endif // if KEYBOARD_SIDE == UNKNOWN
     // Set switch num based on sid
     #endif // defined SPLIT_KEYBOARD
@@ -138,7 +239,7 @@ void matrix_init_custom(void) {
         gpio_write_pin_low(power_pins[i]);
     }
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-    sensor_power_init_kb();
+    set_sensor_power_init_kb();
     //TODO: Check side if split keyboard
     #elif defined MATRIX_POWER_PIN
     gpio_set_pin_output_push_pull(MATRIX_POWER_PIN);
@@ -183,7 +284,7 @@ static void scan_init_keys(void) {
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_high(power_pins[init_keys[idx][1]]);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_high_kb(init_keys[idx][1]);
+        set_sensor_power_high_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
         set_mux_channel(init_keys[idx][1]);
@@ -198,7 +299,7 @@ static void scan_init_keys(void) {
         #if POWER_BEFORE_SCAN == TRUE
         gpio_write_pin_low(power_pins[init_keys[idx][1]]);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_low_kb(init_keys[idx][1]);
+        set_sensor_power_low_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
         // if(evaluate_value(matrix_index, adc_value)) {
@@ -235,9 +336,9 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 
     for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
         #if POWER_BEFORE_SCAN == TRUE
-        sensor_power(mux_channel);
+        set_sensor_power(mux_channel);
         #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_high_kb(mux_channel);
+        set_sensor_power_high_kb(mux_channel);
         #endif
 
         set_mux_channel(mux_channel);
@@ -306,7 +407,7 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
             #endif
         }
         #if CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_low_kb(mux_channel);
+        set_sensor_power_low_kb(mux_channel);
         #endif
     }
     #if DEBUG_SCAN_VALUES == TRUE
@@ -468,6 +569,8 @@ void calibrate_switches(void) {
         memcpy(&side, right, sizeof(right));
     }
     #endif
+
+    //TODO: Remove this when debugging is done
     GPIOB->ODR |= 1 << 2;
 
     while(true) {
@@ -476,12 +579,12 @@ void calibrate_switches(void) {
             dprintf("Mux: %i\n", mux_channel);
             #endif
             #if POWER_BEFORE_SCAN == TRUE
-            sensor_power(mux_channel);
+            set_sensor_power(mux_channel);
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
             #endif
             #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
-            sensor_power_high_kb(mux_channel);
+            set_sensor_power_high_kb(mux_channel);
             #endif
             set_mux_channel(mux_channel);
             #ifdef MUX_SELECT_DELAY
@@ -556,7 +659,7 @@ void calibrate_switches(void) {
             dprint("\n");
             #endif
             #if CUSTOM_POWER_BEFORE_SCAN == TRUE
-            sensor_power_low_kb(mux_channel);
+            set_sensor_power_low_kb(mux_channel);
             #endif
         }
 
@@ -867,7 +970,7 @@ void _bootmagic(void) {
 
 //MARK: Power pins
 #ifdef POWER_PINS
-static inline void sensor_power(uint8_t index) {
+static inline void set_sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
     #ifdef USE_BSRR
     #ifdef AT32F415
@@ -947,7 +1050,46 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
 }
 #endif // if HE_PROFILE_NUM > 1
 
+
 #ifdef SPLIT_KEYBOARD
+#if KEYBOARD_SIDE == UNKNOWN
+//MARK: Split side
+void assign_split_side(bool side) {
+    if(side == RIGHT) {
+        memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
+        memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
+        memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num_r));
+        memcpy(&num_to_mux, &num_to_mux_r, sizeof(num_to_mux_r));
+        memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
+
+        #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+        memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
+        memcpy(&release_height, &release_height_r, sizeof(release_height_r));
+        #endif
+        #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+        memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
+        memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
+        #endif
+
+        #ifndef EQUAL_ADC_PINS
+        memcpy(&adc_pins, &adc_pins_r, sizeof(adc_pins_r));
+        #endif
+        #if defined MUX_PINS && !defined EQUAL_MUX_PINS
+        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+        #endif
+        #if defined POWER_PINS && !defined EQUAL_POWER_PINS
+        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+        #endif
+
+        #if HE_INIT_KEY_NUM > 0
+        memcpy(&init_keys, &init_keys_r, sizeof(init_keys_r));
+        memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
+        #endif
+    }
+}
+#endif // if KEYBOARD_SIDE == UNKNOWN
+
+
 //TODO: Test if this works to add onto SPLIT_TRANSACTION_IDS_KB
 // #ifdef SPLIT_TRANSACTION_IDS_KB
 // #define KB_TRANSACTIONS SPLIT_TRANSACTION_IDS_KB
@@ -999,7 +1141,7 @@ void keyboard_post_init_kb(void) {
 
     keyboard_post_init_user();
 }
-#endif
+#endif // ifdef SPLIT_KEYBOARD
 
 //TODO: Check if I this is a better improvement for non-split keyboards
 //      Check how to syncing works, if it's on a timer or smth else, and if throttling
@@ -1018,11 +1160,11 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
         uint8_t matrix_index = priority_muxes[index][2];
 
         #if CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_high_kb(mux_channel);
+        set_sensor_power_high_kb(mux_channel);
         #endif
         if(mux_channel != last_channel) {
             #if POWER_BEFORE_SCAN == TRUE
-            sensor_power(mux_channel);
+            set_sensor_power(mux_channel);
             #endif
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
@@ -1052,7 +1194,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
         }
 
         #if CUSTOM_POWER_BEFORE_SCAN == TRUE
-        sensor_power_low_kb(mux_channel);
+        set_sensor_power_low_kb(mux_channel);
         #endif
     }
     matrix_scan_kb();
@@ -1061,6 +1203,8 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
 }
 #endif
 
+
+//MARK: Suspend
 void suspend_power_down_kb(void) {
     #ifdef MATRIX_POWER_PIN
     #ifndef INVERT_MATRIX_POWER
@@ -1094,17 +1238,17 @@ void suspend_wakeup_init_kb(void) {
 /* Weak defines, to allow a custom powering logic */
 __attribute__((weak)) void sensor_power_init_kb(void) { sensor_power_init_user(); }
 
-__attribute__((weak)) void sensor_power_high_kb(uint8_t mux_channel) { sensor_power_high_user(mux_channel); }
+__attribute__((weak)) void set_sensor_power_high_kb(uint8_t mux_channel) { set_sensor_power_high_user(mux_channel); }
 
-__attribute__((weak)) void sensor_power_low_kb(uint8_t mux_channel) { sensor_power_low_user(mux_channel); }
+__attribute__((weak)) void set_sensor_power_low_kb(uint8_t mux_channel) { set_sensor_power_low_user(mux_channel); }
 
 __attribute__((weak)) void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel) { sensor_power_toggle_user(mux_channel, adc_channel); }
 
 __attribute__((weak)) void sensor_power_init_user(void) {}
 
-__attribute__((weak)) void sensor_power_high_user(uint8_t mux_channel) {}
+__attribute__((weak)) void set_sensor_power_high_user(uint8_t mux_channel) {}
 
-__attribute__((weak)) void sensor_power_low_user(uint8_t mux_channel) {}
+__attribute__((weak)) void set_sensor_power_low_user(uint8_t mux_channel) {}
 
 __attribute__((weak)) void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel) {}
 
