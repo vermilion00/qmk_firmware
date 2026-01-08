@@ -130,8 +130,6 @@ uint8_t debug_mux_r[2] = DEBUG_SCAN_VALUE_R;
 //etc
 
 #else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-//TODO: I dont need this, just declare the left side as split mutable and only declare right
-//      side if side is unknown
 Switch he_matrix[SWITCH_NUM];
 #ifdef MUX_PINS
 SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
@@ -219,7 +217,7 @@ void matrix_init_custom(void) {
 
     assign_split_side(is_keyboard_left());
     #endif // if KEYBOARD_SIDE == UNKNOWN
-    // Set switch num based on sid
+    // Set switch num based on side
     #endif // defined SPLIT_KEYBOARD
 
     for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
@@ -240,7 +238,7 @@ void matrix_init_custom(void) {
     }
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     set_sensor_power_init_kb();
-    //TODO: Check side if split keyboard
+
     #elif defined MATRIX_POWER_PIN
     gpio_set_pin_output_push_pull(MATRIX_POWER_PIN);
     #ifndef INVERT_MATRIX_POWER
@@ -475,12 +473,6 @@ void translate_mm_to_value(void) {
             he_matrix[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index] + ADC_SMOOTHING;
             #endif
 
-            // Assign the rt_threshold initially
-            //TODO: Do this for all variations
-            // #if defined USE_CONSTANT_RAPID_TRIGGER
-            // he_matrix[index].rt_threshold = top_value - he_matrix[index].rt_press_value[HE_DEFAULT_PROFILE];
-            // #endif
-
             // Assign the switch mode
             he_matrix[index].mode[profile] = key_modes[profile][index];
         }
@@ -497,11 +489,22 @@ bool get_calibration_data(void) {
     #if HE_NO_EEPROM == TRUE
     #if !defined HE_TOP_VALUES || !defined HE_BOTTOM_VALUES
     return false;
+    #endif
+
+    #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+    uint16_t top_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_TOP_VALUES;
+    uint16_t bottom_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_BOTTOM_VALUES;
+    if(!is_keyboard_left()) {
+        //TODO: Does this work?
+        const uint16_t top_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_TOP_VALUES_R;
+        const uint16_t bottom_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_BOTTOM_VALUES_R;
+        memcpy(&top_values, &top_values_r, sizeof(top_values_r));
+        memcpy(&bottom_values, &bottom_values_r, sizeof(top_values_r));
+    }
     #else
-    //TODO: Add unknown side assignment stuff
     const uint16_t top_values[] = HE_TOP_VALUES;
     const uint16_t bottom_values[] = HE_BOTTOM_VALUES;
-    #endif
+    #endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 
     #if DYNAMIC_CALIBRATION == FALSE
     #if INVERT_ADC == FALSE
