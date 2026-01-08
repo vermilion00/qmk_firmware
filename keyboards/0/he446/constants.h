@@ -24,6 +24,10 @@
 #   define KEYBOARD_SIDE UNKNOWN
 #endif
 
+#if !defined DEBUG_SCAN_VALUE && defined DEBUG_SCAN_VALUE_R
+#   define DEBUG_SCAN_VALUE {255, 255}
+#endif
+
 // This is set up so that the normal definitions can be used, only need to assign if the side
 // is set at init
 #if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT

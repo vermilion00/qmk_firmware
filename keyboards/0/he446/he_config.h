@@ -1,13 +1,15 @@
 #pragma once
 
 /*TODO:
+-Enable FPU on supported processors
+    -Check if it causes problems?
+    -Make sure floats are used, not doubles
+    -Not really necessary, just makes startup faster
+
 -Split init happens after matrix init, so set a flag in calibration init key func and check that later
 
--Set the he_matrix[] size to be equal to the larger half, if it's the right side then use memcpy
- to copy right side stuff into left side matrix
-
 -Currently, some hardcoded values assume a 10 bit ADC resolution
-    -Either make the values dynamic or force the resolution to be 10 bit=
+    -Either make the values dynamic or force the resolution to be 10 bit
 
 -Change -s flag to force recompilation of config.h instead of deleting build dir
     -Or at least only delete the keyboard folder
@@ -16,15 +18,11 @@
 
 -*Add option to define keys that get scanned every scan, every other key only gets scanned
  every x scans instead for higher update rate (if I can get 8khz to work)
+    -Current implementation barely helps
     -8Khz is doable but the PHY situation is annoying
     -Add stuff so that other half also doesn't get scanned
+        -Is this necessary when syncing already happens rarely?
 
--Add support for side assignment at init
-    -*Get side from split_util.c
-    -Change matrixes to pointers
-    -Assign the pointers in init according to needs
-
--Sync profile state between halves
 -If calibrating, sync calibration start/end and values every print
     -Print data for each half independently
     -Save finished bool per half, exit calibration if both halves are finished
@@ -78,8 +76,6 @@
 
 -Add MIDI mode with velocity controlled by the change in adc value
     -Allow triggering past a certain height instead of only at the bottom
-
--*Add option to power all sensors through one mosfet, and turn it off when inactive
 
 -Enable interleaved ADC mode for supported mcus
 
