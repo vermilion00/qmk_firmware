@@ -21,6 +21,8 @@
  * To switch profiles, only the current_he_profile variable needs to be changed.
  */
 
+//TODO: Decide what I'll do with this
+//      Currently not very useful, might be nice to have if I allow associating a color with a profile
 typedef struct Profile {
     layer_state_t layers;
 } Profile;
@@ -55,62 +57,6 @@ typedef struct Switch {
     uint8_t col;
 } Switch;
 
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-volatile static Switch he_matrix_l[SWITCH_NUM];
-volatile static Switch he_matrix_r[SWITCH_NUM_R];
-volatile static const uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
-volatile static const uint8_t mux_to_num_r[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM_R;
-//etc
-#else
-volatile static Switch he_matrix[SWITCH_NUM];
-#endif
-
-//TODO: If I'm reassigning the arrays anyway, SPLIT_MUTABLE should always just be const
-#ifdef MUX_PINS
-volatile static SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
-#endif
-volatile static SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
-// During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
-volatile static adc_mux adc_pin_mux[ADC_PIN_NUM];
-#ifdef POWER_PINS
-volatile static SPLIT_MUTABLE pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
-#endif
-
-volatile static SPLIT_MUTABLE uint8_t key_modes[HE_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
-
-// Used to translate from the ADC pin/Mux combination to the switch number
-volatile static SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
-// Used to translate from the switch number to the QMK layout position
-volatile static SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
-// Used to translate from the QMK layout position to the switch number
-volatile static SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
-// Used to translate from the matrix index to the ADC pin/Mux combination
-volatile static SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
-
-#if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-volatile static SPLIT_MUTABLE float trigger_height[HE_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-volatile static SPLIT_MUTABLE float release_height[HE_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
-#endif
-
-#if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-volatile static SPLIT_MUTABLE float rt_press_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-volatile static SPLIT_MUTABLE float rt_release_distance[HE_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
-#endif
-
-#ifdef DEBUG_SCAN_VALUE
-volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
-#endif
-
-// Only need these for split keyboards
-#ifdef SPLIT_KEYBOARD
-//TODO: I don't think I actually need this
-// volatile static const uint8_t local_to_global_index[SWITCH_NUM][2] = L_TO_G_INDEX;
-
-#else // defined SPLIT_KEYBOARD
-#define SPLIT_MUTABLE const
-#endif // else defined SPLIT_KEYBOARD
-
-
 /* Configuration defaults */
 #ifndef HE_ADC_RESOLUTION
 #   define HE_ADC_RESOLUTION 10
@@ -121,7 +67,7 @@ volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
 #if HE_ADC_RESOLUTION <= 8
 #   define ADC_BUFFER_DEPTH 1
 #endif
-#define MAX_ADC_VALUE 1 << ADC_RESOLUTION
+#define MAX_ADC_VALUE (1 << ADC_RESOLUTION) - 1
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
 #endif
@@ -154,8 +100,11 @@ volatile static uint8_t debug_mux[] = DEBUG_SCAN_VALUE;
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
 #if HE_PROFILE_NUM > 1
+#define PROFILE_MUTABLE
 // volatile uint8_t current_he_profile;
 void switch_to_profile(uint8_t profile);
+#else
+#define PROFILE_MUTABLE const
 #endif // if HE_PROFILE_NUM > 1
 volatile static const Profile profiles[HE_PROFILE_NUM] = HE_PROFILE_CONFIG;
 
@@ -166,9 +115,9 @@ uint8_t get_current_profile(void);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);
-volatile void sensor_power_high_kb(uint8_t mux_channel);
-volatile void sensor_power_high_user(uint8_t mux_channel);
-volatile void sensor_power_low_kb(uint8_t mux_channel);
-volatile void sensor_power_low_user(uint8_t mux_channel);
+volatile void set_sensor_power_high_kb(uint8_t mux_channel);
+volatile void set_sensor_power_high_user(uint8_t mux_channel);
+volatile void set_sensor_power_low_kb(uint8_t mux_channel);
+volatile void set_sensor_power_low_user(uint8_t mux_channel);
 volatile void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel);
 volatile void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel);

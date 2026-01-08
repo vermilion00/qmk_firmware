@@ -335,11 +335,23 @@ def get_port_def(json):
     raise Exception("Unknown processor!")
 
 
+#MARK: ADC pins
+def check_adc_pins(he_json, config_h_lines):
+    hardware = he_json['hardware']
+
+    if hardware.get('adc_pins', 0) == hardware.get('adc_pins_right', 1):
+        config_h_lines.append(generate_define('EQUAL_ADC_PINS'))
+
+
 # MARK: Mux pins
 def check_mux_pins(he_json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
     port_def = he_json['port_def']
+    hardware = he_json['hardware']
+
+    if hardware.get('mux_pins', 0) == hardware.get('mux_pins_right', 1):
+        config_h_lines.append(generate_define('EQUAL_MUX_PINS'))
 
     for postfix in ['', '_right']:
         if f'mux_pins{postfix}' in he_json['hardware']:
@@ -364,6 +376,10 @@ def check_power_pins(he_json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
     port_def = he_json['port_def']
+    hardware = he_json['hardware']
+
+    if hardware.get('power_pins', 0) == hardware.get('power_pins_right', 1):
+        config_h_lines.append(generate_define('EQUAL_POWER_PINS'))
 
     for postfix in ['', '_right']:
         if f'power_pins{postfix}' in he_json['hardware']:
@@ -719,6 +735,8 @@ def generate_hall_effect_config(info_data, config_h_lines):
     info_data = get_port_def(info_data)
     if info_data['hall_effect']['hardware'].get('use_bsrr', False):
         config_h_lines.append(generate_define('USE_BSRR'))
+
+    check_adc_pins(info_data['hall_effect'], config_h_lines)
 
     if 'mux_pins' in he_hardware:
         mux_pin_num = len(he_hardware.get('mux_pins', ''))
