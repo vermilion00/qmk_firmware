@@ -1,6 +1,9 @@
 #pragma once
 
 /*TODO:
+-Right half has some kinda issue with DSA
+    -I'm thinking that the calibration values aren't mapped to the correct keys
+
 -Enable FPU on supported processors
     -Check if it causes problems?
     -Make sure floats are used, not doubles
