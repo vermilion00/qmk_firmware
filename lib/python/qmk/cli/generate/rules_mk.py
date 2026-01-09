@@ -105,6 +105,10 @@ def generate_rules_mk(cli):
     if converter:
         rules_mk_lines.append(generate_rule('CONVERT_TO', converter))
 
+    # Set ANALOG_MATRIX, if needed, without needing to enable it as a feature, since it always needs configuration anyway
+    if 'hall_effect' in kb_info_json and not kb_info_json['features'].get('analog_matrix', 'yes') == 'no':
+        rules_mk_lines.append(generate_rule('ANALOG_MATRIX_ENABLE', 'yes'))
+
     # Show the results
     dump_lines(cli.args.output, rules_mk_lines)
 

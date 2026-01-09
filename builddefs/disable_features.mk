@@ -1,5 +1,7 @@
 # Unconditionally disable features that a keyboard advertises it doesn't support
 
+#TODO: Add ANALOG_MATRIX here
+
 FEATURE_NAMES :=
 FEATURE_NAMES += AUDIO
 FEATURE_NAMES += BACKLIGHT
@@ -22,6 +24,7 @@ FEATURE_NAMES += STENO
 FEATURE_NAMES += SWAP_HANDS
 FEATURE_NAMES += WATCHDOG
 FEATURE_NAMES += XT
+FEATURE_NAMES += ANALOG_MATRIX
 
 $(foreach AFEATURE,$(FEATURE_NAMES),\
 	 $(if $(filter $($(AFEATURE)_SUPPORTED),no),$(eval $(AFEATURE)_ENABLE=no)))

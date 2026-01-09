@@ -74,6 +74,21 @@ typedef union keymap_config_t keymap_config_t;
 void                          eeconfig_read_keymap(keymap_config_t *keymap_config) __attribute__((nonnull));
 void                          eeconfig_update_keymap(const keymap_config_t *keymap_config) __attribute__((nonnull));
 
+#ifdef ANALOG_MATRIX_ENABLE
+// typedef union analog_switch_t {
+//     uint32_t raw;
+//     struct {
+//         uint16_t top_value;
+//         uint16_t bottom_value;
+//     };
+// } analog_switch_t;
+typedef union analog_switch_t analog_switch_t;
+void                          eeconfig_read_switch(analog_switch_t *switch_data, uint8_t key_idx);
+void                          eeconfig_read_keyboard(analog_switch_t *keyboard_data);
+void                          eeconfig_update_switch(const analog_switch_t *switch_data, uint8_t key_idx);
+void                          eeconfig_update_keyboard(const analog_switch_t *keyboard_data);
+#endif
+
 #ifdef AUDIO_ENABLE
 typedef union audio_config_t audio_config_t;
 void                         eeconfig_read_audio(audio_config_t *audio_config) __attribute__((nonnull));
