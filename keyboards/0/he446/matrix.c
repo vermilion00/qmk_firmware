@@ -27,7 +27,9 @@
 #include "suspend.h"
 #include "transaction_id_define.h"
 #include "transactions.h"
+#if HE_NO_EEPROM == FALSE
 #include "eeconfig.h"
+#endif
 
 
 // Get the switch data configured in the json
@@ -495,7 +497,6 @@ bool get_calibration_data(void) {
     uint16_t top_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_TOP_VALUES;
     uint16_t bottom_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_BOTTOM_VALUES;
     if(!is_keyboard_left()) {
-        //TODO: Does this work?
         const uint16_t top_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_TOP_VALUES_R;
         const uint16_t bottom_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = HE_BOTTOM_VALUES_R;
         memcpy(&top_values, &top_values_r, sizeof(top_values_r));
@@ -540,12 +541,22 @@ bool get_calibration_data(void) {
     return true;
 
 #   else //if HE_NO_EEPROM == TRUE
-    //TODO: Add eeprom support
+    typedef struct cal_data_t {
+        uint16_t top_value;
+        uint16_t bottom_value;
+    } cal_data_t;
+    cal_data_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+
     // Read the calibration data from EEPROM
+    eeconfig_read_keyboard((analog_switch_t*)&calibration_data);
 
-    // Check if the data aligns with configured matrix size
+    //TODO: Add dynamic calibration stuff here
+    for(uint8_t key = 0; key < switch_num; key++) {
+        he_matrix[key].top_value = calibration_data[key].top_value;
+        he_matrix[key].bottom_value = calibration_data[key].bottom_value;
+    }
+    //TODO: Check if the data aligns with configured matrix size?
 
-    // Start calibration if necessary
     return true;
     #endif //else HE_NO_EEPROM == TRUE
 }
@@ -561,6 +572,14 @@ void calibrate_switches(void) {
     char side[7] = "";
     // TODO: Remove this
     // gpio_toggle_pin(B2);
+
+    #if HE_NO_EEPROM == FALSE
+    typedef struct cal_data_t {
+        uint16_t top_value;
+        uint16_t bottom_value;
+    } cal_data_t;
+    cal_data_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    #endif
 
     #ifdef SPLIT_KEYBOARD
     if(is_keyboard_master()) {
@@ -621,6 +640,9 @@ void calibrate_switches(void) {
                     #if INVERT_ADC == TRUE
                     if(adc_value < he_matrix[matrix_index].top_value - ADC_TOP_DEADZONE){
                         he_matrix[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
+                        #if HE_NO_EEPROM == FALSE
+                        calibration_data[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
+                        #endif
                         scans_without_change = 0;
                         calibration_done = false;
                         #if DEBUG_CALIBRATION == true
@@ -629,6 +651,9 @@ void calibrate_switches(void) {
 
                     } else if (adc_value > he_matrix[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
                         he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
+                        #if HE_NO_EEPROM == FALSE
+                        calibration_data[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
+                        #endif
                         scans_without_change = 0;
                         calibration_done = false;
                         #if DEBUG_CALIBRATION == true
@@ -636,9 +661,12 @@ void calibrate_switches(void) {
                         #endif
                     }
 
-                    #else //if INVERT_ADC == TRUE
+                    #else // if INVERT_ADC == TRUE
                     if(adc_value > he_matrix[matrix_index].top_value + ADC_TOP_DEADZONE){
                         he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                        #if HE_NO_EEPROM == FALSE
+                        calibration_data[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                        #endif
                         scans_without_change = SCANS_WITHOUT_CHANGE;
                         calibration_done = false;
                         #if DEBUG_CALIBRATION == true
@@ -646,13 +674,16 @@ void calibrate_switches(void) {
                         #endif
                     } else if (adc_value < he_matrix[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
                         he_matrix[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                        #if HE_NO_EEPROM == FALSE
+                        calibration_data[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                        #endif
                         scans_without_change = SCANS_WITHOUT_CHANGE;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
                         calibration_done = false;
                     }
-                    #endif//else INVERT_ADC == TRUE
+                    #endif // else INVERT_ADC == TRUE
                     // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
                     evaluate_value(matrix_index, adc_value);
                 }
@@ -676,7 +707,9 @@ void calibrate_switches(void) {
 
             #if HE_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
-            save_calibration();
+            // save_calibration();
+            //TODO: Test this
+            eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
             #else //NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
             printf("\"top_values%s\": [ %u", side, he_matrix[0].top_value);
@@ -696,8 +729,8 @@ void calibrate_switches(void) {
             #endif //else NO_EEPROM == FALSE
 
             scans_without_change = 0;
-            calibration_done = true;
             #ifdef SPLIT_KEYBOARD
+            calibration_done = true;
             if(is_keyboard_master()) {
                 // uint8_t slave_switch_num;
                 // if(is_keyboard_left()) {
@@ -705,7 +738,7 @@ void calibrate_switches(void) {
                 // } else {
                 //     slave_switch_num = SWITCH_NUM_L;
                 // }
-                bool slave_state = false;
+                uint8_t slave_state = 2;
                 if(transaction_rpc_recv(HE_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
                     printf("Received state %u\n", slave_state);
                 } else { print("Failed state sync\n"); }
@@ -729,6 +762,8 @@ void calibrate_switches(void) {
                 //     break;
                 // }
             }
+            //TODO: Remove this break when sync works
+            break;
             #endif
         }
     }

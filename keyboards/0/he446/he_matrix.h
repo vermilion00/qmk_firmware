@@ -1,25 +1,19 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <sys/cdefs.h>
+// #include <stdbool.h>
+// #include <sys/cdefs.h>
 #include "action_layer.h"
-#include "gpio.h"
-#include "he_matrix.h"
+// #include "gpio.h"
+// #include "he_matrix.h"
+#include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
 #include "constants.h"
-#include "matrix.h"
-#include "util.h"
-#include "bootloader.h"
-#include "bootmagic/bootmagic.h"
-
-/* Current matrix implementation:
- * matrix is an array of Switch structs, which hold all information relevant to the switch
- * Each height param is an array holding the values for all profiles.
- * During scanning, the current_profile variable is checked to see which height to evaluate
- * To switch profiles, only the current_he_profile variable needs to be changed.
- */
+// #include "matrix.h"
+// #include "util.h"
+// #include "bootloader.h"
+// #include "bootmagic/bootmagic.h"
 
 //TODO: Decide what I'll do with this
 //      Currently not very useful, might be nice to have if I allow associating a color with a profile
@@ -57,17 +51,24 @@ typedef struct Switch {
     uint8_t col;
 } Switch;
 
+#ifndef HE_NO_EEPROM
+typedef union {
+    uint32_t raw;
+    struct {
+        uint16_t top_value;
+        uint16_t bottom_value;
+    };
+} switch_data_t;
+#endif
+
 /* Configuration defaults */
-#ifndef HE_ADC_RESOLUTION
-#   define HE_ADC_RESOLUTION 10
-#elif HE_ADC_RESOLUTION > 16
-#   error "ADC_RESOLUTION can't be higher than 16 bits!"
+#ifdef ADC_RESOLUTION
+#   warning "ADC_RESOLUTION will be forced to 10 bits for the analog matrix!"
+#undef ADC_RESOLUTION
 #endif
-#define ADC_RESOLUTION HE_ADC_RESOLUTION
-#if HE_ADC_RESOLUTION <= 8
-#   define ADC_BUFFER_DEPTH 1
-#endif
+#define ADC_RESOLUTION 10
 #define MAX_ADC_VALUE (1 << ADC_RESOLUTION) - 1
+
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
 #endif

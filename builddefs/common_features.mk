@@ -329,6 +329,13 @@ ifeq ($(strip $(RGBLIGHT_ENABLE)), yes)
     endif
 endif
 
+#MARK: Analog matrix
+ANALOG_MATRIX_ENABLE ?= no
+ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
+	OPT_DEFS += -DANALOG_MATRIX_ENABLE
+#	 SRC += $(QUANTUM_DIR)/analog_matrix.c
+endif
+
 # Deprecated driver names - do not use
 ifeq ($(strip $(LED_MATRIX_DRIVER)), aw20216)
 LED_MATRIX_DRIVER := aw20216s

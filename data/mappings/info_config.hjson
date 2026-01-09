@@ -27,7 +27,6 @@
     "INVERT_MATRIX_POWER": {"info_key": "hall_effect.hardware.invert_matrix_power", "value_type": "bool"},
     "CUSTOM_POWER_BEFORE_SCAN": {"info_key": "hall_effect.hardware.custom_power_before_scan", "value_type": "bool"},
     "TRAVEL_DISTANCE": {"info_key": "hall_effect.hardware.travel_distance"},
-    "HE_ADC_RESOLUTION": {"info_key": "hall_effect.hardware.adc_resolution"},
     "ADC_SMOOTHING": {"info_key": "hall_effect.hardware.smoothing", "value_type": "int"},
     "ADC_DEADZONE": {"info_key": "hall_effect.hardware.deadzone", "value_type": "int"},
     "ADC_TOP_DEADZONE": {"info_key": "hall_effect.hardware.top_deadzone", "value_type": "int"},

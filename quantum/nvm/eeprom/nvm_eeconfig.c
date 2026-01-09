@@ -1,5 +1,6 @@
 // Copyright 2024 Nick Brassel (@tzarc)
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include <stdint.h>
 #include <string.h>
 #include "nvm_eeconfig.h"
 #include "nvm_eeprom_eeconfig_internal.h"
@@ -43,6 +44,10 @@
 
 #ifdef CONNECTION_ENABLE
 #    include "connection.h"
+#endif
+
+#ifdef ANALOG_MATRIX_ENABLE
+// #   include "analog_matrix.h"
 #endif
 
 void nvm_eeconfig_erase(void) {
@@ -104,6 +109,26 @@ void nvm_eeconfig_read_keymap(keymap_config_t *keymap_config) {
 void nvm_eeconfig_update_keymap(const keymap_config_t *keymap_config) {
     eeprom_update_word(EECONFIG_KEYMAP, keymap_config->raw);
 }
+
+//MARK: Analog matrix
+// These are set as build flags in common_features.mk, which reads info_rules.mk set by rules_mk.py
+#ifdef ANALOG_MATRIX_ENABLE
+void nvm_eeconfig_read_switch(analog_switch_t *switch_data, uint8_t key_idx) {
+    //TODO: Since each switch takes up a uint32, does key_idx need to be a uint32? Do I need to offset by 4x key_idx?
+    switch_data->raw = eeprom_read_dword(EECONFIG_ANALOG_MATRIX + key_idx);
+}
+void nvm_eeconfig_read_keyboard(analog_switch_t *keyboard_data) {
+    const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * 4;
+    eeprom_read_block(keyboard_data, EECONFIG_ANALOG_MATRIX, data_size);
+}
+void nvm_eeconfig_update_switch(const analog_switch_t *switch_data, uint8_t key_idx) {
+    eeprom_update_dword(EECONFIG_ANALOG_MATRIX + key_idx, switch_data->raw);
+}
+void nvm_eeconfig_update_keyboard(const analog_switch_t *keyboard_data) {
+    const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * 4;
+    eeprom_update_block(keyboard_data, EECONFIG_ANALOG_MATRIX, data_size);
+}
+#endif
 
 #ifdef AUDIO_ENABLE
 void nvm_eeconfig_read_audio(audio_config_t *audio_config) {
