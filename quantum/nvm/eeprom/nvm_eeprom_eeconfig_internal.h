@@ -30,6 +30,17 @@ typedef struct PACKED {
     uint32_t haptic;
     uint8_t  rgblight_ext;
     uint8_t  connection;
+    //TODO: Why are these always on, is it because they're small?
+    //TODO: SWITCH_NUM isn't available here, fix it
+    #ifdef ANALOG_MATRIX_ENABLE
+    #ifdef SPLIT_KEYBOARD
+    uint32_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    #else
+    uint32_t calibration_data[SWITCH_NUM];
+    #endif
+    #else
+    uint32_t calibration_data;
+    #endif
 } eeprom_core_t;
 
 /* EEPROM parameter address */
@@ -50,6 +61,8 @@ typedef struct PACKED {
 #define EECONFIG_HAPTIC (uint32_t *)(offsetof(eeprom_core_t, haptic))
 #define EECONFIG_RGBLIGHT_EXTENDED (uint8_t *)(offsetof(eeprom_core_t, rgblight_ext))
 #define EECONFIG_CONNECTION (uint8_t *)(offsetof(eeprom_core_t, connection))
+//TODO: Does this work, since it's an array?
+#define EECONFIG_ANALOG_MATRIX (uint32_t *)(offsetof(eeprom_core_t, calibration_data))
 
 // Size of EEPROM being used for core data storage
 #define EECONFIG_BASE_SIZE ((uint8_t)sizeof(eeprom_core_t))

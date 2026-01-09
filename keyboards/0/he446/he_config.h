@@ -1,9 +1,6 @@
 #pragma once
 
 /*TODO:
--Right half has some kinda issue with DSA
-    -I'm thinking that the calibration values aren't mapped to the correct keys
-
 -Enable FPU on supported processors
     -Check if it causes problems?
     -Make sure floats are used, not doubles
@@ -11,8 +8,7 @@
 
 -Split init happens after matrix init, so set a flag in calibration init key func and check that later
 
--Currently, some hardcoded values assume a 10 bit ADC resolution
-    -Either make the values dynamic or force the resolution to be 10 bit
+-Currently, a 10 bit ADC resolution is hardcoded
 
 -Change -s flag to force recompilation of config.h instead of deleting build dir
     -Or at least only delete the keyboard folder
@@ -50,14 +46,15 @@
     -Dynamic Keystroke (4 press distances with separate actions)
 
 -EEPROM stuff:
-    -Since we only use HE_ADC_RESOLUTION bits, we can use bitfields for the values
-    -Size will be n * 20 bits by default, so 1400 bits for 70 keys
     -Check if anything needs to be saved at the end of the flash (bootloader flag?)
+    -Add check to dynamic calibration to only update config when >n switches need updating
+    -Check for update need during housekeeping(?)
 
 -Add json feature option for hall_effect, to apply all the relevant patches
 
 -Add option to define normal buttons to immediately jump to calibration/bootloader/reset
     -Or even mixed matrices, for encoders etc
+    -Change layout mux validation to allow normal keys?
     -Make it a separate matrix scan triggered off of a define
     -Maybe just direct pins?
     -Best way would probably be to make the matrix scan task separate, include the needed ones via define
