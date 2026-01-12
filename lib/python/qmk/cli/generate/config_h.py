@@ -13,7 +13,7 @@ from qmk.commands import dump_lines, parse_configurator_json
 from qmk.path import normpath, FileType
 from qmk.constants import GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE
 
-from qmk.he_config_h import generate_hall_effect_config, generate_profile_config
+from qmk.he_config_h import generate_analog_matrix_config, generate_profile_config
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -187,6 +187,7 @@ def generate_config_h(cli):
     config_h_lines = [GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE, '#pragma once']
 
     #TODO: Using qmk compile doesn't regenerate info_config.h, so old def sticks around
+    #Using the side param currently runs 'make clean' first, but there's prob a better way
     if cli.args.side in ['left', 'l', 'LEFT', 'L']:
         config_h_lines.append(generate_define('SIDE_LEFT'))
     elif cli.args.side in ['right', 'r', 'RIGHT', 'R']:
@@ -196,13 +197,13 @@ def generate_config_h(cli):
 
     generate_matrix_size(kb_info_json, config_h_lines)
 
-    # MARK: Main function
-    if 'hall_effect' in kb_info_json:
-        kb_info_json = generate_hall_effect_config(kb_info_json, config_h_lines)
-        if 'profiles' in kb_info_json['hall_effect']:
+    #MARK: Main function
+    if 'analog_matrix' in kb_info_json:
+        kb_info_json = generate_analog_matrix_config(kb_info_json, config_h_lines)
+        if 'profiles' in kb_info_json['analog_matrix']:
             generate_profile_config(kb_info_json, config_h_lines)
         #TODO: Make this less of a hack
-        # config_h_lines.append("""\n#undef DEBOUNCE\n#define DEBOUNCE 0\n// Debouncing is not needed on Hall Effect keyboards""")
+        config_h_lines.append("""\n#ifndef DEBOUNCE\n#  define DEBOUNCE 0\n#endif // Disable debouncing by default for analog keyboards""")
 
     if 'matrix_pins' in kb_info_json:
         config_h_lines.append(matrix_pins(kb_info_json['matrix_pins']))

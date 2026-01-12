@@ -10,12 +10,12 @@ MODE_NUM = 9
 NO_KEY = [0, "X", "none", "None", "NONE"]
 
 INIT_KEYS = {
-    'CALIBRATION_KEY': 'hall_effect.config.calibration_key',
-    'CALIBRATION_KEY_RIGHT': 'hall_effect.config.calibration_key_right',
-    'BOOTMAGIC_KEY': 'hall_effect.config.bootmagic_key',
-    'BOOTMAGIC_KEY_RIGHT': 'hall_effect.config.bootmagic_key_right',
-    'BOOTLOADER_KEY': 'hall_effect.config.bootloader_key',
-    'BOOTLOADER_KEY_RIGHT': 'hall_effect.config.bootloader_key_right',
+    'CALIBRATION_KEY': 'analog_matrix.config.calibration_key',
+    'CALIBRATION_KEY_RIGHT': 'analog_matrix.config.calibration_key_right',
+    'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_key',
+    'BOOTMAGIC_KEY_RIGHT': 'analog_matrix.config.bootmagic_key_right',
+    'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_key',
+    'BOOTLOADER_KEY_RIGHT': 'analog_matrix.config.bootloader_key_right',
     # Use normal bootmagic key for mechanical button reset
     # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
     # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
@@ -58,10 +58,10 @@ def generate_define(define, value=None):
 #MARK: Transform
 # Called by info.py before the rest of the functions here
 def _transform_he(info_data):
-    if 'hall_effect' not in info_data:
+    if 'analog_matrix' not in info_data:
         return info_data
 
-    he_hardware = info_data['hall_effect']['hardware']
+    he_hardware = info_data['analog_matrix']['hardware']
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
         info_data = _get_split_config(info_data)
@@ -77,10 +77,10 @@ def _transform_he(info_data):
 
 
 #MARK: Transform layout
-# Transform HE matrix definition from layout to mux_to_num and num_to_matrix
+# Transform AM matrix definition from layout to mux_to_num and num_to_matrix
 def _transform_layout(info_data):
     """Transforms the mux matrix defined in the layout into mux_to_num and num_to_matrix"""
-    he_hardware = info_data['hall_effect']['hardware']
+    he_hardware = info_data['analog_matrix']['hardware']
 
     if 'adc_pins' in he_hardware:
         adc_pins = len(he_hardware['adc_pins'])
@@ -122,10 +122,10 @@ def _transform_layout(info_data):
     # Trim the num_to_matrixes
     num_to_matrix = [i for i in num_to_matrix if i != -1]
 
-    info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num
-    info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix
-    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix)
-    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num)
+    info_data['analog_matrix']['hardware']['mux_to_num'] = mux_to_num
+    info_data['analog_matrix']['hardware']['num_to_matrix'] = num_to_matrix
+    info_data['analog_matrix']['hardware']['switch_num'] = len(num_to_matrix)
+    info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num)
 
     return info_data
 
@@ -133,7 +133,7 @@ def _transform_layout(info_data):
 #TODO: Add check for duplicate matrix positions
 #MARK: Layout split
 def _transform_layout_split(info_data):
-    he_hardware = info_data['hall_effect']['hardware']
+    he_hardware = info_data['analog_matrix']['hardware']
 
     if 'adc_pins' in he_hardware:
         adc_pin_num = len(he_hardware['adc_pins'])
@@ -202,16 +202,16 @@ def _transform_layout_split(info_data):
     num_to_matrix_r = [i for i in num_to_matrix_r if i != -1]
 
     #TODO: Do I actually need this many _right defines?
-    info_data['hall_effect']['hardware']['mux_to_num'] = mux_to_num_l
-    info_data['hall_effect']['hardware']['num_to_matrix'] = num_to_matrix_l
-    info_data['hall_effect']['hardware']['mux_to_num_right'] = mux_to_num_r
-    info_data['hall_effect']['hardware']['num_to_matrix_right'] = num_to_matrix_r
-    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num_l)
-    info_data['hall_effect']['hardware']['mux_channels_right'] = len(mux_to_num_r)
-    info_data['hall_effect']['hardware']['switch_num'] = len(num_to_matrix_l)
-    info_data['hall_effect']['hardware']['switch_num_right'] = len(num_to_matrix_r)
-    info_data['hall_effect']['hardware']['mux_channels'] = len(mux_to_num_l)
-    info_data['hall_effect']['hardware']['mux_channels_right'] = len(mux_to_num_r)
+    info_data['analog_matrix']['hardware']['mux_to_num'] = mux_to_num_l
+    info_data['analog_matrix']['hardware']['num_to_matrix'] = num_to_matrix_l
+    info_data['analog_matrix']['hardware']['mux_to_num_right'] = mux_to_num_r
+    info_data['analog_matrix']['hardware']['num_to_matrix_right'] = num_to_matrix_r
+    info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
+    info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
+    info_data['analog_matrix']['hardware']['switch_num'] = len(num_to_matrix_l)
+    info_data['analog_matrix']['hardware']['switch_num_right'] = len(num_to_matrix_r)
+    info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
+    info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
 
     return info_data
 
@@ -232,7 +232,7 @@ def _get_split_config(info_data):
 
     # Rows are doubled up when using split keyboards
     row_split = (highest_row + 1) // 2
-    info_data['hall_effect']['hardware']['row_split'] = row_split
+    info_data['analog_matrix']['hardware']['row_split'] = row_split
 
     # Generate global to local index transformation
     g_to_l_index = []
@@ -256,9 +256,9 @@ def _get_split_config(info_data):
                 g_index += 1
         break
 
-    info_data['hall_effect']['hardware']['global_to_local_index'] = g_to_l_index
-    info_data['hall_effect']['hardware']['local_to_global_index'] = l_to_g_index[0]
-    info_data['hall_effect']['hardware']['local_to_global_index_right'] = l_to_g_index[1]
+    info_data['analog_matrix']['hardware']['global_to_local_index'] = g_to_l_index
+    info_data['analog_matrix']['hardware']['local_to_global_index'] = l_to_g_index[0]
+    info_data['analog_matrix']['hardware']['local_to_global_index_right'] = l_to_g_index[1]
 
     return info_data
 
@@ -266,9 +266,9 @@ def _get_split_config(info_data):
 #MARK: Matrix_to_mux
 # Generates a reverse matrix transformation array for the initialization keys
 def get_matrix_to_mux(info_data, config_h_lines):
-    mux_to_num = info_data['hall_effect']['hardware']['mux_to_num']
-    num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix']
-    switch_num = info_data['hall_effect']['hardware']['switch_num']
+    mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num']
+    num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix']
+    switch_num = info_data['analog_matrix']['hardware']['switch_num']
     cols = info_data['matrix_size']['cols']
     if 'split' in info_data and info_data['split'].get('enabled', False):
         rows = info_data['matrix_size']['rows'] // 2
@@ -281,7 +281,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
             num_to_mux[idx-1] = [row_idx, col_idx]
 
     config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
-    info_data['hall_effect']['hardware']['num_to_mux'] = num_to_mux
+    info_data['analog_matrix']['hardware']['num_to_mux'] = num_to_mux
 
     matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
 
@@ -289,12 +289,12 @@ def get_matrix_to_mux(info_data, config_h_lines):
         matrix_to_num[pos[0]][pos[1]] = idx + 1
 
     config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
-    info_data['hall_effect']['hardware']['matrix_to_num'] = matrix_to_num
+    info_data['analog_matrix']['hardware']['matrix_to_num'] = matrix_to_num
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
-        mux_to_num = info_data['hall_effect']['hardware']['mux_to_num_right']
-        num_to_matrix = info_data['hall_effect']['hardware']['num_to_matrix_right']
-        switch_num = info_data['hall_effect']['hardware']['switch_num_right']
+        mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num_right']
+        num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix_right']
+        switch_num = info_data['analog_matrix']['hardware']['switch_num_right']
         rows = info_data['matrix_size']['rows'] // 2
         cols = info_data['matrix_size']['cols']
         num_to_mux = [[] for _ in range(switch_num)]
@@ -304,7 +304,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
                 num_to_mux[idx-1] = [row_idx, col_idx]
 
         config_h_lines.append(generate_define('NUM_TO_MUX_R', str(num_to_mux).replace('[', '{').replace(']', '}')))
-        info_data['hall_effect']['hardware']['num_to_mux_right'] = num_to_mux
+        info_data['analog_matrix']['hardware']['num_to_mux_right'] = num_to_mux
 
         matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
 
@@ -312,7 +312,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
             matrix_to_num[pos[0]][pos[1]] = idx + 1
 
         config_h_lines.append(generate_define('MATRIX_TO_NUM_R', str(matrix_to_num).replace('[', '{').replace(']', '}')))
-        info_data['hall_effect']['hardware']['matrix_to_num_right'] = matrix_to_num
+        info_data['analog_matrix']['hardware']['matrix_to_num_right'] = matrix_to_num
 
 
     return info_data
@@ -322,14 +322,14 @@ def get_matrix_to_mux(info_data, config_h_lines):
 #MARK: Port def
 def get_port_def(json):
     if json['processor'] in BSRR_PROCESSORS:
-        json['hall_effect']['hardware']['use_bsrr'] = True
+        json['analog_matrix']['hardware']['use_bsrr'] = True
 
     if json['processor'] in CHIBIOS_PROCESSORS:
-        json['hall_effect']['port_def'] = "GPIO"
+        json['analog_matrix']['port_def'] = "GPIO"
         return json
 
     if json['processor'] in LUFA_PROCESSORS + VUSB_PROCESSORS:
-        json['hall_effect']['port_def'] = "PORT"
+        json['analog_matrix']['port_def'] = "PORT"
         return json
 
     raise Exception("Unknown processor!")
@@ -402,10 +402,10 @@ def check_power_pins(he_json, config_h_lines):
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
     #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
-    matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
-    matrix_to_num_r = info_data['hall_effect']['hardware'].get('matrix_to_num_right', '')
-    num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
-    num_to_mux_r = info_data['hall_effect']['hardware'].get('num_to_mux_right', '')
+    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+    matrix_to_num_r = info_data['analog_matrix']['hardware'].get('matrix_to_num_right', '')
+    num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
+    num_to_mux_r = info_data['analog_matrix']['hardware'].get('num_to_mux_right', '')
     used_pos= []
     init_functions = []
     init_functions_r = []
@@ -413,7 +413,7 @@ def transform_init_keys(info_data, config_h_lines):
     init_keys_r = []
     init_key_num = 0
     init_key_num_r = 0
-    row_split = info_data['hall_effect']['hardware'].get('row_split', 0)
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
 
     for key in INIT_KEYS:
         path = INIT_KEYS[key]
@@ -439,26 +439,26 @@ def transform_init_keys(info_data, config_h_lines):
             #TODO: Remove this
             # cli.echo(f'Found key {path} with matrix {key_pos}, mux {key_mux} executing function {INIT_FUNCTIONS[key]}()')
 
-    config_h_lines.append(generate_define('HE_INIT_KEY_NUM', init_key_num))
+    config_h_lines.append(generate_define('AM_INIT_KEY_NUM', init_key_num))
     if len(init_functions) > 0:
-        config_h_lines.append(generate_define('HE_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('AM_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
         #TODO: This way I can define the function names as strings and have them be defined as functions
-        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
+        config_h_lines.append(generate_define('AM_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
 
-    config_h_lines.append(generate_define('HE_INIT_KEY_NUM_R', init_key_num_r))
+    config_h_lines.append(generate_define('AM_INIT_KEY_NUM_R', init_key_num_r))
     if len(init_functions_r) > 0:
-        config_h_lines.append(generate_define('HE_INIT_KEYS_R', str(init_keys_r).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('AM_INIT_KEYS_R', str(init_keys_r).replace('[', '{').replace(']', '}')))
         #TODO: This way I can define the function names as strings and have them be defined as functions
-        config_h_lines.append(generate_define('HE_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
+        config_h_lines.append(generate_define('AM_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
 
 
 #MARK: Profile config
 #TODO: Remove config height options, only use profiles for that
 def generate_profile_config(kb_info_json, config_h_lines):
     """Extract the profile configuration"""
-    he_profiles = kb_info_json['hall_effect']['profiles']
+    he_profiles = kb_info_json['analog_matrix']['profiles']
 
-    switch_num = kb_info_json['hall_effect']['hardware']['switch_num'] + kb_info_json['hall_effect']['hardware'].get('switch_num_right', 0)
+    switch_num = kb_info_json['analog_matrix']['hardware']['switch_num'] + kb_info_json['analog_matrix']['hardware'].get('switch_num_right', 0)
     trigger_heights = []
     release_heights = []
     press_distances = []
@@ -557,7 +557,7 @@ def generate_profile_config(kb_info_json, config_h_lines):
 
     # Split up the height configs if necessary
     if 'split' in kb_info_json and kb_info_json['split'].get('enabled', False):
-        g_to_l_index = kb_info_json['hall_effect']['hardware']['global_to_local_index']
+        g_to_l_index = kb_info_json['analog_matrix']['hardware']['global_to_local_index']
         profile_num = len(trigger_heights)
         split_trigger_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_release_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
@@ -599,9 +599,9 @@ def generate_profile_config(kb_info_json, config_h_lines):
         config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Add the profile config to info_config.h
-    config_h_lines.append(generate_define('HE_PROFILE_NUM', profile_num))
-    config_h_lines.append(generate_define('HE_DEFAULT_PROFILE', default_profile))
-    config_h_lines.append(generate_define('HE_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define('AM_PROFILE_NUM', profile_num))
+    config_h_lines.append(generate_define('AM_DEFAULT_PROFILE', default_profile))
+    config_h_lines.append(generate_define('AM_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
 
     for type in set(used_modes):
         config_h_lines.append(generate_define(f'USE_{type}'))
@@ -632,9 +632,9 @@ def valid_profile_name(profile):
         return False
 
 #MARK: Validation
-def validate_hall_effect_config(info_data):
+def validate_analog_matrix_config(info_data):
     """Validate the hall effect configuration."""
-    he_json = info_data['hall_effect']
+    he_json = info_data['analog_matrix']
     he_hardware = he_json['hardware']
     switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
     if 'profiles' in he_json:
@@ -719,29 +719,29 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 
 
 #MARK: General config
-def generate_hall_effect_config(info_data, config_h_lines):
+def generate_analog_matrix_config(info_data, config_h_lines):
     """Generate the config.h lines for hall effect keyboards."""
-    validate_hall_effect_config(info_data)
+    validate_analog_matrix_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
         info_data = check_right_side_pins(info_data, config_h_lines)
 
-    he_json = info_data['hall_effect']
-    he_hardware = info_data['hall_effect']['hardware']
+    he_json = info_data['analog_matrix']
+    he_hardware = info_data['analog_matrix']['hardware']
     #Hardware stuff
     adc_pin_num = len(he_hardware.get('adc_pins', ''))
     config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
 
     info_data = get_port_def(info_data)
-    if info_data['hall_effect']['hardware'].get('use_bsrr', False):
+    if info_data['analog_matrix']['hardware'].get('use_bsrr', False):
         config_h_lines.append(generate_define('USE_BSRR'))
 
-    check_adc_pins(info_data['hall_effect'], config_h_lines)
+    check_adc_pins(info_data['analog_matrix'], config_h_lines)
 
     if 'mux_pins' in he_hardware:
         mux_pin_num = len(he_hardware.get('mux_pins', ''))
         config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-        check_mux_pins(info_data['hall_effect'], config_h_lines)
+        check_mux_pins(info_data['analog_matrix'], config_h_lines)
     else:
         #TODO: Is this necessary?
         config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
@@ -750,7 +750,7 @@ def generate_hall_effect_config(info_data, config_h_lines):
         power_pin_num = len(he_hardware['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
         config_h_lines.append(generate_define('POWER_BEFORE_SCAN', 'TRUE'))
-        check_power_pins(info_data['hall_effect'], config_h_lines)
+        check_power_pins(info_data['analog_matrix'], config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights
     switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
@@ -795,12 +795,12 @@ def generate_hall_effect_config(info_data, config_h_lines):
 
 #MARK: Right side pins
 def check_right_side_pins(info_data, config_h_lines):
-    he_hardware = info_data['hall_effect']['hardware']
+    he_hardware = info_data['analog_matrix']['hardware']
 
     for pins in ['adc_pins', 'mux_pins', 'power_pins']:
         if pins in he_hardware and f'{pins}_right' not in he_hardware:
             pins_r = he_hardware[pins]
-            info_data['hall_effect']['hardware'][f'{pins}_right'] = pins_r
+            info_data['analog_matrix']['hardware'][f'{pins}_right'] = pins_r
             config_h_lines.append(generate_define(f'{pins.upper()}_R', f'{{ {", ".join(map(str, pins_r))} }}'))
 
     return info_data
@@ -808,19 +808,19 @@ def check_right_side_pins(info_data, config_h_lines):
 
 #MARK: Priority keys
 def get_priority_keys(info_data, config_h_lines):
-    if 'priority_keys' not in info_data['hall_effect']['config']:
+    if 'priority_keys' not in info_data['analog_matrix']['config']:
         return info_data
 
-    priority_keys = info_data['hall_effect']['config']['priority_keys']
-    matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
-    num_to_mux = info_data['hall_effect']['hardware']['num_to_mux']
+    priority_keys = info_data['analog_matrix']['config']['priority_keys']
+    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+    num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
     rows = info_data['matrix_size']['rows']
-    row_split = info_data['hall_effect']['hardware'].get('row_split', rows)
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
     priority_muxes = []
     priority_muxes_r = []
     if 'split' in info_data and info_data['split'].get('enabled', False):
-        matrix_to_num_r = info_data['hall_effect']['hardware']['matrix_to_num_right']
-        num_to_mux_r = info_data['hall_effect']['hardware']['num_to_mux_right']
+        matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
+        num_to_mux_r = info_data['analog_matrix']['hardware']['num_to_mux_right']
 
     # Convert all matrix positions in the array into mux combos
     for key in priority_keys:
@@ -850,17 +850,17 @@ def get_priority_keys(info_data, config_h_lines):
 
 #MARK: Priority idx
 # def get_priority_keys(info_data, config_h_lines):
-#     if 'priority_keys' not in info_data['hall_effect']['config']:
+#     if 'priority_keys' not in info_data['analog_matrix']['config']:
 #         return info_data
 
-#     priority_keys = info_data['hall_effect']['config']['priority_keys']
-#     matrix_to_num = info_data['hall_effect']['hardware']['matrix_to_num']
+#     priority_keys = info_data['analog_matrix']['config']['priority_keys']
+#     matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
 #     rows = info_data['matrix_size']['rows']
-#     row_split = info_data['hall_effect']['hardware'].get('row_split', rows)
+#     row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
 #     priority_idx = []
 #     priority_idx_r = []
 #     if 'split' in info_data and info_data['split'].get('enabled', False):
-#         matrix_to_num_r = info_data['hall_effect']['hardware']['matrix_to_num_right']
+#         matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
 
 
 #     # Convert all matrix positions in the array into mux combos

@@ -527,7 +527,7 @@ def _extract_split_transport(info_data, config_c):
 #MARK: Split right pins
 def _extract_split_right_pins(info_data, config_c):
     # Figure out the right half matrix pins
-    if 'hall_effect' not in info_data:
+    if 'analog_matrix' not in info_data:
         row_pins = config_c.get('MATRIX_ROW_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         col_pins = config_c.get('MATRIX_COL_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         direct_pins = config_c.get('DIRECT_PINS_RIGHT', '').replace(' ', '')[1:-1]
@@ -554,19 +554,19 @@ def _extract_split_right_pins(info_data, config_c):
             if direct_pins:
                 info_data['split']['matrix_pins']['right']['direct'] = _extract_direct_matrix(direct_pins)
 
-    else: #'hall_effect' in info_data
+    else: #'analog_matrix' in info_data
         mux_pins = config_c.get('MUX_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         adc_pins = config_c.get('ADC_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         power_pins = config_c.get('POWER_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
 
-        if mux_pins and not info_data['hall_effect']['hardware'].get('mux_pins_right'):
-            info_data['hall_effect']['hardware']['mux_pins_right'] = _extract_pins(mux_pins)
+        if mux_pins and not info_data['analog_matrix']['hardware'].get('mux_pins_right'):
+            info_data['analog_matrix']['hardware']['mux_pins_right'] = _extract_pins(mux_pins)
 
-        if adc_pins and not info_data['hall_effect']['hardware'].get('adc_pins_right'):
-            info_data['hall_effect']['hardware']['adc_pins_right'] = _extract_pins(adc_pins)
+        if adc_pins and not info_data['analog_matrix']['hardware'].get('adc_pins_right'):
+            info_data['analog_matrix']['hardware']['adc_pins_right'] = _extract_pins(adc_pins)
 
-        if power_pins and not info_data['hall_effect']['hardware'].get('power_pins_right'):
-            info_data['hall_effect']['hardware']['power_pins_right'] = _extract_pins(power_pins)
+        if power_pins and not info_data['analog_matrix']['hardware'].get('power_pins_right'):
+            info_data['analog_matrix']['hardware']['power_pins_right'] = _extract_pins(power_pins)
 
 
 def _extract_matrix_info(info_data, config_c):
@@ -830,9 +830,9 @@ def _extract_led_config(info_data, keyboard):
 def _matrix_size(info_data):
     """Add info_data['matrix_size'] if it doesn't exist.
     """
-    if 'matrix_size' not in info_data and 'hall_effect' in info_data:
+    if 'matrix_size' not in info_data and 'analog_matrix' in info_data:
         info_data['matrix_size'] = {}
-        matrix = info_data['hall_effect']['hardware']['num_to_matrix']
+        matrix = info_data['analog_matrix']['hardware']['num_to_matrix']
         info_data['matrix_size']['rows'] = max([i[0] for i in matrix]) + 1
         info_data['matrix_size']['cols'] = max([i[1] for i in matrix]) + 1
 
@@ -896,7 +896,7 @@ def _check_matrix(info_data):
         col_count = row_count = 0
 
         # Skip matrix check since HE matrix is checked elsewhere
-        if 'hall_effect' in info_data:
+        if 'analog_matrix' in info_data:
             return
 
         if 'direct' in info_data['matrix_pins']:
