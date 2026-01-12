@@ -333,7 +333,12 @@ endif
 ANALOG_MATRIX_ENABLE ?= no
 ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
 	OPT_DEFS += -DANALOG_MATRIX_ENABLE
-#	 SRC += $(QUANTUM_DIR)/analog_matrix.c
+	COMMON_VPATH += $(QUANTUM_DIR)/analog_matrix
+	SRC += $(QUANTUM_DIR)/analog_matrix/analog_matrix.c
+	SRC += $(QUANTUM_DIR)/analog_matrix/multiplexer.c
+#	TODO: Check if this is the only thing ANALOG_DRIVER_REQUIRED does
+#     OPT_DEFS += -DHAL_USE_ADC=TRUE
+#     QUANTUM_LIB_SRC += analog.c
 endif
 
 # Deprecated driver names - do not use

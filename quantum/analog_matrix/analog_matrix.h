@@ -1,5 +1,6 @@
 #pragma once
 
+// #include "matrix.h"
 #include <stdint.h>
 // #include <stdbool.h>
 // #include <sys/cdefs.h>
@@ -10,7 +11,6 @@
 #include "info_config.h"
 #include "analog.h"
 #include "constants.h"
-// #include "matrix.h"
 // #include "util.h"
 // #include "bootloader.h"
 // #include "bootmagic/bootmagic.h"
@@ -112,6 +112,8 @@ volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 
 
 /* Function defines */
+void analog_matrix_init(void);
+uint8_t analog_matrix_scan(void);
 uint8_t get_current_profile(void);
 
 volatile void sensor_power_init_kb(void);

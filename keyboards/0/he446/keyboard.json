@@ -22,10 +22,11 @@
         "bootmagic": false,
         "extrakey": true,
         "mousekey": true,
-        "console": true
+        "console": true,
+        "analog_matrix": false
     },
 	"modules": ["getreuer/socd_cleaner", "drashna/pointing_device_accel"],
-    "hall_effect": {
+    "analog_matrix": {
         "hardware": {
             "keyboard_side": 2,
             "calibrate": false,

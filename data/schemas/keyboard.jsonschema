@@ -506,7 +506,7 @@
                 "rows": {"$ref": "./definitions.jsonschema#/mcu_pin_array"}
             }
         },
-        "hall_effect": {
+        "analog_matrix": {
             "type": "object",
             "properties": {
                 "hardware": {

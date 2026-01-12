@@ -11,6 +11,12 @@
     "_test_c": { "target": "planck/rev6" },
 
     /* The main list of aliases for moved keyboards within QMK. */
+    "he": {
+        "target": "0/he"
+    },
+    "he446": {
+        "target": "0/he446"
+    },
     "2_milk": {
         "target": "spaceman/2_milk"
     },

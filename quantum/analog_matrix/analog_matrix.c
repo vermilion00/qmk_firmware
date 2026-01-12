@@ -1,6 +1,6 @@
 //TODO: Go through these and check which ones are needed
 
-#include "matrix.h"
+#include "analog_matrix.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,7 +16,6 @@
 // #include "gpio.h"
 // #include "hal_pal.h"
 // #include "hal_pal_lld.h"
-#include "he_matrix.h"
 #include "info_config.h"
 #include "keyboard.h"
 // #include "keycodes.h"
@@ -50,6 +49,8 @@ static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
 
+matrix_row_t current_matrix[MATRIX_ROWS];
+
 #if DYNAMIC_CALIBRATION == TRUE
 // Check if the switch boundaries need updating, and update them if necessary.
 inline bool update_switch_bounds(uint8_t index, uint16_t value);
@@ -75,7 +76,6 @@ PROFILE_MUTABLE uint8_t current_he_profile = AM_DEFAULT_PROFILE;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
-/* Start of decl */
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 Switch he_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
@@ -125,11 +125,10 @@ const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
 const void (*init_functions_r[AM_INIT_KEY_NUM_R])(void) = AM_INIT_FUNCTIONS_R;
 #endif
 
-//TODO: Implement this
+//TODO: Implement right part of this
 #if defined DEBUG_SCAN_VALUE_R
 uint8_t debug_mux_r[2] = DEBUG_SCAN_VALUE_R;
 #endif
-//etc
 
 #else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 Switch he_matrix[SWITCH_NUM];
@@ -165,7 +164,6 @@ SPLIT_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE
 
 // During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
 adc_mux adc_pin_mux[ADC_PIN_NUM];
-/* End of decl */
 
 //TODO: Remove this
 // #define SPLIT_KEYBOARD
@@ -204,7 +202,7 @@ uint8_t priority_indices[PRIORITY_INDEX_NUM] = PRIORITY_INDICES;
 #endif
 
 //MARK: Init
-void matrix_init_custom(void) {
+void analog_matrix_init(void) {
     //TODO: Abstract this (Enables FPU)
     //TODO: This seems to make the scan slightly slower (3150 instead of 3172)
     // SCB->CPACR |= ((3UL << 20U)|(3UL << 22U));  /* set CP10 and CP11 Full Access */
@@ -322,7 +320,7 @@ static void scan_init_keys(void) {
 //      Maybe even sort the adc channels to be ascending, then descending,
 //      so at least one adc channel is used twice in a row, if that makes a difference
 //MARK: Scan
-uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
+uint8_t analog_matrix_scan() {
     bool matrix_has_changed = false;
     uint16_t adc_value;
     uint8_t index;
@@ -420,8 +418,12 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
     #endif
 
 
-    // This *must* be called for correct keyboard behavior
+    #ifdef SPLIT_KEYBOARD
+    matrix_has_changed = debounce(raw_matrix, matrix + thisHand, MATRIX_ROWS_PER_HAND, matrix_has_changed) | matrix_post_scan();
+    #else
+    changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     matrix_scan_kb();
+    #endif
 
     return matrix_has_changed;
 }
