@@ -17,8 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include "keyboard.h"
+#include "gpio.h"
 #include "keycode_config.h"
-#include "matrix.h"
+//MARK: Include
+#ifdef ANALOG_MATRIX_ENABLE
+#   include "analog_matrix.h"
+#else
+#   include "matrix.h"
+#endif
 #include "keymap_introspection.h"
 #include "host.h"
 #include "led.h"
@@ -541,6 +547,10 @@ void keyboard_init(void) {
 #ifdef HAPTIC_ENABLE
     haptic_init();
 #endif
+//MARK: Init call
+#ifdef ANALOG_MATRIX_ENABLE
+    analog_matrix_init();
+#endif
 
 #if defined(DEBUG_MATRIX_SCAN_RATE) && defined(CONSOLE_ENABLE)
     debug_enable = true;
@@ -563,6 +573,8 @@ void switch_events(uint8_t row, uint8_t col, bool pressed) {
 #endif
 }
 
+//MARK: Tick event
+//TODO: Check if this gets overridden by keychron
 /**
  * @brief Generates a tick event at a maximum rate of 1KHz that drives the
  * internal QMK state machine.
@@ -594,15 +606,36 @@ static bool matrix_task(void) {
     matrix_scan();
     bool matrix_changed = false;
     for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
+        //TODO: Why isn't this a break?
         matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
     }
+
+    // #ifdef ANALOG_MATRIX_ENABLE
+    // bool matrix_changed = analog_matrix_scan();
+    // print("Matrix changed\n");
+
+    // #else
+    // matrix_scan();
+    // bool matrix_changed = false;
+    // for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
+    //     //TODO: Why isn't this a break?
+    //     matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
+    // }
+    // #endif
 
     matrix_scan_perf_task();
 
     // Short-circuit the complete matrix processing if it is not necessary
     if (!matrix_changed) {
         generate_tick_event();
-        return matrix_changed;
+
+        //TODO: The output code doesn't run because get_matrix_row doesn't check the correct matrix array
+    //     gpio_set_pin_output_push_pull(B2);
+    // // GPIOB->ODR = 1 << 2;
+    // gpio_write_pin_high(B2);
+        // This only ever runs if matrix_changed is false anyway
+        // return matrix_changed;
+        return false;
     }
 
     if (debug_config.matrix) {

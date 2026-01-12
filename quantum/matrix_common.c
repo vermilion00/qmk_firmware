@@ -168,14 +168,14 @@ __attribute__((weak)) uint8_t matrix_scan(void) {
 
 //TODO: Decide if this is necessary, remove for mixed matrices?
 // Debouncing usually isn't needed on analog keyboards
-#ifndef ANALOG_MATRIX_ENABLE
+// #ifndef ANALOG_MATRIX_ENABLE
 #ifdef SPLIT_KEYBOARD
     changed = debounce(raw_matrix, matrix + thisHand, MATRIX_ROWS_PER_HAND, changed) | matrix_post_scan();
 #else
     changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     matrix_scan_kb();
 #endif
-#endif
+// #endif
 
     return changed;
 }
