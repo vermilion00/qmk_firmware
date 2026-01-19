@@ -336,9 +336,9 @@ ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
 	COMMON_VPATH += $(QUANTUM_DIR)/analog_matrix
 	SRC += $(QUANTUM_DIR)/analog_matrix/analog_matrix.c
 	SRC += $(QUANTUM_DIR)/analog_matrix/multiplexer.c
-#	TODO: Check if this is the only thing ANALOG_DRIVER_REQUIRED does
-#     OPT_DEFS += -DHAL_USE_ADC=TRUE
-#     QUANTUM_LIB_SRC += analog.c
+    #TODO: Check if this is the only thing ANALOG_DRIVER_REQUIRED does
+    OPT_DEFS += -DHAL_USE_ADC=TRUE
+    QUANTUM_LIB_SRC += analog.c
 endif
 
 # Deprecated driver names - do not use
@@ -667,6 +667,7 @@ endif
 
 VALID_CUSTOM_MATRIX_TYPES:= yes lite no
 
+#MARK: Matrix include
 CUSTOM_MATRIX ?= no
 ifneq ($(strip $(CUSTOM_MATRIX)), yes)
     ifeq ($(filter $(CUSTOM_MATRIX),$(VALID_CUSTOM_MATRIX_TYPES)),)
@@ -676,17 +677,30 @@ ifneq ($(strip $(CUSTOM_MATRIX)), yes)
     # Include common stuff for all non custom matrix users
     QUANTUM_SRC += $(QUANTUM_DIR)/matrix_common.c
 
-    # if 'lite' then skip the actual matrix implementation
-    ifneq ($(strip $(CUSTOM_MATRIX)), lite)
-        # Include the standard or split matrix code if needed
-        QUANTUM_SRC += $(QUANTUM_DIR)/matrix.c
-    endif
+    # if 'lite' or analog matrix then skip the actual matrix implementation
+	ifneq ($(strip $(CUSTOM_MATRIX)), lite)
+        #TODO: For mixed matrices, see if i need to reinclude this
+		ifneq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
+            # Include the standard or split matrix code if needed
+			QUANTUM_SRC += $(QUANTUM_DIR)/matrix.c
+		endif
+	endif
 endif
+
+#MARK: Side
+#TODO: This doesn't work because the rules_mk function doesn't get the side param currently
+# KB_SIDE ?= none
+# ifeq ($(strip $(KB_SIDE)), left)
+# 	OPT_DEFS += -DSIDE_LEFT
+# endif
+# ifeq ($(strip $(KB_SIDE)), right)
+# 	OPT_DEFS += -DSIDE_RIGHT
+# endif
 
 # Debounce Modules. Set DEBOUNCE_TYPE=custom if including one manually.
 DEBOUNCE_TYPE ?= sym_defer_g
 ifneq ($(strip $(DEBOUNCE_TYPE)), custom)
-    QUANTUM_SRC += $(QUANTUM_DIR)/debounce/$(strip $(DEBOUNCE_TYPE)).c
+	QUANTUM_SRC += $(QUANTUM_DIR)/debounce/$(strip $(DEBOUNCE_TYPE)).c
 endif
 
 

@@ -203,6 +203,7 @@ def generate_config_h(cli):
         if 'profiles' in kb_info_json['analog_matrix']:
             generate_profile_config(kb_info_json, config_h_lines)
         #TODO: Make this less of a hack
+        # If a debounce time is set, it will override this
         config_h_lines.append("""\n#ifndef DEBOUNCE\n#  define DEBOUNCE 0\n#endif // Disable debouncing by default for analog keyboards""")
 
     if 'matrix_pins' in kb_info_json:

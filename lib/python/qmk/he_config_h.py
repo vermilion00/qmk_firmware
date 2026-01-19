@@ -3,7 +3,6 @@ from milc import cli
 
 #TODO: Expand this list, need to make sure they follow the same calling structure as well
 #BSRR needs to have set priority, be 32 bits, with upper 16 bits being the reset bits
-#TODO: Make separate v2 with other bsrr config?
 BSRR_PROCESSORS = 'STM32F042', 'STM32F072', 'STM32F303', 'STM32F401', 'STM32F405', 'STM32F407', 'STM32F411', 'STM32F446', 'STM32G0B1', 'STM32G431', 'STM32G474', 'STM32H723', 'STM32H733', 'STM32L412', 'STM32L422', 'STM32L432', 'STM32L433', 'STM32L442', 'STM32L443', 'AT32F415'
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
@@ -22,7 +21,6 @@ INIT_KEYS = {
 }
 
 # _RIGHT keys automatically translate to their left variant
-#TODO: Reassign bootmagic key to proper function, since it should also reset eeprom in case of issues
 INIT_FUNCTIONS = {
     'BOOTLOADER_KEY': 'bootloader_jump',
     'BOOTMAGIC_KEY': '_bootmagic',
@@ -169,8 +167,7 @@ def _transform_layout_split(info_data):
                     key_index_r += 1
                     adc, mux = key_data['mux']
                     mux_to_num_r[mux][adc] = key_index_r
-                    # Subtract row_split from right side matrix row since offset is applied during split transaction
-                    matrix = [key_data['matrix'][0] - row_split, key_data['matrix'][1]]
+                    matrix = [key_data['matrix'][0], key_data['matrix'][1]]
                     #TODO: This works, but maybe find a way without this warning?
                     num_to_matrix_r[key_index_r-1] = matrix
                     if [adc, mux] not in used_positions_r:
@@ -201,7 +198,6 @@ def _transform_layout_split(info_data):
     num_to_matrix_l = [i for i in num_to_matrix_l if i != -1]
     num_to_matrix_r = [i for i in num_to_matrix_r if i != -1]
 
-    #TODO: Do I actually need this many _right defines?
     info_data['analog_matrix']['hardware']['mux_to_num'] = mux_to_num_l
     info_data['analog_matrix']['hardware']['num_to_matrix'] = num_to_matrix_l
     info_data['analog_matrix']['hardware']['mux_to_num_right'] = mux_to_num_r
@@ -297,6 +293,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
         switch_num = info_data['analog_matrix']['hardware']['switch_num_right']
         rows = info_data['matrix_size']['rows'] // 2
         cols = info_data['matrix_size']['cols']
+        row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
         num_to_mux = [[] for _ in range(switch_num)]
 
         for row_idx, row in enumerate(mux_to_num):
@@ -309,7 +306,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
         matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
 
         for idx, pos in enumerate(num_to_matrix):
-            matrix_to_num[pos[0]][pos[1]] = idx + 1
+            matrix_to_num[pos[0] - row_split][pos[1]] = idx + 1
 
         config_h_lines.append(generate_define('MATRIX_TO_NUM_R', str(matrix_to_num).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware']['matrix_to_num_right'] = matrix_to_num
@@ -401,7 +398,6 @@ def check_power_pins(he_json, config_h_lines):
 
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
-    #TODO: Check if I need to define matrix_to_num etc or if just the keys suffice
     matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
     matrix_to_num_r = info_data['analog_matrix']['hardware'].get('matrix_to_num_right', '')
     num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
@@ -436,24 +432,19 @@ def transform_init_keys(info_data, config_h_lines):
                 init_keys.append(key_mux[::-1])
                 init_key_num += 1
                 init_functions.append(INIT_FUNCTIONS[key])
-            #TODO: Remove this
-            # cli.echo(f'Found key {path} with matrix {key_pos}, mux {key_mux} executing function {INIT_FUNCTIONS[key]}()')
 
     config_h_lines.append(generate_define('AM_INIT_KEY_NUM', init_key_num))
     if len(init_functions) > 0:
         config_h_lines.append(generate_define('AM_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
-        #TODO: This way I can define the function names as strings and have them be defined as functions
         config_h_lines.append(generate_define('AM_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
 
     config_h_lines.append(generate_define('AM_INIT_KEY_NUM_R', init_key_num_r))
     if len(init_functions_r) > 0:
         config_h_lines.append(generate_define('AM_INIT_KEYS_R', str(init_keys_r).replace('[', '{').replace(']', '}')))
-        #TODO: This way I can define the function names as strings and have them be defined as functions
         config_h_lines.append(generate_define('AM_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
 
 
 #MARK: Profile config
-#TODO: Remove config height options, only use profiles for that
 def generate_profile_config(kb_info_json, config_h_lines):
     """Extract the profile configuration"""
     he_profiles = kb_info_json['analog_matrix']['profiles']
@@ -566,7 +557,6 @@ def generate_profile_config(kb_info_json, config_h_lines):
         split_key_modes = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         for idx, _ in enumerate(trigger_heights[0]):
             for profile in range(profile_num):
-                #TODO: Check if I need the local index or just the half
                 if g_to_l_index[idx][0] == 0:
                     split_trigger_heights[0][profile].append(trigger_heights[profile][idx])
                     split_release_heights[0][profile].append(release_heights[profile][idx])
@@ -581,12 +571,12 @@ def generate_profile_config(kb_info_json, config_h_lines):
                     split_key_modes[1][profile].append(key_modes[profile][idx])
 
         config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(split_trigger_heights[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(split_release_heights[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(split_press_distances[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(split_release_distances[0]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('TRIGGER_HEIGHT_R', f'{str(split_trigger_heights[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(split_release_heights[0]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('RELEASE_HEIGHT_R', f'{str(split_release_heights[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(split_press_distances[0]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('RT_PRESS_DISTANCE_R', f'{str(split_press_distances[1]).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(split_release_distances[0]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('RT_RELEASE_DISTANCE_R', f'{str(split_release_distances[1]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('KEY_MODES', f'{str(split_key_modes[0]).replace('[', '{').replace(']', '}')}'))
         config_h_lines.append(generate_define('KEY_MODES_R', f'{str(split_key_modes[1]).replace('[', '{').replace(']', '}')}'))
@@ -729,6 +719,9 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     he_json = info_data['analog_matrix']
     he_hardware = info_data['analog_matrix']['hardware']
     #Hardware stuff
+    # if info_data.get('debounce', 0) > 0:
+    #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
+
     adc_pin_num = len(he_hardware.get('adc_pins', ''))
     config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
 
@@ -824,7 +817,6 @@ def get_priority_keys(info_data, config_h_lines):
 
     # Convert all matrix positions in the array into mux combos
     for key in priority_keys:
-        #TODO: Check if it's < or <=
         if key[0] < row_split:
             num = matrix_to_num[key[0]][key[1]] - 1
             mux = num_to_mux[num]
@@ -880,4 +872,9 @@ def get_priority_keys(info_data, config_h_lines):
 #     if priority_idx_r != []:
 #         config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
 #         config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", len(priority_idx_r)))
+
+
+#MARK: Height layout
+# def make_height_macro(info_data, config_h_lines):
+
 

@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include "keyboard.h"
-#include "gpio.h"
 #include "keycode_config.h"
 //MARK: Include
 #ifdef ANALOG_MATRIX_ENABLE
@@ -607,6 +606,7 @@ static inline void generate_tick_event(void) {
  * @return true Matrix did change
  * @return false Matrix didn't change
  */
+//MARK: Matrix task
 static bool matrix_task(void) {
     if (!matrix_can_read()) {
         generate_tick_event();
@@ -615,25 +615,16 @@ static bool matrix_task(void) {
 
     static matrix_row_t matrix_previous[MATRIX_ROWS];
 
+    #ifdef ANALOG_MATRIX_ENABLE
+    bool matrix_changed = analog_matrix_scan();
+    #else
     matrix_scan();
     bool matrix_changed = false;
     for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
         //TODO: Why isn't this a break?
         matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
     }
-
-    // #ifdef ANALOG_MATRIX_ENABLE
-    // bool matrix_changed = analog_matrix_scan();
-    // print("Matrix changed\n");
-
-    // #else
-    // matrix_scan();
-    // bool matrix_changed = false;
-    // for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
-    //     //TODO: Why isn't this a break?
-    //     matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
-    // }
-    // #endif
+    #endif
 
     matrix_scan_perf_task();
 
@@ -641,12 +632,6 @@ static bool matrix_task(void) {
     if (!matrix_changed) {
         generate_tick_event();
 
-        //TODO: The output code doesn't run because get_matrix_row doesn't check the correct matrix array
-    //     gpio_set_pin_output_push_pull(B2);
-    // // GPIOB->ODR = 1 << 2;
-    // gpio_write_pin_high(B2);
-        // This only ever runs if matrix_changed is false anyway
-        // return matrix_changed;
         return false;
     }
 

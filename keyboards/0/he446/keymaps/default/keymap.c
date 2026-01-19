@@ -41,6 +41,7 @@ static bool scroll_prev = false;
 static bool caret_prev = false;
 static unsigned int dragscroll_timer;
 static bool game_layer = false;
+static bool lalt_held = false;
 
 enum custom_keycodes {
 	MO_LALT = SAFE_RANGE,
@@ -100,7 +101,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                _______, KC_TAB,  													                                    KC_MPRV, KC_MNXT,
 										                 _______, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
-												                      KC_LCTL, KC_LALT,	   		KC_LALT
+												                      KC_LCTL, _______,	   		KC_LALT
   ),
 
   [_LALT] = LAYOUT(
@@ -110,17 +111,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_LGUI, TG(1),   KC_LPRN, KC_HASH, KC_RPRN, KC_SCLN,            	   			          KC_DOT,  KC_1,    KC_2,   KC_3,   KC_0,   KC_BSLS,
                                KC_LABK, KC_RABK,  													 	 	                            _______,_______,
 										                 _______, _______, _______,	  	     MO(_FN2),_______, _______,
-												                      _______, KC_LSFT,	   		 _______
+												                      _______, MO(_FN2),	   		 _______
   ),
 
   [_FN2] = LAYOUT(
-     QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			          KC_F6,   KC_F7,  KC_F8,  KC_F9,  KC_F10,  KC_BSPC,
-     KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,            	   			          KC_COMM, KC_7,   KC_8,   KC_9,   KC_SCLN, KC_NUM,
-     KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,            	   			          KC_COMM, KC_4,   KC_5,   KC_6,   KC_0,   KC_F11,
-     KC_LGUI, KC_PGDN, KC_PGDN, KC_HASH, SOCDON,  SOCDOFF,                 			          KC_DOT,  KC_1,   KC_2,   KC_3,   KC_0,   KC_F12,
-                               NK_TOGG, TG(_GMCL),												     		                           _______, _______,
-										                 _______, _______, _______,		     _______, _______, KC_LALT,
-												                      _______, _______,			 _______
+     QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			          KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_BSPC,
+     KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
+     KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
+     TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
+                               KC_MPRV,  KC_MNXT,  													                                    KC_MPRV, KC_MNXT,
+										                 _______, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
+												                      KC_LCTL, _______,	   		KC_LALT
   ),
 };
 
@@ -186,19 +187,33 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 		case MO_LALT:
 			if (record->event.pressed) {
-				layer_on(_LALT);
-				caret_mode = true;
+                if(lalt_held) {
+                    unregister_code16(KC_LALT);
+                    layer_on(_FN2);
+                } else {
+                    layer_on(_LALT);
+                    caret_mode = true;
+                }
 			} else {
 				layer_off(_LALT);
+                layer_off(_FN2);
 				caret_mode = false;
 			}
 			return false;
 
+        case KC_LALT:
+            if (record->event.pressed) {
+                lalt_held = true;
+            } else {
+                lalt_held = false;
+            }
+            return true;
+
 		case ALT_TAB:
 			if (record->event.pressed) {
-					register_code(KC_LALT);
-					tap_code(KC_TAB);
-					alt_tab = true;
+                register_code(KC_LALT);
+                tap_code(KC_TAB);
+                alt_tab = true;
 			} else {
 				unregister_code(KC_LALT);
 				alt_tab = false;

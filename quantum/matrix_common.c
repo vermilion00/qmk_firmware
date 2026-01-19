@@ -95,8 +95,8 @@ bool matrix_post_scan(void) {
         matrix_row_t slave_matrix[MATRIX_ROWS_PER_HAND] = {0};
         if (transport_master_if_connected(matrix + thisHand, slave_matrix)) {
             changed = memcmp(matrix + thatHand, slave_matrix, sizeof(slave_matrix)) != 0;
-
             last_connected = true;
+
         } else if (last_connected) {
             // reset other half when disconnected
             memset(slave_matrix, 0, sizeof(slave_matrix));
@@ -156,9 +156,9 @@ __attribute__((weak)) void matrix_init(void) {
         matrix[i]     = 0;
     }
 
-    #ifndef ANALOG_MATRIX_ENABLE
+    // #ifndef ANALOG_MATRIX_ENABLE
     debounce_init(MATRIX_ROWS_PER_HAND);
-    #endif
+    // #endif
 
     matrix_init_kb();
 }
