@@ -11,8 +11,8 @@
     // invalid: Default `false`. Set to `true` to generate errors when a value exists
     // replace_with: use with a key marked deprecated or invalid to designate a replacement
 
-    // Hall Effect
-    "CALIBRATE": {"info_key": "analog_matrix.hardware.calibrate", "value_type": "bool"},
+    // Analog Matrix
+    "FORCE_CALIBRATE": {"info_key": "analog_matrix.hardware.force_calibrate", "value_type": "bool"},
     "KEYBOARD_SIDE": {"info_key": "analog_matrix.hardware.keyboard_side", "value_type": "int"},
     "ADC_PINS": {"info_key": "analog_matrix.hardware.adc_pins", "value_type": "array"},
     "ADC_PINS_R": {"info_key": "analog_matrix.hardware.adc_pins_right", "value_type": "array"},

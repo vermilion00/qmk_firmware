@@ -102,7 +102,6 @@ static inline uint8_t readMatrixPin(pin_t pin) {
 
 // matrix code
 
-#ifndef ANALOG_MATRIX_ENABLE
 #ifdef DIRECT_PINS
 
 __attribute__((weak)) void matrix_init_pins(void) {
@@ -265,7 +264,6 @@ __attribute__((weak)) void matrix_read_rows_on_col(matrix_row_t current_matrix[]
 #    endif // defined(MATRIX_ROW_PINS) && defined(MATRIX_COL_PINS)
 #else
 #    error DIODE_DIRECTION is not defined!
-#endif
 #endif
 
 void matrix_init(void) {

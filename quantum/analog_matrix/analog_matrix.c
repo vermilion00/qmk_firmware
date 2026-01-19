@@ -19,6 +19,7 @@
 #include "info_config.h"
 #include "keyboard.h"
 // #include "keycodes.h"
+#include "matrix.h"
 #include "multiplexer.h"
 // #include "atomic_util.h"
 #include "print.h"
@@ -26,6 +27,9 @@
 #include "suspend.h"
 #include "transaction_id_define.h"
 #include "transactions.h"
+#if DEBOUNCE > 0
+#include "debounce.h"
+#endif
 #if AM_NO_EEPROM == FALSE
 #include "eeconfig.h"
 #endif
@@ -49,7 +53,16 @@ static inline bool evaluate_value(uint8_t index, uint16_t value);
 // Empty loop for short delays
 static inline void delay_ns(uint16_t delay);
 
-matrix_row_t current_matrix[MATRIX_ROWS];
+extern matrix_row_t matrix[MATRIX_ROWS];
+//TODO: Check if this isn't automatically ignored when debouncing isn't enabled
+// extern matrix_row_t raw_matrix[MATRIX_ROWS];
+#if DEBOUNCE > 0
+extern matrix_row_t raw_matrix[MATRIX_ROWS];
+#endif
+#ifdef SPLIT_KEYBOARD
+// row offsets for each hand
+extern uint8_t thisHand, thatHand;
+#endif
 
 #if DYNAMIC_CALIBRATION == TRUE
 // Check if the switch boundaries need updating, and update them if necessary.
@@ -77,15 +90,15 @@ PROFILE_MUTABLE uint8_t current_he_profile = AM_DEFAULT_PROFILE;
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-Switch he_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+analog_key_t key_config[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
 const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM_R;
 uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX;
 const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX_R;
-uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
-const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM_R;
-uint8_t num_to_mux[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX;
-const uint8_t num_to_mux_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX_R;
+// uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+// const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM_R;
+// uint8_t num_to_mux[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX;
+// const uint8_t num_to_mux_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX_R;
 uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES;
 const uint8_t key_modes_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES_R;
 
@@ -131,7 +144,7 @@ uint8_t debug_mux_r[2] = DEBUG_SCAN_VALUE_R;
 #endif
 
 #else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-Switch he_matrix[SWITCH_NUM];
+analog_key_t key_config[SWITCH_NUM];
 #ifdef MUX_PINS
 SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
 #endif
@@ -147,9 +160,10 @@ SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
 // Used to translate from the switch number to the QMK layout position
 SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
 // Used to translate from the QMK layout position to the switch number
-SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
+//TODO: I've commented out all occurances of matrix_to_num, check if it causes issues
+// SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
 // Used to translate from the matrix index to the ADC pin/Mux combination
-SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
+// SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
 
 #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
 SPLIT_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
@@ -184,7 +198,6 @@ const bool keyboard_left = RIGHT;
 const bool keyboard_left = LEFT;
 #else // KEYBOARD_SIDE == UNKNOWN
 bool keyboard_left;
-// Switch* he_matrix = &he_matrix_l[0];
 void assign_split_side(bool side);
 #endif
 #endif // if defined SPLIT_KEYBOARD
@@ -204,20 +217,13 @@ uint8_t priority_indices[PRIORITY_INDEX_NUM] = PRIORITY_INDICES;
 //MARK: Init
 void analog_matrix_init(void) {
     //TODO: Abstract this (Enables FPU)
-    //TODO: This seems to make the scan slightly slower (3150 instead of 3172)
     // SCB->CPACR |= ((3UL << 20U)|(3UL << 22U));  /* set CP10 and CP11 Full Access */
     //TODO: Determine side first
     #ifdef SPLIT_KEYBOARD
     // Determine keyboard half
     #if KEYBOARD_SIDE == UNKNOWN
-    // keyboard_left = is_keyboard_left();
-    // if((!keyboard_left)) {
-        //     *he_matrix = he_matrix_r[0];
-        // }
-
     assign_split_side(is_keyboard_left());
     #endif // if KEYBOARD_SIDE == UNKNOWN
-    // Set switch num based on side
     #endif // defined SPLIT_KEYBOARD
 
     for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
@@ -261,10 +267,7 @@ void analog_matrix_init(void) {
     translate_mm_to_value();
 
     // Check keys like the calibration key or bootmagic key before scanning begins
-    #if AM_INIT_KEY_NUM > 0
     scan_init_keys();
-    #endif
-
 
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
@@ -300,23 +303,28 @@ static void scan_init_keys(void) {
         set_sensor_power_low_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
-        // if(evaluate_value(matrix_index, adc_value)) {
+        // If the key is activated, call the respective function
+        // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
         #ifndef INVERT_ADC
-        if(adc_value < he_matrix[matrix_index].bottom_value + 50) {
-        #else
-        if(adc_value > he_matrix[matrix_index].bottom_value - 50) {
-        #endif
-            // If the key is activated, call the respective function
-            // These functions are set in the INIT_FUNCTIONS dict at the top of he_config_h.py
+        if(adc_value < key_config[matrix_index].bottom_value + 50) {
+            LED_ON;
             (*init_functions[idx])();
         }
+        #else
+        if(adc_value > key_config[matrix_index].bottom_value - 50) {
+            LED_ON;
+            (*init_functions[idx])();
+        }
+        #endif
     }
 }
+#else
+#define scan_init_keys();
 #endif // AM_INIT_KEY NUM > 0
 
 
-//TODO: Would it be faster to save the mux info to the switch, loop through the he_matrix indices,
-//      and sort the he_matrix by mux_channel, like the priority muxes?
+//TODO: Would it be faster to save the mux info to the switch, loop through the key_config indices,
+//      and sort the key_config by mux_channel, like the priority muxes?
 //      Maybe even sort the adc channels to be ascending, then descending,
 //      so at least one adc channel is used twice in a row, if that makes a difference
 //MARK: Scan
@@ -344,16 +352,13 @@ uint8_t analog_matrix_scan() {
         delay_ns(MUX_SELECT_CYCLES);
         #endif
 
-        // delay_ns(10);
-        // wait_us(7);
-
         for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
             index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
             if(index > 0){
 
-                //TODO: This doesn't seem fast enough
+                //TODO: This doesn't seem fast enough to be worth
                 #ifdef PRIORITY_INDICES
                 if(scan_amt < PRIORITY_LEVEL) {
                     bool scan = false;
@@ -384,7 +389,7 @@ uint8_t analog_matrix_scan() {
                 if(evaluate_value(index, adc_value)) {
                     matrix_has_changed = true;
                     #if DEBUG_SCAN_NO_INPUT != TRUE
-                    current_matrix[he_matrix[index].row] ^= 1 << he_matrix[index].col;
+                    matrix[key_config[index].row] ^= 1 << key_config[index].col;
                     #endif
                     // If dynamic calibration is enabled, check if the boundaries need updating
                     #if DYNAMIC_CALIBRATION == TRUE
@@ -417,13 +422,22 @@ uint8_t analog_matrix_scan() {
     printf("%u\n", scan_amt);
     #endif
 
-
+    //TODO: Add debounce support, in case some people need it. Currently doesn't work for some reason
+    #if DEBOUNCE > 0
+    #error "Debouncing currently doesn't work with ANALOG_MATRIX, set debounce to 0 or leave the parameter out to disable it!"
     #ifdef SPLIT_KEYBOARD
     matrix_has_changed = debounce(raw_matrix, matrix + thisHand, MATRIX_ROWS_PER_HAND, matrix_has_changed) | matrix_post_scan();
     #else
-    changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
+    matrix_has_changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     matrix_scan_kb();
     #endif
+    #else // if DEBOUNCE > 0
+    #ifdef SPLIT_KEYBOARD
+    matrix_has_changed |= matrix_post_scan();
+    #else
+    matrix_scan_kb();
+    #endif
+    #endif // if DEBOUNCE > 0
 
     return matrix_has_changed;
 }
@@ -435,8 +449,8 @@ void translate_mm_to_value(void) {
     uint8_t key_modes[][SWITCH_NUM] = KEY_MODES;
 
     for(uint8_t index = 0; index < switch_num; index++) {
-        uint16_t bottom_value = he_matrix[index].bottom_value;
-        uint16_t top_value = he_matrix[index].top_value;
+        uint16_t bottom_value = key_config[index].bottom_value;
+        uint16_t top_value = key_config[index].top_value;
         #if INVERT_ADC == FALSE
         // ADC count per mm of travel
         uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
@@ -448,12 +462,12 @@ void translate_mm_to_value(void) {
             #if INVERT_ADC == FALSE
             #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
             #if DISTANCE_FROM_BOTTOM == FALSE
-            he_matrix[index].trigger_value[profile] = top_value - (travel_unit * trigger_height[profile][index]) - ADC_SMOOTHING;
-            he_matrix[index].release_value[profile] = top_value - (travel_unit * release_height[profile][index]) + ADC_SMOOTHING;
+            key_config[index].trigger_value[profile] = top_value - (travel_unit * trigger_height[profile][index]) - ADC_SMOOTHING;
+            key_config[index].release_value[profile] = top_value - (travel_unit * release_height[profile][index]) + ADC_SMOOTHING;
 
             #else // if DISTANCE_FROM_BOTTOM == FALSE
-            he_matrix[index].trigger_value[profile] = travel_unit * trigger_height[profile][index] + bottom_value - ADC_SMOOTHING;
-            he_matrix[index].release_value[profile] = travel_unit * release_height[profile][index] + bottom_value + ADC_SMOOTHING;
+            key_config[index].trigger_value[profile] = travel_unit * trigger_height[profile][index] + bottom_value - ADC_SMOOTHING;
+            key_config[index].release_value[profile] = travel_unit * release_height[profile][index] + bottom_value + ADC_SMOOTHING;
             #endif // else DISTANCE_FROM_BOTTOM == FALSE
             #endif
 
@@ -462,23 +476,23 @@ void translate_mm_to_value(void) {
             #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
             #if DISTANCE_FROM_BOTTOM == FALSE
             //TODO: Is this correct
-            he_matrix[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]) + ;
-            he_matrix[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]);
+            key_config[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING ;
+            key_config[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]) - ADC_SMOOTHING;
 
             #else // if DISTANCE_FROM_BOTTOM == FALSE
-            he_matrix[index].trigger_value[profile] = bottom_value - (travel_unit * trigger_height[profile][index]);
-            he_matrix[index].release_value[profile] = bottom_value - (travel_unit * release_height[profile][index]);
+            key_config[index].trigger_value[profile] = bottom_value - (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING;
+            key_config[index].release_value[profile] = bottom_value - (travel_unit * release_height[profile][index]) - ADC_SMOOTHING;
             #endif // else DISTANCE_FROM_BOTTOM == FALSE
             #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
             #endif //else INVERT ADC == TRUE
 
             #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-            he_matrix[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
-            he_matrix[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index] + ADC_SMOOTHING;
+            key_config[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
+            key_config[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index] + ADC_SMOOTHING;
             #endif
 
             // Assign the switch mode
-            he_matrix[index].mode[profile] = key_modes[profile][index];
+            key_config[index].mode[profile] = key_modes[profile][index];
         }
     }
 }
@@ -486,7 +500,7 @@ void translate_mm_to_value(void) {
 
 //MARK: Get calibration
 bool get_calibration_data(void) {
-    #if CALIBRATE == TRUE
+    #if FORCE_CALIBRATE == TRUE
     return false;
     #endif
 
@@ -496,15 +510,16 @@ bool get_calibration_data(void) {
     #endif
 
     #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-    uint16_t top_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES;
-    uint16_t bottom_values[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES;
+    uint16_t top_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES;
+    uint16_t bottom_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES;
     if(!is_keyboard_left()) {
-        const uint16_t top_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES_R;
-        const uint16_t bottom_values_r[2 * MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES_R;
+        const uint16_t top_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES_R;
+        const uint16_t bottom_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES_R;
         memcpy(&top_values, &top_values_r, sizeof(top_values_r));
         memcpy(&bottom_values, &bottom_values_r, sizeof(top_values_r));
     }
     #else
+
     const uint16_t top_values[] = AM_TOP_VALUES;
     const uint16_t bottom_values[] = AM_BOTTOM_VALUES;
     #endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
@@ -512,30 +527,30 @@ bool get_calibration_data(void) {
     #if DYNAMIC_CALIBRATION == FALSE
     #if INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = top_values[key] - ADC_TOP_DEADZONE;
-        he_matrix[key].bottom_value = bottom_values[key] + ADC_BOTTOM_DEADZONE;
-
-        he_matrix[key].pressed = false;
+        key_config[key].top_value = top_values[key] - ADC_TOP_DEADZONE;
+        key_config[key].bottom_value = bottom_values[key] + ADC_BOTTOM_DEADZONE;
+        key_config[key].pressed = false;
     }
     #else // INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = top_values[key] + ADC_TOP_DEADZONE;
-        he_matrix[key].bottom_value = bottom_values[key] - ADC_BOTTOM_DEADZONE;
+        key_config[key].top_value = top_values[key] + ADC_TOP_DEADZONE;
+        key_config[key].bottom_value = bottom_values[key] - ADC_BOTTOM_DEADZONE;
 
-        he_matrix[key].pressed = false;
+        key_config[key].pressed = false;
     }
     #endif // else INVERT_ADC == FALSE
+
     #else // DYNAMIC_CALIBRATION == FALSE
     #if INVERT_ADC == FALSE
     for(uint8_t key = 0; key < switch_num; key++) {
         // AM_DC_FACTOR should be defined as < 1
-        he_matrix[key].top_value = AM_DC_FACTOR * top_values[key] - ADC_TOP_DEADZONE;
-        he_matrix[key].bottom_value = (2 - AM_DC_FACTOR) * bottom_values[key] + ADC_BOTTOM_DEADZONE;
+        key_config[key].top_value = AM_DC_FACTOR * top_values[key] - ADC_TOP_DEADZONE;
+        key_config[key].bottom_value = (2 - AM_DC_FACTOR) * bottom_values[key] + ADC_BOTTOM_DEADZONE;
     }
     #else // INVERT_ADC == TRUE
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = (2 - AM_DC_FACTOR) * top_values[key] + ADC_TOP_DEADZONE;
-        he_matrix[key].bottom_value = AM_DC_FACTOR * bottom_values[key] - ADC_BOTTOM_DEADZONE;
+        key_config[key].top_value = (2 - AM_DC_FACTOR) * top_values[key] + ADC_TOP_DEADZONE;
+        key_config[key].bottom_value = AM_DC_FACTOR * bottom_values[key] - ADC_BOTTOM_DEADZONE;
     }
     #endif // INVERT_ADC
     #endif // DYNAMIC_CALIBRATION
@@ -543,6 +558,7 @@ bool get_calibration_data(void) {
     return true;
 
 #   else //if AM_NO_EEPROM == TRUE
+    //TODO: Test this, eeprom doesn't seem to be configured for the F446
     typedef struct cal_data_t {
         uint16_t top_value;
         uint16_t bottom_value;
@@ -554,8 +570,8 @@ bool get_calibration_data(void) {
 
     //TODO: Add dynamic calibration stuff here
     for(uint8_t key = 0; key < switch_num; key++) {
-        he_matrix[key].top_value = calibration_data[key].top_value;
-        he_matrix[key].bottom_value = calibration_data[key].bottom_value;
+        key_config[key].top_value = calibration_data[key].top_value;
+        key_config[key].bottom_value = calibration_data[key].bottom_value;
     }
     //TODO: Check if the data aligns with configured matrix size?
 
@@ -572,8 +588,6 @@ void calibrate_switches(void) {
     uint32_t scans_without_change = SCANS_WITHOUT_CHANGE;
     bool first_scan = true;
     char side[7] = "";
-    // TODO: Remove this
-    // gpio_toggle_pin(B2);
 
     #if AM_NO_EEPROM == FALSE
     typedef struct cal_data_t {
@@ -593,9 +607,6 @@ void calibrate_switches(void) {
         memcpy(&side, right, sizeof(right));
     }
     #endif
-
-    //TODO: Remove this when debugging is done
-    GPIOB->ODR |= 1 << 2;
 
     while(true) {
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
@@ -628,20 +639,20 @@ void calibrate_switches(void) {
 
                     if(first_scan) {
                         #if INVERT_ADC == FALSE
-                        he_matrix[matrix_index].top_value = adc_value;
-                        he_matrix[matrix_index].bottom_value = adc_value - 50;
+                        key_config[matrix_index].top_value = adc_value;
+                        key_config[matrix_index].bottom_value = adc_value - 50;
 
                         #else
-                        he_matrix[matrix_index].top_value = adc_value - 50;
-                        he_matrix[matrix_index].bottom_value = adc_value;
+                        key_config[matrix_index].top_value = adc_value - 50;
+                        key_config[matrix_index].bottom_value = adc_value;
                         #endif
 
                         continue;
                     }
 
                     #if INVERT_ADC == TRUE
-                    if(adc_value < he_matrix[matrix_index].top_value - ADC_TOP_DEADZONE){
-                        he_matrix[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
+                    if(adc_value < key_config[matrix_index].top_value - ADC_TOP_DEADZONE){
+                        key_config[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         #if AM_NO_EEPROM == FALSE
                         calibration_data[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         #endif
@@ -651,8 +662,8 @@ void calibrate_switches(void) {
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
-                    } else if (adc_value > he_matrix[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
-                        he_matrix[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
+                    } else if (adc_value > key_config[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
+                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #if AM_NO_EEPROM == FALSE
                         calibration_data[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
@@ -664,8 +675,8 @@ void calibrate_switches(void) {
                     }
 
                     #else // if INVERT_ADC == TRUE
-                    if(adc_value > he_matrix[matrix_index].top_value + ADC_TOP_DEADZONE){
-                        he_matrix[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                    if(adc_value > key_config[matrix_index].top_value + ADC_TOP_DEADZONE){
+                        key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         #if AM_NO_EEPROM == FALSE
                         calibration_data[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         #endif
@@ -674,8 +685,8 @@ void calibrate_switches(void) {
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
-                    } else if (adc_value < he_matrix[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
-                        he_matrix[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                    } else if (adc_value < key_config[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
+                        key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
                         #if AM_NO_EEPROM == FALSE
                         calibration_data[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
                         #endif
@@ -702,30 +713,30 @@ void calibrate_switches(void) {
         first_scan = false;
         scans_without_change += 1;
         //TODO: Change this to a more precise method
-        //
         if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
-            //TODO: Remove this
-            // gpio_toggle_pin(B2);
 
             #if AM_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
             // save_calibration();
             //TODO: Test this
             eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
-            #else //NO_EEPROM == FALSE
+            #else //AM_NO_EEPROM == FALSE
             // Print the calibration values of each switch so that they can be adjusted in the config
-            printf("\"top_values%s\": [ %u", side, he_matrix[0].top_value);
+            printf("\"top_values%s\": [ %u", side, key_config[0].top_value);
             // Reset the pressed states on all switches
-            he_matrix[0].pressed = false;
-            //TODO: If only one key is used (per half), this will cause issues
-            for(uint8_t index = 1; index < switch_num; index++){
-                printf(", %u", he_matrix[index].top_value);
-                he_matrix[index].pressed = false;
+            key_config[0].pressed = false;
+            if(switch_num > 1) {
+                for(uint8_t index = 1; index < switch_num; index++){
+                    printf(", %u", key_config[index].top_value);
+                    key_config[index].pressed = false;
+                }
             }
 
-            printf(" ],\n\"bottom_values%s\": [ %u", side, he_matrix[0].bottom_value);
-            for(uint8_t index = 1; index < switch_num; index++){
-                printf(", %u", he_matrix[index].bottom_value);
+            printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value);
+            if(switch_num > 1) {
+                for(uint8_t index = 1; index < switch_num; index++){
+                    printf(", %u", key_config[index].bottom_value);
+                }
             }
             print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
             #endif //else NO_EEPROM == FALSE
@@ -733,17 +744,17 @@ void calibrate_switches(void) {
             scans_without_change = 0;
             #ifdef SPLIT_KEYBOARD
             calibration_done = true;
-            if(is_keyboard_master()) {
+            // if(is_keyboard_master()) {
                 // uint8_t slave_switch_num;
                 // if(is_keyboard_left()) {
                 //     slave_switch_num = SWITCH_NUM_R;
                 // } else {
                 //     slave_switch_num = SWITCH_NUM_L;
                 // }
-                uint8_t slave_state = 2;
-                if(transaction_rpc_recv(AM_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
-                    printf("Received state %u\n", slave_state);
-                } else { print("Failed state sync\n"); }
+                // uint8_t slave_state = 2;
+                // if(transaction_rpc_recv(AM_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
+                //     printf("Received state %u\n", slave_state);
+                // } else { print("Failed state sync\n"); }
                 // if(slave_state == true) {
                 //     #if AM_NO_EEPROM == TRUE
                 //     transaction_rpc_recv(AM_CALIBRATION_S2M_SYNC, sizeof(slave_data), &slave_data);
@@ -763,7 +774,7 @@ void calibrate_switches(void) {
 
                 //     break;
                 // }
-            }
+            // }
             //TODO: Remove this break when sync works
             break;
             #endif
@@ -776,16 +787,16 @@ void calibrate_switches(void) {
 //TODO: Dynamically change type of arg based on matrix size
 // Create a matrix_index_t enum with nested #if statements checking the matrix size
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
-    bool prev_pressed = he_matrix[index].pressed;
+    bool prev_pressed = key_config[index].pressed;
 
 #if INVERT_ADC == TRUE
-    switch(he_matrix[index].mode[current_he_profile]) {
+    switch(key_config[index].mode[current_he_profile]) {
         case none:
         #if defined USE_NONE
-        if(value > he_matrix[index].trigger_value[current_he_profile]) {
-            he_matrix[index].pressed = true;
-        } else if(value < he_matrix[index].release_value[current_he_profile]) {
-            he_matrix[index].pressed = false;
+        if(value > key_config[index].trigger_value[current_he_profile]) {
+            key_config[index].pressed = true;
+        } else if(value < key_config[index].release_value[current_he_profile]) {
+            key_config[index].pressed = false;
         } else {
             return false;
         }
@@ -795,21 +806,21 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case rapid_trigger:
         #if defined USE_RAPID_TRIGGER
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value > he_matrix[index].trigger_value[current_he_profile]) {
+        if(value > key_config[index].trigger_value[current_he_profile]) {
             // Set the new lowest value if needed
-            if(value > he_matrix[index].rt_threshold + ADC_SMOOTHING) {
-                he_matrix[index].pressed = true;
-                he_matrix[index].rt_threshold = value;
+            if(value > key_config[index].rt_threshold + ADC_SMOOTHING) {
+                key_config[index].pressed = true;
+                key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value + he_matrix[index].rt_threshold) < he_matrix[index].rt_release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
+            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[current_he_profile]) {
+                key_config[index].pressed = false;
                 // Set the new activation threshold
-                he_matrix[index].rt_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
             }
-        } else if(value < he_matrix[index].release_value[current_he_profile]) {
+        } else if(value < key_config[index].release_value[current_he_profile]) {
             // If the switch is not pressed past the threshold, reset it
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
         }
         #endif
         break;
@@ -817,27 +828,27 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(he_matrix[index].rt_active || (value > he_matrix[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
-            he_matrix[index].rt_active = true;
+        if(key_config[index].rt_active || (value > key_config[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
+            key_config[index].rt_active = true;
             // Set the new lowest value if needed
-            if(value > he_matrix[index].rt_threshold + ADC_SMOOTHING || value > he_matrix[index].bottom_value) {
-                he_matrix[index].pressed = true;
-                he_matrix[index].rt_threshold = value;
+            if(value > key_config[index].rt_threshold + ADC_SMOOTHING || value > key_config[index].bottom_value) {
+                key_config[index].pressed = true;
+                key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value + he_matrix[index].rt_threshold) < he_matrix[index].rt_release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
+            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[current_he_profile]) {
+                key_config[index].pressed = false;
                 // Set the new activation threshold
-                he_matrix[index].rt_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
-            }  else if(value < he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
-            he_matrix[index].rt_active = false;
+                key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
+            }  else if(value < key_config[index].top_value) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_active = false;
             }
         // Check if the switch has been released completely
-        } else if(value < he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
-            he_matrix[index].rt_active = false;
+        } else if(value < key_config[index].top_value) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_active = false;
         }
         #endif
         break;
@@ -845,15 +856,15 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
         // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-        if((value > he_matrix[index].rt_threshold + ADC_SMOOTHING) || value > he_matrix[index].bottom_value) {
-            he_matrix[index].pressed = true;
-            he_matrix[index].rt_threshold = value;
+        if((value > key_config[index].rt_threshold + ADC_SMOOTHING) || value > key_config[index].bottom_value) {
+            key_config[index].pressed = true;
+            key_config[index].rt_threshold = value;
         // Check if the key has been released past the threshold or completely
-        } else if((value + he_matrix[index].rt_threshold + ADC_SMOOTHING) < he_matrix[index].rt_release_value[current_he_profile]
-                  || value < he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
+        } else if((value + key_config[index].rt_threshold + ADC_SMOOTHING) < key_config[index].rt_release_value[current_he_profile]
+                  || value < key_config[index].top_value) {
+            key_config[index].pressed = false;
             // Set the new activation threshold
-            he_matrix[index].rt_threshold = value + he_matrix[index].rt_press_value[current_he_profile];
+            key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
         }
         #endif
         break;
@@ -866,13 +877,13 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     }
 
 #else //if INVERT_ADC == TRUE
-    switch(he_matrix[index].mode[current_he_profile]) {
+    switch(key_config[index].mode[current_he_profile]) {
         case none:
         #if defined USE_NONE
-        if(value < he_matrix[index].trigger_value[current_he_profile]) {
-            he_matrix[index].pressed = true;
-        } else if(value > he_matrix[index].release_value[current_he_profile]) {
-            he_matrix[index].pressed = false;
+        if(value < key_config[index].trigger_value[current_he_profile]) {
+            key_config[index].pressed = true;
+        } else if(value > key_config[index].release_value[current_he_profile]) {
+            key_config[index].pressed = false;
         } else {
             return false;
         }
@@ -882,22 +893,22 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case rapid_trigger:
         #if defined USE_RAPID_TRIGGER
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value < he_matrix[index].trigger_value[current_he_profile]) {
+        if(value < key_config[index].trigger_value[current_he_profile]) {
             // Set the new lowest value if needed
-            if(value < he_matrix[index].rt_threshold - ADC_SMOOTHING) {
-                he_matrix[index].pressed = true;
-                he_matrix[index].rt_threshold = value;
+            if(value < key_config[index].rt_threshold - ADC_SMOOTHING) {
+                key_config[index].pressed = true;
+                key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value - he_matrix[index].rt_threshold) > he_matrix[index].rt_release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
+            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]) {
+                key_config[index].pressed = false;
                 // Set the new activation threshold
-                he_matrix[index].rt_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
             }
         //TODO: Check if it is faster to check if the key state is released, and only set values if they're not set already
-        } else if(value > he_matrix[index].release_value[current_he_profile]) {
+        } else if(value > key_config[index].release_value[current_he_profile]) {
             // If the switch is not pressed past the threshold, reset it
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
         }
         #endif // defined USE_RAPID_TRIGGER
         break;
@@ -905,27 +916,27 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(he_matrix[index].rt_active || (value < he_matrix[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
-            he_matrix[index].rt_active = true;
+        if(key_config[index].rt_active || (value < key_config[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
+            key_config[index].rt_active = true;
             // Set the new lowest value if needed
-            if(value < he_matrix[index].rt_threshold - ADC_SMOOTHING || value < he_matrix[index].bottom_value) {
-                he_matrix[index].pressed = true;
-                he_matrix[index].rt_threshold = value;
+            if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
+                key_config[index].pressed = true;
+                key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value - he_matrix[index].rt_threshold) > he_matrix[index].rt_release_value[current_he_profile]) {
-                he_matrix[index].pressed = false;
+            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]) {
+                key_config[index].pressed = false;
                 // Set the new activation threshold
-                he_matrix[index].rt_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
-            } else if(value > he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
-            he_matrix[index].rt_active = false;
+                key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
+            } else if(value > key_config[index].top_value) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_active = false;
             }
         // Check if the switch has been released completely
-        } else if(value > he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
-            he_matrix[index].rt_threshold = he_matrix[index].trigger_value[current_he_profile];
-            he_matrix[index].rt_active = false;
+        } else if(value > key_config[index].top_value) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_active = false;
         }
         #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
         break;
@@ -933,16 +944,16 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
         // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-        if(value < he_matrix[index].rt_threshold - ADC_SMOOTHING || value < he_matrix[index].bottom_value) {
-            he_matrix[index].pressed = true;
-            he_matrix[index].rt_threshold = value;
+        if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
+            key_config[index].pressed = true;
+            key_config[index].rt_threshold = value;
 
         // Check if the key has been released far enough
-        } else if((value - he_matrix[index].rt_threshold) > he_matrix[index].rt_release_value[current_he_profile]
-                  || value > he_matrix[index].top_value) {
-            he_matrix[index].pressed = false;
+        } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]
+                  || value > key_config[index].top_value) {
+            key_config[index].pressed = false;
             // Set the new activation threshold
-            he_matrix[index].rt_threshold = value - he_matrix[index].rt_press_value[current_he_profile];
+            key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
         }
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
         break;
@@ -955,7 +966,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     }
 #endif //if INVERT_ADC == TRUE else
 
-    return !(prev_pressed == he_matrix[index].pressed);
+    return !(prev_pressed == key_config[index].pressed);
 }
 
 
@@ -963,20 +974,20 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 #if DYNAMIC_CALIBRATION == TRUE
 inline bool update_switch_bounds(uint8_t index, uint16_t value) {
     #if INVERT_ADC == FALSE
-    if(value > he_matrix[index].top_value + AM_DC_DELTA + ADC_TOP_DEADZONE){
-        he_matrix[index].top_value = value - ADC_TOP_DEADZONE;
+    if(value > key_config[index].top_value + AM_DC_DELTA + ADC_TOP_DEADZONE){
+        key_config[index].top_value = value - ADC_TOP_DEADZONE;
         return true;
-    } else if (value < he_matrix[index].bottom_value - AM_DC_DELTA - ADC_BOTTOM_DEADZONE) {
-        he_matrix[index].bottom_value = value + ADC_BOTTOM_DEADZONE;
+    } else if (value < key_config[index].bottom_value - AM_DC_DELTA - ADC_BOTTOM_DEADZONE) {
+        key_config[index].bottom_value = value + ADC_BOTTOM_DEADZONE;
         return true;
     }
 
     #else // if INVERT_ADC == FALSE
-    if(value < he_matrix[index].top_value - AM_DC_DELTA - ADC_TOP_DEADZONE){
-        he_matrix[index].top_value = value + ADC_TOP_DEADZONE;
+    if(value < key_config[index].top_value - AM_DC_DELTA - ADC_TOP_DEADZONE){
+        key_config[index].top_value = value + ADC_TOP_DEADZONE;
         return true;
-    } else if (value > he_matrix[index].bottom_value + AM_DC_DELTA + ADC_BOTTOM_DEADZONE) {
-        he_matrix[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
+    } else if (value > key_config[index].bottom_value + AM_DC_DELTA + ADC_BOTTOM_DEADZONE) {
+        key_config[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
         return true;
     }
     #endif /// else INVERT_ADC == FALSE
@@ -991,11 +1002,11 @@ void get_switch_data(void) {
     for(uint8_t key = 0; key < switch_num; key++) {
         uint8_t row = num_to_matrix[key][0];
         uint8_t col = num_to_matrix[key][1];
-        he_matrix[key].row = row;
-        he_matrix[key].col = col;
+        key_config[key].row = row;
+        key_config[key].col = col;
 
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++){
-            he_matrix[key].mode[profile] = key_modes[profile][key];
+            key_config[key].mode[profile] = key_modes[profile][key];
         }
     }
 }
@@ -1098,8 +1109,8 @@ void assign_split_side(bool side) {
     if(side == RIGHT) {
         memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
         memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
-        memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num_r));
-        memcpy(&num_to_mux, &num_to_mux_r, sizeof(num_to_mux_r));
+        // memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num_r));
+        // memcpy(&num_to_mux, &num_to_mux_r, sizeof(num_to_mux_r));
         memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
 
         #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
@@ -1168,8 +1179,8 @@ void send_calibration_data(uint8_t in_buflen, const void* in_data, uint8_t out_b
 
     // Gather the slave side calibration data
     for(uint8_t index = 0; index < slave_switch_num; index++){
-        cal_data->top_values[index] = he_matrix[index].top_value;
-        cal_data->bottom_values[index] = he_matrix[index].bottom_value;
+        cal_data->top_values[index] = key_config[index].top_value;
+        cal_data->bottom_values[index] = key_config[index].bottom_value;
     }
 }
 
@@ -1229,7 +1240,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
         if(evaluate_value(matrix_index, adc_value)) {
             matrix_has_changed = true;
             #if DEBUG_SCAN_NO_INPUT != TRUE
-            current_matrix[he_matrix[matrix_index].row] ^= 1 << he_matrix[matrix_index].col;
+            current_matrix[key_config[matrix_index].row] ^= 1 << key_config[matrix_index].col;
             #endif
         }
 
@@ -1270,6 +1281,20 @@ void suspend_wakeup_init_kb(void) {
     suspend_wakeup_init_user();
 }
 
+
+//MARK: Matrix compat
+// #ifdef MATRIX_MASKED
+// extern const matrix_row_t matrix_mask[];
+// #endif
+// inline matrix_row_t matrix_get_row(uint8_t row) {
+//     // Matrix mask lets you disable switches in the returned matrix data. For example, if you have a
+//     // switch blocker installed and the switch is always pressed.
+// #ifdef MATRIX_MASKED
+//     return current_matrix[row] & matrix_mask[row];
+// #else
+//     return current_matrix[row];
+// #endif
+// }
 
 
 

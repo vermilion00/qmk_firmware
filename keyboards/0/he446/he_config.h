@@ -50,8 +50,6 @@
     -Add check to dynamic calibration to only update config when >n switches need updating
     -Check for update need during housekeeping(?)
 
--Add json feature option for hall_effect, to apply all the relevant patches
-
 -Add option to define normal buttons to immediately jump to calibration/bootloader/reset
     -Or even mixed matrices, for encoders etc
     -Change layout mux validation to allow normal keys?
@@ -78,6 +76,8 @@
     -Allow triggering past a certain height instead of only at the bottom
 
 -Enable interleaved ADC mode for supported mcus
+
+-Make sure no conflicts happen with other features using the ADC
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
