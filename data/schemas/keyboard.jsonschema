@@ -511,7 +511,7 @@
                 "hardware": {
                     "type": "object",
                     "properties": {
-                        "calibrate": {"type": "boolean"},
+                        "force_calibrate": {"type": "boolean"},
                         "keyboard_side": {"type": "integer", "enum": [0, 1, 2]},
                         "power_before_scan": {"type": "boolean"},
                         "custom_power_before_scan": {"type": "boolean"},
