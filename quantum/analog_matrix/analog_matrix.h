@@ -37,10 +37,6 @@
 #   define KEYBOARD_SIDE UNKNOWN
 #endif
 
-#if !defined DEBUG_SCAN_VALUE && defined DEBUG_SCAN_VALUE_R
-#   define DEBUG_SCAN_VALUE {255, 255}
-#endif
-
 // This is set up so that the normal definitions can be used, only need to assign if the side
 // is set at init
 #if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
@@ -108,6 +104,11 @@
 #define AM_BOTTOM_VALUES AM_BOTTOM_VALUES_R
 #endif
 
+#ifdef DEBUG_MUX_VALUE_R
+#undef DEBUG_MUX_VALUE
+#define DEBUG_MUX_VALUE DEBUG_MUX_VALUE_R
+#endif
+
 //TODO: Remove one of the following when I've decided
 #ifdef PRIORITY_INDICES
 #undef PRIORITY_INDICES
@@ -147,8 +148,8 @@
 #   define SWITCH_NUM_L 0
 #endif
 
-#define DEFAULT_PROFILE 0
-#define LAST_PROFILE 1
+#define DEFAULT_PROFILE_MODE 0
+#define LAST_PROFILE_MODE 1
 
 //TODO: Remove this before upload
 #define LED_ON \
@@ -251,7 +252,7 @@ typedef union {
 #if AM_PROFILE_NUM > 1
 #define PROFILE_MUTABLE
 // volatile uint8_t current_he_profile;
-void switch_to_profile(uint8_t profile);
+void set_active_profile(uint8_t profile);
 #else
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
@@ -261,7 +262,7 @@ volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 /* Function defines */
 void analog_matrix_init(void);
 uint8_t analog_matrix_scan(void);
-uint8_t get_current_profile(void);
+uint8_t get_active_profile(void);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

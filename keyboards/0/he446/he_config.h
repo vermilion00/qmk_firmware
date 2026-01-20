@@ -1,6 +1,13 @@
 #pragma once
 
 /*TODO:
+1. Keycodes to switch profile, print calibration data
+2. Sync calibration to slave
+3. EEPROM
+4. LUT
+
+-To build own lut curve, add mode where the currently sensed distance and value is printed for a switch
+
 -Enable FPU on supported processors
     -Check if it causes problems?
     -Make sure floats are used, not doubles
