@@ -76,8 +76,8 @@ SPLIT_MUTABLE uint8_t init_keys[AM_INIT_KEY_NUM][2] = AM_INIT_KEYS;
 void (*init_functions[AM_INIT_KEY_NUM])(void) = AM_INIT_FUNCTIONS;
 #endif
 
-#if defined DEBUG_SCAN_VALUE || DEBUG_SCAN_VALUE_R
-uint8_t debug_mux[2] = DEBUG_SCAN_VALUE;
+#if defined DEBUG_MUX_VALUE
+uint8_t debug_mux[2] = DEBUG_MUX_VALUE;
 #endif
 
 #ifdef POWER_PINS
@@ -85,7 +85,7 @@ uint8_t debug_mux[2] = DEBUG_SCAN_VALUE;
 static inline void set_sensor_power(uint8_t index);
 #endif
 
-PROFILE_MUTABLE uint8_t current_he_profile = AM_DEFAULT_PROFILE;
+PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
@@ -139,8 +139,8 @@ const void (*init_functions_r[AM_INIT_KEY_NUM_R])(void) = AM_INIT_FUNCTIONS_R;
 #endif
 
 //TODO: Implement right part of this
-#if defined DEBUG_SCAN_VALUE_R
-uint8_t debug_mux_r[2] = DEBUG_SCAN_VALUE_R;
+#if defined DEBUG_MUX_VALUE_R
+uint8_t debug_mux_r[2] = DEBUG_MUX_VALUE_R;
 #endif
 
 #else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
@@ -356,7 +356,7 @@ uint8_t analog_matrix_scan() {
             // Translate matrix mux and adc channels to matrix position
             index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
-            if(index > 0){
+            if(index > 0) {
 
                 //TODO: This doesn't seem fast enough to be worth
                 #ifdef PRIORITY_INDICES
@@ -374,7 +374,7 @@ uint8_t analog_matrix_scan() {
                 index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
 
-                #ifdef DEBUG_SCAN_VALUE
+                #ifdef DEBUG_MUX_VALUE
                 if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
                     dprintf("%u\n", adc_value);
                 }
@@ -790,12 +790,12 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = key_config[index].pressed;
 
 #if INVERT_ADC == TRUE
-    switch(key_config[index].mode[current_he_profile]) {
+    switch(key_config[index].mode[active_profile]) {
         case none:
         #if defined USE_NONE
-        if(value > key_config[index].trigger_value[current_he_profile]) {
+        if(value > key_config[index].trigger_value[active_profile]) {
             key_config[index].pressed = true;
-        } else if(value < key_config[index].release_value[current_he_profile]) {
+        } else if(value < key_config[index].release_value[active_profile]) {
             key_config[index].pressed = false;
         } else {
             return false;
@@ -806,21 +806,21 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case rapid_trigger:
         #if defined USE_RAPID_TRIGGER
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value > key_config[index].trigger_value[current_he_profile]) {
+        if(value > key_config[index].trigger_value[active_profile]) {
             // Set the new lowest value if needed
             if(value > key_config[index].rt_threshold + ADC_SMOOTHING) {
                 key_config[index].pressed = true;
                 key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[current_he_profile]) {
+            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[active_profile]) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
-                key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
             }
-        } else if(value < key_config[index].release_value[current_he_profile]) {
+        } else if(value < key_config[index].release_value[active_profile]) {
             // If the switch is not pressed past the threshold, reset it
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
         }
         #endif
         break;
@@ -828,26 +828,26 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(key_config[index].rt_active || (value > key_config[index].trigger_value[current_he_profile] + ADC_SMOOTHING)) {
+        if(key_config[index].rt_active || (value > key_config[index].trigger_value[active_profile] + ADC_SMOOTHING)) {
             key_config[index].rt_active = true;
             // Set the new lowest value if needed
             if(value > key_config[index].rt_threshold + ADC_SMOOTHING || value > key_config[index].bottom_value) {
                 key_config[index].pressed = true;
                 key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[current_he_profile]) {
+            } else if((value + key_config[index].rt_threshold) < key_config[index].rt_release_value[active_profile]) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
-                key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
             }  else if(value < key_config[index].top_value) {
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
             key_config[index].rt_active = false;
             }
         // Check if the switch has been released completely
         } else if(value < key_config[index].top_value) {
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
             key_config[index].rt_active = false;
         }
         #endif
@@ -860,11 +860,11 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             key_config[index].pressed = true;
             key_config[index].rt_threshold = value;
         // Check if the key has been released past the threshold or completely
-        } else if((value + key_config[index].rt_threshold + ADC_SMOOTHING) < key_config[index].rt_release_value[current_he_profile]
+        } else if((value + key_config[index].rt_threshold + ADC_SMOOTHING) < key_config[index].rt_release_value[active_profile]
                   || value < key_config[index].top_value) {
             key_config[index].pressed = false;
             // Set the new activation threshold
-            key_config[index].rt_threshold = value + key_config[index].rt_press_value[current_he_profile];
+            key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
         }
         #endif
         break;
@@ -877,12 +877,12 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     }
 
 #else //if INVERT_ADC == TRUE
-    switch(key_config[index].mode[current_he_profile]) {
+    switch(key_config[index].mode[active_profile]) {
         case none:
         #if defined USE_NONE
-        if(value < key_config[index].trigger_value[current_he_profile]) {
+        if(value < key_config[index].trigger_value[active_profile]) {
             key_config[index].pressed = true;
-        } else if(value > key_config[index].release_value[current_he_profile]) {
+        } else if(value > key_config[index].release_value[active_profile]) {
             key_config[index].pressed = false;
         } else {
             return false;
@@ -893,22 +893,22 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case rapid_trigger:
         #if defined USE_RAPID_TRIGGER
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value < key_config[index].trigger_value[current_he_profile]) {
+        if(value < key_config[index].trigger_value[active_profile]) {
             // Set the new lowest value if needed
             if(value < key_config[index].rt_threshold - ADC_SMOOTHING) {
                 key_config[index].pressed = true;
                 key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]) {
+            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[active_profile]) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
-                key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
             }
         //TODO: Check if it is faster to check if the key state is released, and only set values if they're not set already
-        } else if(value > key_config[index].release_value[current_he_profile]) {
+        } else if(value > key_config[index].release_value[active_profile]) {
             // If the switch is not pressed past the threshold, reset it
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
         }
         #endif // defined USE_RAPID_TRIGGER
         break;
@@ -916,26 +916,26 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         case continuous_rapid_trigger:
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(key_config[index].rt_active || (value < key_config[index].trigger_value[current_he_profile] - ADC_SMOOTHING)) {
+        if(key_config[index].rt_active || (value < key_config[index].trigger_value[active_profile] - ADC_SMOOTHING)) {
             key_config[index].rt_active = true;
             // Set the new lowest value if needed
             if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
                 key_config[index].pressed = true;
                 key_config[index].rt_threshold = value;
             // Check if the key has been released past the threshold
-            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]) {
+            } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[active_profile]) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
-                key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
+                key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
             } else if(value > key_config[index].top_value) {
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
             key_config[index].rt_active = false;
             }
         // Check if the switch has been released completely
         } else if(value > key_config[index].top_value) {
             key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[current_he_profile];
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
             key_config[index].rt_active = false;
         }
         #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
@@ -949,11 +949,11 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
             key_config[index].rt_threshold = value;
 
         // Check if the key has been released far enough
-        } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[current_he_profile]
+        } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[active_profile]
                   || value > key_config[index].top_value) {
             key_config[index].pressed = false;
             // Set the new activation threshold
-            key_config[index].rt_threshold = value - key_config[index].rt_press_value[current_he_profile];
+            key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
         }
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
         break;
@@ -1064,18 +1064,18 @@ static inline void delay_ns(uint16_t delay) {
 //MARK: Profiles
 #if AM_PROFILE_NUM > 1
 #ifndef SPLIT_KEYBOARD
-void switch_to_profile(uint8_t profile) { current_he_profile = profile; }
+void set_active_profile(uint8_t profile) { active_profile = profile; }
 #else
-void switch_to_profile(uint8_t profile) {
+void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
-        current_he_profile = profile;
+        active_profile = profile;
         // Send the new profile to the slave
-        transaction_rpc_send(AM_PROFILE_SYNC, 8, &current_he_profile);
+        transaction_rpc_send(AM_PROFILE_SYNC, 8, &active_profile);
     }
 }
 #endif // ifndef SPLIT_KEYBOARD else
 
-uint8_t get_current_profile(void) { return current_he_profile; }
+uint8_t get_current_profile(void) { return active_profile; }
 
 
 //MARK: Layer state
@@ -1085,15 +1085,15 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
         // If the highest active layer is in the layers list of that profile, activate it
         if(profiles[profile].layers & (1 << highest_layer)) {
-            switch_to_profile(profile);
+            set_active_profile(profile);
 
             // Only the lowest number profile should apply
             return layer_state_set_user(state);
         }
     }
     // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
-    switch_to_profile(AM_DEFAULT_PROFILE);
+    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE_MODE
+    set_active_profile(AM_DEFAULT_PROFILE);
     #endif
 
     // Need to call the user function
@@ -1153,7 +1153,7 @@ void assign_split_side(bool side) {
 
 // MARK: Profile sync
 void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    current_he_profile = *(const uint8_t*)in_data;
+    active_profile = *(const uint8_t*)in_data;
 }
 
 void sync_calibration_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
@@ -1194,6 +1194,7 @@ void keyboard_post_init_kb(void) {
 }
 #endif // ifdef SPLIT_KEYBOARD
 
+//MARK: Priority scan
 //TODO: Check if I this is a better improvement for non-split keyboards
 //      Check how to syncing works, if it's on a timer or smth else, and if throttling
 //      the scan rate there would help
@@ -1204,10 +1205,10 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
     uint16_t adc_value = 0;
     set_mux_channel(0);
 
-    //Priority mux is an array of mux_index, adc_channel_index, matrix_index
+    //Priority mux is an array of adc_channel_index, mux_channel, matrix_index
     for(uint8_t index = 0; index < PRIORITY_MUX_NUM; index++) {
-        uint8_t mux_channel = priority_muxes[index][0];
-        uint8_t adc_channel = priority_muxes[index][1];
+        uint8_t adc_channel = priority_muxes[index][0];
+        uint8_t mux_channel = priority_muxes[index][1];
         uint8_t matrix_index = priority_muxes[index][2];
 
         #if CUSTOM_POWER_BEFORE_SCAN == TRUE
@@ -1228,7 +1229,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
         }
 
         adc_value = adc_read(adc_pin_mux[adc_channel]);
-        #ifdef DEBUG_SCAN_VALUE
+        #ifdef DEBUG_MUX_VALUE
         if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
             dprintf("%u\n", adc_value);
         }
@@ -1280,21 +1281,6 @@ void suspend_wakeup_init_kb(void) {
 
     suspend_wakeup_init_user();
 }
-
-
-//MARK: Matrix compat
-// #ifdef MATRIX_MASKED
-// extern const matrix_row_t matrix_mask[];
-// #endif
-// inline matrix_row_t matrix_get_row(uint8_t row) {
-//     // Matrix mask lets you disable switches in the returned matrix data. For example, if you have a
-//     // switch blocker installed and the switch is always pressed.
-// #ifdef MATRIX_MASKED
-//     return current_matrix[row] & matrix_mask[row];
-// #else
-//     return current_matrix[row];
-// #endif
-// }
 
 
 

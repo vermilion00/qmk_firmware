@@ -679,7 +679,7 @@ ifneq ($(strip $(CUSTOM_MATRIX)), yes)
 
     # if 'lite' or analog matrix then skip the actual matrix implementation
 	ifneq ($(strip $(CUSTOM_MATRIX)), lite)
-        #TODO: For mixed matrices, see if i need to reinclude this
+        #TODO: For mixed matrices, see if I need to reinclude this
 		ifneq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
             # Include the standard or split matrix code if needed
 			QUANTUM_SRC += $(QUANTUM_DIR)/matrix.c

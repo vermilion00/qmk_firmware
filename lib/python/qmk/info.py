@@ -17,7 +17,7 @@ from qmk.makefile import parse_rules_mk_file
 from qmk.math import compute
 from qmk.util import maybe_exit, truthy
 
-from qmk.he_config_h import _transform_he
+from qmk.he_config_h import _transform_am
 
 true_values = ['1', 'on', 'yes']
 false_values = ['0', 'off', 'no']
@@ -254,8 +254,8 @@ def info_json(keyboard, force_layout=None):
     info_data = _extract_rules_mk(info_data, rules_mk(str(keyboard)))
     info_data = _extract_config_h(info_data, config_h(str(keyboard)))
 
-    # If hall effect is used, transform the HE matrix
-    info_data = _transform_he(info_data)
+    # If analog matrix is used, transform the HE matrix
+    info_data = _transform_am(info_data)
 
     # Ensure that we have various calculated values
     info_data = _matrix_size(info_data)

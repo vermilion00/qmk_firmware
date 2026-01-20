@@ -44,7 +44,7 @@
     "SCANS_WITHOUT_CHANGE": {"info_key": "analog_matrix.config.scans_without_change", "value_type": "int"},
     "DISTANCE_FROM_BOTTOM": {"info_key": "analog_matrix.config.distance_from_bottom", "value_type": "bool"},
     "DEBUG_SCAN_VALUES": {"info_key": "analog_matrix.config.debug_scan_values", "value_type": "bool"},
-    "DEBUG_SCAN_VALUE": {"info_key": "analog_matrix.config.debug_scan_value", "value_type": "array.int"},
+    "DEBUG_MUX_VALUE": {"info_key": "analog_matrix.config.debug_mux_value", "value_type": "array.int"},
     "DEBUG_SCAN_NO_INPUT": {"info_key": "analog_matrix.config.debug_scan_no_input", "value_type": "bool"},
     "DEBUG_CALIBRATION": {"info_key": "analog_matrix.config.debug_calibration", "value_type": "bool"},
     "AM_NO_EEPROM": {"info_key": "analog_matrix.config.no_eeprom", "value_type": "bool"},
