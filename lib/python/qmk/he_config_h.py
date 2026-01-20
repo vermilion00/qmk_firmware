@@ -55,7 +55,7 @@ def generate_define(define, value=None):
 
 #MARK: Transform
 # Called by info.py before the rest of the functions here
-def _transform_he(info_data):
+def _transform_am(info_data):
     if 'analog_matrix' not in info_data:
         return info_data
 
@@ -75,7 +75,7 @@ def _transform_he(info_data):
 
 
 #MARK: Transform layout
-# Transform AM matrix definition from layout to mux_to_num and num_to_matrix
+# Transform analog matrix definition from layout to mux_to_num and num_to_matrix
 def _transform_layout(info_data):
     """Transforms the mux matrix defined in the layout into mux_to_num and num_to_matrix"""
     he_hardware = info_data['analog_matrix']['hardware']
@@ -141,12 +141,11 @@ def _transform_layout_split(info_data):
     mux_channels = 1 << len(he_hardware.get('mux_pins', ''))
     row_split = he_hardware['row_split']
 
-    # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
         mux_to_num_l = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         num_to_matrix_l = [-1 for _ in range(len(layout_data['layout']))]
         mux_to_num_r = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
-        #Oversize this since we don't know how many keys are there per side, then trim after
+        #Oversize this since we don't know how many keys there are per side, then trim after
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
         key_index_l = 0
         key_index_r = 0
@@ -178,9 +177,10 @@ def _transform_layout_split(info_data):
             else: # No mux definition in key data
                 cli.log.error(f"Missing mux info on key {key_index_l + key_index_r} in layout {layout_name}!")
                 return info_data
+        # We only need one layout
         break
 
-    # Trim the mux_to_nums
+    # Trim mux_to_nums
     last_row = 0
     for num, row in enumerate(mux_to_num_l):
         for idx in row:
@@ -274,7 +274,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
     num_to_mux = [[] for _ in range(switch_num)]
     for row_idx, row in enumerate(mux_to_num):
         for col_idx, idx in enumerate(row):
-            num_to_mux[idx-1] = [row_idx, col_idx]
+            num_to_mux[idx-1] = [col_idx, row_idx]
 
     config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
     info_data['analog_matrix']['hardware']['num_to_mux'] = num_to_mux
@@ -298,7 +298,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
 
         for row_idx, row in enumerate(mux_to_num):
             for col_idx, idx in enumerate(row):
-                num_to_mux[idx-1] = [row_idx, col_idx]
+                num_to_mux[idx-1] = [col_idx, row_idx]
 
         config_h_lines.append(generate_define('NUM_TO_MUX_R', str(num_to_mux).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware']['num_to_mux_right'] = num_to_mux
@@ -396,12 +396,36 @@ def check_power_pins(he_json, config_h_lines):
             config_h_lines.append(generate_define(f'CONTINUOUS_POWER_PORT{postfix.upper()}', f'{port_def}{port}'))
 
 
+#MARK: Debug matrix
+def debug_matrix_value(info_data, config_h_lines):
+    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+    matrix_to_num_r = info_data['analog_matrix']['hardware'].get('matrix_to_num_right', '')
+    num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
+    num_to_mux_r = info_data['analog_matrix']['hardware'].get('num_to_mux_right', '')
+    rows = info_data['matrix_size']['rows']
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
+    scan_mux = []
+    scan_mux_r = []
+    scan_pos = info_data['analog_matrix']['config']['debug_matrix_value']
+    if scan_pos[0] >= row_split:
+        scan_mux_r = num_to_mux_r[matrix_to_num_r[scan_pos[0] - row_split][scan_pos[1]] - 1]
+    else:
+        scan_mux = num_to_mux[matrix_to_num[scan_pos[0]][scan_pos[1]] - 1]
+
+    if scan_mux != []:
+        config_h_lines.append(generate_define('DEBUG_MUX_VALUE', str(scan_mux).replace('[', '{').replace(']', '}')))
+    if scan_mux_r != []:
+        config_h_lines.append(generate_define('DEBUG_MUX_VALUE_R', str(scan_mux_r).replace('[', '{').replace(']', '}')))
+
+
+
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
     matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
     matrix_to_num_r = info_data['analog_matrix']['hardware'].get('matrix_to_num_right', '')
     num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
     num_to_mux_r = info_data['analog_matrix']['hardware'].get('num_to_mux_right', '')
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
     used_pos= []
     init_functions = []
     init_functions_r = []
@@ -409,7 +433,6 @@ def transform_init_keys(info_data, config_h_lines):
     init_keys_r = []
     init_key_num = 0
     init_key_num_r = 0
-    row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
 
     for key in INIT_KEYS:
         path = INIT_KEYS[key]
@@ -423,13 +446,12 @@ def transform_init_keys(info_data, config_h_lines):
             if len(key) > 6 and key[-6:] == '_RIGHT':
                 key = key[:-6]
                 key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0] - row_split][key_pos[1]] - 1]
-                # Flip mux to put ADC pin first
-                init_keys_r.append(key_mux[::-1])
+                init_keys_r.append(key_mux)
                 init_key_num_r += 1
                 init_functions_r.append(INIT_FUNCTIONS[key])
             else:
                 key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
-                init_keys.append(key_mux[::-1])
+                init_keys.append(key_mux)
                 init_key_num += 1
                 init_functions.append(INIT_FUNCTIONS[key])
 
@@ -757,6 +779,9 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Transform priority key matrix positions to key indices
     get_priority_keys(info_data, config_h_lines)
 
+    if 'debug_matrix_value' in he_json['config']:
+        debug_matrix_value(info_data, config_h_lines)
+
     #Only get the heights from the config if no profiles are defined
     if 'profiles' not in he_json:
         #Config stuff
@@ -819,6 +844,7 @@ def get_priority_keys(info_data, config_h_lines):
     for key in priority_keys:
         if key[0] < row_split:
             num = matrix_to_num[key[0]][key[1]] - 1
+            #TODO: Either flip mux channel and adc channel here or during assignment
             mux = num_to_mux[num]
             mux.append(num)
             # Result is a list of mux channel, adc channel, matrix index
