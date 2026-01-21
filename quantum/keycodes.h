@@ -95,11 +95,11 @@ enum qk_keycode_ranges {
     QK_USER_MAX                    = 0x7FFF,
     //MARK: Range
     //TODO: See if I need this
-    QK_ANALOG_MATRIX               = 0x8000,
-    QK_ANALOG_MATRIX_MAX           = 0x8002,
-    QK_UNICODEMAP                  = 0x8003,
+    QK_AM_PROFILE                  = 0x8000,
+    QK_AM_PROFILE_MAX              = 0x800F,
+    QK_UNICODEMAP                  = 0x8000,
     QK_UNICODEMAP_MAX              = 0xBFFF,
-    QK_UNICODE                     = 0x8003,
+    QK_UNICODE                     = 0x8000,
     QK_UNICODE_MAX                 = 0xFFFF,
     QK_UNICODEMAP_PAIR             = 0xC000,
     QK_UNICODEMAP_PAIR_MAX         = 0xFFFF,
@@ -842,6 +842,8 @@ enum qk_keycode_defines {
     //MARK: AM Keycodes
     AM_CALIBRATE = 0x7E60,
     AM_PRINT_CALIBRATION = 0x7E61,
+    //TODO: Remove this
+    AM_PRINT_PROFILE = 0x7E62,
 
 // Alias
     XXXXXXX    = KC_NO,
@@ -1468,6 +1470,7 @@ enum qk_keycode_defines {
     //MARK: AM Aliases
     AM_CLBR    = AM_CALIBRATE,
     AM_PRNT    = AM_PRINT_CALIBRATION,
+    AM_PRPR    = AM_PRINT_PROFILE,
 };
 
 // Range Helpers
@@ -1504,7 +1507,7 @@ enum qk_keycode_defines {
 #define IS_QK_UNICODE(code) ((code) >= QK_UNICODE && (code) <= QK_UNICODE_MAX)
 #define IS_QK_UNICODEMAP_PAIR(code) ((code) >= QK_UNICODEMAP_PAIR && (code) <= QK_UNICODEMAP_PAIR_MAX)
 //MARK: Helpers
-#define IS_QK_ANALOG_MATRIX(code) ((code) >= QK_ANALOG_MATRIX && (code) <= QK_ANALOG_MATRIX_MAX)
+#define IS_QK_ANALOG_MATRIX(code) ((code) >= QK_AM_PROFILE && (code) <= QK_AM_PROFILE_MAX)
 
 // Group Helpers
 #define IS_INTERNAL_KEYCODE(code) ((code) >= KC_NO && (code) <= KC_TRANSPARENT)

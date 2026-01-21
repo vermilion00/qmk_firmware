@@ -8,10 +8,12 @@
 
 -To build own lut curve, add mode where the currently sensed distance and value is printed for a switch
 
+-Make sure profile change keycode doesn't cause issues with unicode, or disable unicode when analog matrix is enabled to avoid keycode range collisions
+
 -Enable FPU on supported processors
     -Check if it causes problems?
     -Make sure floats are used, not doubles
-    -Not really necessary, just makes startup faster
+    -Not really necessary, just makes init faster
 
 -Split init happens after matrix init, so set a flag in calibration init key func and check that later
 

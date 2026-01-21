@@ -714,7 +714,6 @@ void calibrate_switches(void) {
         scans_without_change += 1;
         //TODO: Change this to a more precise method
         if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
-
             #if AM_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
             // save_calibration();
@@ -1092,7 +1091,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         }
     }
     // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE_MODE
+    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
     set_active_profile(AM_DEFAULT_PROFILE);
     #endif
 
