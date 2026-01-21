@@ -93,6 +93,10 @@
 #    include "process_oneshot.h"
 #endif
 
+#if defined ANALOG_MATRIX_ENABLE && !defined NO_AM_KEYCODES
+#   include "process_analog_matrix.h"
+#endif
+
 #ifdef AUDIO_ENABLE
 #    ifndef GOODBYE_SONG
 #        define GOODBYE_SONG SONG(GOODBYE_SOUND)
@@ -447,6 +451,10 @@ bool process_record_quantum(keyrecord_t *record) {
 #endif
 #ifndef NO_ACTION_ONESHOT
             process_oneshot(keycode, record) &&
+#endif
+//MARK: process call
+#if defined ANALOG_MATRIX_ENABLE && !defined NO_AM_KEYCODES
+            process_analog_matrix(keycode, record) &&
 #endif
             process_quantum(keycode, record))) {
         return false;
