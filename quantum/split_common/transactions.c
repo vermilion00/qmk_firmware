@@ -20,6 +20,7 @@
 
 #include "crc.h"
 #include "debug.h"
+#include "info_config.h"
 #include "matrix.h"
 #include "host.h"
 #include "action_util.h"
@@ -919,6 +920,54 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 #endif // defined(OS_DETECTION_ENABLE) && defined(SPLIT_DETECTED_OS_ENABLE)
 
 ////////////////////////////////////////////////////
+// Joystick synchronisation
+
+//Currently causes a performance hit of ~17.5% and doesn't work, but it does get called
+#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+static bool joystick_handlers_master(uint8_t axis_values[], matrix_row_t slave_axis_values[]) {
+    static uint32_t     last_update                    = 0;
+    static matrix_row_t last_axis_values[JOYSTICK_AXIS_COUNT * 2] = {0}; // last successfully-read matrix, so we can replicate if there are checksum errors
+    matrix_row_t        temp_axis_values[JOYSTICK_AXIS_COUNT * 2];       // holding area while we test whether or not checksum is correct
+
+    //TODO: Update this
+    bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, temp_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
+    if (okay) {
+        // Checksum matches the received data, save as the last matrix state
+        memcpy(last_axis_values, temp_axis_values, sizeof(temp_axis_values));
+    }
+    // Copy out the last-known-good matrix state to the slave matrix
+    //TODO: Why? Do I need this?
+    // memcpy(slave_axis_values, last_axis_values, sizeof(last_axis_values));
+    // Update the axis_values array
+    for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) { axis_values[index] += last_axis_values[0]; }
+
+    //TODO: Remove this and the header
+    // printf("%u\n", temp_axis_values[3]);
+    return okay;
+}
+
+static void joystick_handlers_slave(matrix_row_t axis_values[], matrix_row_t slave_axis_values[]) {
+    memcpy(split_shmem->axis_data.values, slave_axis_values, sizeof(split_shmem->axis_data.values));
+    split_shmem->axis_data.checksum = crc8(split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
+}
+
+//TODO: Make sure this is correct
+// Do I really need separate registrations for this? I don't think so
+// clang-format off
+#define TRANSACTIONS_SLAVE_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
+#define TRANSACTIONS_SLAVE_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE_AUTOLOCK(joystick)
+//TODO: Update this
+#define TRANSACTIONS_SLAVE_JOYSTICK_REGISTRATIONS \
+    [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum), \
+    [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values),
+// clang-format on
+#else
+#   define TRANSACTIONS_SLAVE_JOYSTICK_MASTER()
+#   define TRANSACTIONS_SLAVE_JOYSTICK_SLAVE()
+#   define TRANSACTIONS_SLAVE_JOYSTICK_REGISTRATIONS
+#endif
+
+////////////////////////////////////////////////////
 
 split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     // Set defaults
@@ -948,6 +997,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_HAPTIC_REGISTRATIONS
     TRANSACTIONS_ACTIVITY_REGISTRATIONS
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
+    TRANSACTIONS_SLAVE_JOYSTICK_REGISTRATIONS
 // clang-format on
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
@@ -958,6 +1008,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
 #endif // defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
 };
 
+//MARK: Transactions master
 bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     TRANSACTIONS_SLAVE_MATRIX_MASTER();
     TRANSACTIONS_MASTER_MATRIX_MASTER();
@@ -978,6 +1029,7 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
+    TRANSACTIONS_SLAVE_JOYSTICK_MASTER();
     return true;
 }
 
@@ -1001,6 +1053,7 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_HAPTIC_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
+    TRANSACTIONS_SLAVE_JOYSTICK_SLAVE();
 }
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

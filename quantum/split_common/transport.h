@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "info_config.h"
 #include "progmem.h"
 #include "action_layer.h"
 #include "matrix.h"
@@ -132,6 +133,14 @@ typedef struct _split_slave_activity_sync_t {
 } split_slave_activity_sync_t;
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
+//TODO: Decide if I wanna use this. Prob not
+#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+typedef struct _joystick_slave_axis_sync_t {
+    uint8_t checksum;
+    uint8_t values[JOYSTICK_AXIS_COUNT * 2];
+} joystick_slave_axis_sync_t;
+#endif
+
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
 typedef struct _rpc_sync_info_t {
     uint8_t checksum;
@@ -221,6 +230,13 @@ typedef struct _split_shared_memory_t {
 #if defined(SPLIT_ACTIVITY_ENABLE)
     split_slave_activity_sync_t activity_sync;
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
+
+// #if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+//     uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
+// #endif
+#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+    joystick_slave_axis_sync_t axis_data;
+#endif
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
     rpc_sync_info_t rpc_info;

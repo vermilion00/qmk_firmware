@@ -33,6 +33,9 @@
 #if AM_NO_EEPROM == FALSE
 #include "eeconfig.h"
 #endif
+#ifdef JOYSTICK_ENABLE
+#include "analog_joystick.h"
+#endif
 
 
 // Get the switch data configured in the json
@@ -54,8 +57,6 @@ static inline bool evaluate_value(uint8_t index, uint16_t value);
 static inline void delay_ns(uint16_t delay);
 
 extern matrix_row_t matrix[MATRIX_ROWS];
-//TODO: Check if this isn't automatically ignored when debouncing isn't enabled
-// extern matrix_row_t raw_matrix[MATRIX_ROWS];
 #if DEBOUNCE > 0
 extern matrix_row_t raw_matrix[MATRIX_ROWS];
 #endif
@@ -95,10 +96,6 @@ uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
 const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM_R;
 uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX;
 const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX_R;
-// uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
-// const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM_R;
-// uint8_t num_to_mux[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX;
-// const uint8_t num_to_mux_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MUX_R;
 uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES;
 const uint8_t key_modes_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES_R;
 
@@ -159,11 +156,6 @@ SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
 SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
 // Used to translate from the switch number to the QMK layout position
 SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
-// Used to translate from the QMK layout position to the switch number
-//TODO: I've commented out all occurances of matrix_to_num, check if it causes issues
-// SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_NUM;
-// Used to translate from the matrix index to the ADC pin/Mux combination
-// SPLIT_MUTABLE uint8_t num_to_mux[SWITCH_NUM][2] = NUM_TO_MUX;
 
 #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
 SPLIT_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
@@ -183,13 +175,6 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 // #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
 uint8_t calibration_done = false;
-
-typedef struct _slave_to_master_t {
-    // uint64_t calibration_data[DATA_BUFFER_LEN];
-    // uint16_t calibration_data[(SWITCH_NUM + SWITCH_NUM_R) * 2];
-    uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-    uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-} slave_to_master_t;
 slave_to_master_t slave_data;
 
 #if KEYBOARD_SIDE == RIGHT
@@ -385,22 +370,29 @@ uint8_t analog_matrix_scan() {
                 delay_ns(ADC_SCAN_CYCLES);
                 #endif
 
-                // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
-                if(evaluate_value(index, adc_value)) {
-                    matrix_has_changed = true;
-                    #if DEBUG_SCAN_NO_INPUT != TRUE
-                    matrix[key_config[index].row] ^= 1 << key_config[index].col;
-                    #endif
-                    // If dynamic calibration is enabled, check if the boundaries need updating
-                    #if DYNAMIC_CALIBRATION == TRUE
-                    if(update_switch_bounds(index, adc_value)) {
-                        // If the bounds have been updated, translate the heights and save the new bounds
-                        translate_mm_to_value(index);
-                        #if NO_EEPROM == FALSE
-                        save_calibration_data();
+                //TODO: Fix printing stuff that comes after this
+                // Check if the value has changed enough to warrant an evaluation
+                //TODO: This could perhaps cause issues around the borders, with missing updates?
+                if (adc_value < key_config[index].scan_value + ADC_SMOOTHING && adc_value > key_config[index].scan_value - ADC_SMOOTHING) { continue; }
+                else {
+                    key_config[index].scan_value = adc_value;
+                    // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
+                    if(evaluate_value(index, adc_value)) {
+                        matrix_has_changed = true;
+                        #if DEBUG_SCAN_NO_INPUT != TRUE
+                        matrix[key_config[index].row] ^= 1 << key_config[index].col;
                         #endif
+                        // If dynamic calibration is enabled, check if the boundaries need updating
+                        #if DYNAMIC_CALIBRATION == TRUE
+                        if(update_switch_bounds(index, adc_value)) {
+                            // If the bounds have been updated, translate the heights and save the new bounds
+                            translate_mm_to_value(index);
+                            #if NO_EEPROM == FALSE
+                            save_calibration_data();
+                            #endif
+                        }
+                        #endif // DYNAMIC_CALIBRATION == TRUE
                     }
-                    #endif // DYNAMIC_CALIBRATION == TRUE
                 }
             }
             #if DEBUG_SCAN_VALUES == TRUE
@@ -434,6 +426,12 @@ uint8_t analog_matrix_scan() {
     #else // if DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
     matrix_has_changed |= matrix_post_scan();
+    #ifdef JOYSTICK_ENABLE
+    // Sync joystick values and evaluate keycodes if they have changed
+    //TODO: This currently causes a hit of ~1000 cps and lags right half
+    //Probably calls every included transaction as well, so I need to add the joystick sync as a transaction
+    // matrix_has_changed |= joystick_post_scan();
+    #endif
     #else
     matrix_scan_kb();
     #endif
@@ -476,7 +474,7 @@ void translate_mm_to_value(void) {
             #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
             #if DISTANCE_FROM_BOTTOM == FALSE
             //TODO: Is this correct
-            key_config[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING ;
+            key_config[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING;
             key_config[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]) - ADC_SMOOTHING;
 
             #else // if DISTANCE_FROM_BOTTOM == FALSE
@@ -598,10 +596,10 @@ void calibrate_switches(void) {
     #endif
 
     #ifdef SPLIT_KEYBOARD
-    if(is_keyboard_master()) {
-        //TODO: Check if NULL size works
-        transaction_rpc_send(AM_CALIBRATION_M2S_SYNC, 8, &first_scan);
-    }
+    // if(is_keyboard_master()) {
+    //     //TODO: Check if NULL size works
+    //     transaction_rpc_send(AM_CALIBRATION_M2S_SYNC, 8, &first_scan);
+    // }
     if(!is_keyboard_left()) {
         char right[] = "_right";
         memcpy(&side, right, sizeof(right));
@@ -957,11 +955,21 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
         break;
 
+        case joystick:
+        #if defined USE_JOYSTICK && defined JOYSTICK_ENABLE
+        evaluate_joystick_axis(index);
+        return true;
+        #else
+        return false;
+        #endif
+        break;
+
         default:
         #if defined USE_SPECIAL
         //TODO: Call special key eval function here
         //evaluate_special(index, value)
         #endif //defined USE_SPECIAL
+        break; //TODO: Break or no?
     }
 #endif //if INVERT_ADC == TRUE else
 
@@ -1108,9 +1116,10 @@ void assign_split_side(bool side) {
     if(side == RIGHT) {
         memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
         memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
-        // memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num_r));
-        // memcpy(&num_to_mux, &num_to_mux_r, sizeof(num_to_mux_r));
         memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
+        #ifdef JOYSTICK_ENABLE
+        memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num_r));
+        #endif
 
         #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
         memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
@@ -1140,54 +1149,59 @@ void assign_split_side(bool side) {
 #endif // if KEYBOARD_SIDE == UNKNOWN
 
 
-//TODO: Test if this works to add onto SPLIT_TRANSACTION_IDS_KB
-// #ifdef SPLIT_TRANSACTION_IDS_KB
-// #define KB_TRANSACTIONS SPLIT_TRANSACTION_IDS_KB
-// #undef SPLIT_TRANSACTION_IDS_KB
-// #define SPLIT_TRANSACTION_IDS_KB KB_TRANSACTIONS, AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
-// #else
-// #define SPLIT_TRANSACTION_IDS_KB AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
-// #endif
-
-
 // MARK: Profile sync
 void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
     active_profile = *(const uint8_t*)in_data;
 }
 
-void sync_calibration_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    uint8_t* calibration_state = (uint8_t*)out_data;
-    *calibration_state = calibration_done;
-}
 
-//MARK: Cal Sync
-// uint64_t calibration_data[DATA_BUFFER_LEN];
+// //MARK: Cal Sync
+// // uint64_t calibration_data[DATA_BUFFER_LEN];
 
-void split_calibration(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    calibrate_switches();
-}
+// void sync_calibration_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+//     uint8_t* calibration_state = (uint8_t*)out_data;
+//     *calibration_state = calibration_done;
+// }
 
-void send_calibration_data(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    uint8_t slave_switch_num = 0;
-    slave_to_master_t* cal_data = (slave_to_master_t*)out_data;
-    if(is_keyboard_left()) {
-        slave_switch_num = SWITCH_NUM_R;
-    } else {
-        slave_switch_num = SWITCH_NUM_L;
-    }
 
-    // Gather the slave side calibration data
-    for(uint8_t index = 0; index < slave_switch_num; index++){
-        cal_data->top_values[index] = key_config[index].top_value;
-        cal_data->bottom_values[index] = key_config[index].bottom_value;
-    }
-}
+// void split_calibration(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+//     calibrate_switches();
+// }
 
+// void send_calibration_data(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+//     uint8_t slave_switch_num = 0;
+//     slave_to_master_t* cal_data = (slave_to_master_t*)out_data;
+//     if(is_keyboard_left()) {
+//         slave_switch_num = SWITCH_NUM_R;
+//     } else {
+//         slave_switch_num = SWITCH_NUM_L;
+//     }
+
+//     // Gather the slave side calibration data
+//     for(uint8_t index = 0; index < slave_switch_num; index++){
+//         cal_data->top_values[index] = key_config[index].top_value;
+//         cal_data->bottom_values[index] = key_config[index].bottom_value;
+//     }
+// }
+
+
+//MARK: Sync joystick
+// Slave side function
+//TODO: This is definitely achievable without the copying, no?
+//TODO: Make sure this is called when matrix sync is called
+// void sync_joystick_values(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+//     axis_data_t* data = (axis_data_t*)out_data;
+//     memcpy(data->axis_data, axis_values, sizeof(axis_values));
+// }
+
+
+//MARK: Transactions
 void keyboard_post_init_kb(void) {
     transaction_register_rpc(AM_PROFILE_SYNC, sync_profile_state);
-    transaction_register_rpc(AM_CALIBRATION_M2S_SYNC, split_calibration);
-    transaction_register_rpc(AM_CALIBRATION_S2M_SYNC, send_calibration_data);
-    transaction_register_rpc(AM_CALIBRATION_STATE_SYNC, sync_calibration_state);
+    // transaction_register_rpc(AM_JOYSTICK_SYNC, sync_joystick_values);
+    // transaction_register_rpc(AM_CALIBRATION_M2S_SYNC, split_calibration);
+    // transaction_register_rpc(AM_CALIBRATION_S2M_SYNC, send_calibration_data);
+    // transaction_register_rpc(AM_CALIBRATION_STATE_SYNC, sync_calibration_state);
 
     keyboard_post_init_user();
 }

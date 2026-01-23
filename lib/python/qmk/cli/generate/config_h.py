@@ -13,7 +13,7 @@ from qmk.commands import dump_lines, parse_configurator_json
 from qmk.path import normpath, FileType
 from qmk.constants import GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE
 
-from qmk.he_config_h import generate_analog_matrix_config, generate_profile_config
+from qmk.am_config_h import generate_analog_matrix_config, generate_profile_config
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -185,13 +185,6 @@ def generate_config_h(cli):
 
     # Build the info_config.h file.
     config_h_lines = [GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE, '#pragma once']
-
-    #TODO: Using qmk compile doesn't regenerate info_config.h, so old def sticks around
-    #Using the side param currently runs 'make clean' first, but there's prob a better way
-    if cli.args.side in ['left', 'l', 'LEFT', 'L']:
-        config_h_lines.append(generate_define('SIDE_LEFT'))
-    elif cli.args.side in ['right', 'r', 'RIGHT', 'R']:
-        config_h_lines.append(generate_define('SIDE_RIGHT'))
 
     generate_config_items(kb_info_json, config_h_lines)
 

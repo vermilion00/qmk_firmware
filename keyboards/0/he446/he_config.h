@@ -1,14 +1,19 @@
 #pragma once
 
 /*TODO:
-1. Keycodes to switch profile, print calibration data
 2. Sync calibration to slave
-3. EEPROM
+3. EEPROMs
 4. LUT
 
--To build own lut curve, add mode where the currently sensed distance and value is printed for a switch
+-Add keycode to lock/unlock switching profiles via layers, to allow combining keycodes and layers
 
--Make sure profile change keycode doesn't cause issues with unicode, or disable unicode when analog matrix is enabled to avoid keycode range collisions
+-Currently, the slave side seems to not work, probs because the stuff is just not synced
+-Sync the state of the slave axis_values array to master, and evaluate there
+    -Possible collisions when both halves write to one axis, but shouldn't be an issue otherwise
+-Add option to choose between 4-way and 8-way reporting of DPAD
+-If multiple keys have the same axis keycode, |= their results? The first one should set, the second one should |?
+
+-To build own lut curve, add mode where the currently sensed distance and value is printed for a switch
 
 -Enable FPU on supported processors
     -Check if it causes problems?
@@ -70,9 +75,6 @@
 
 -Allow associating a color with a profile?
     -Or just set them by layer
-
--Add key to print current calibration values to console (useful if dynamic calibration is enabled)
-    -On split keyboards, paste left and right values separately
 
 -Allow setting heights via layout macro
     -Also get config from heights file in keyboard folder
