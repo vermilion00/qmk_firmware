@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include "keyboard.h"
+#include "analog_matrix/analog_joystick.h"
 #include "keycode_config.h"
 //MARK: Include
 #ifdef ANALOG_MATRIX_ENABLE
@@ -549,6 +550,9 @@ void keyboard_init(void) {
 //MARK: Init call
 #ifdef ANALOG_MATRIX_ENABLE
     analog_matrix_init();
+#   ifdef JOYSTICK_ENABLE
+    analog_joystick_init();
+#   endif
 #endif
 
 #if defined(DEBUG_MATRIX_SCAN_RATE) && defined(CONSOLE_ENABLE)
@@ -793,7 +797,8 @@ void keyboard_task(void) {
     midi_task();
 #endif
 
-#ifdef JOYSTICK_ENABLE
+//TODO: This means that an actual joystick is incompatible with analog matrix
+#if defined JOYSTICK_ENABLE && !defined ANALOG_MATRIX_ENABLE
     joystick_task();
 #endif
 

@@ -1,9 +1,13 @@
 #include <stdint.h>
 #include "action.h"
+#include "joystick.h"
 #include "keycodes.h"
 #include "print.h"
 #include "analog_matrix.h"
 #include "process_analog_matrix.h"
+#ifdef JOYSTICK_ENABLE
+#   include "analog_joystick.h"
+#endif
 
 bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
     switch(keycode) {
@@ -13,28 +17,32 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
                 for(uint8_t index = 0; index < switch_num; index++) {
                     key_config[index].pressed = false;
                 }
-                break;
             }
             return false;
         case AM_PRINT_CALIBRATION:
             if(record->event.pressed) {
                 print_calibration_data();
-                break;
             }
             return false;
         case AM_PRINT_PROFILE:
             if(record->event.pressed) {
-                printf("\n%u\n", active_profile);
+                printf("\nActive profile: %u\n", active_profile);
                 break;
             }
             return false;
-        case QK_AM_PROFILE ... QK_AM_PROFILE_MAX:
+        case ANALOG_MATRIX_PROFILE_RANGE:
             if (record->event.pressed) {
                 // 32 profiles max
                 set_active_profile(keycode&0x1F);
-                break;
             }
             return false;
+        #ifdef JOYSTICK_ENABLE
+        case JOYSTICK_AXIS_RANGE:
+            const uint8_t index = matrix_to_num[record->event.key.row][record->event.key.col] - 1;
+            // Subtract the first axis keycode to get the axis index
+            update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
+            return false;
+        #endif
     }
     return true;
 }

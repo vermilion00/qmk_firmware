@@ -1,0 +1,63 @@
+#pragma once
+
+#include <stdint.h>
+#include "analog_matrix.h"
+#include "info_config.h"
+#include "joystick_aliases.h"
+// #include "report.h"
+
+typedef enum axis_name_t {
+    LEFT_X_AXIS = 0,
+    LEFT_Y_AXIS,
+    TRIGGER_AXIS,
+    RIGHT_X_AXIS,
+    RIGHT_Y_AXIS
+} axis_name_t;
+
+typedef enum axis_index_t {
+    LEFT_POSITIVE_X_INDEX = 0,
+    LEFT_NEGATIVE_X_INDEX,
+    LEFT_POSITIVE_Y_INDEX,
+    LEFT_NEGATIVE_Y_INDEX,
+    LEFT_TRIGGER_INDEX,
+    RIGHT_TRIGGER_INDEX,
+    RIGHT_POSITIVE_X_INDEX,
+    RIGHT_NEGATIVE_X_INDEX,
+    RIGHT_POSITIVE_Y_INDEX,
+    RIGHT_NEGATIVE_Y_INDEX
+} axis_index_t;
+
+typedef enum conflict_options_t {
+    DIFFERENCE = 0,
+    LOWEST,
+    POSITIVE_DOMINANT,
+    NEGATIVE_DOMINANT,
+    CANCEL
+} conflict_options_t;
+
+//TODO: Either add stuff to it or remove the struct
+typedef struct analog_joystick_t {
+    conflict_options_t resolution;
+} analog_joystick_t;
+
+extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS];
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+extern const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS];
+#endif
+
+extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
+extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
+
+void analog_joystick_init(void);
+void evaluate_joystick_axis(uint8_t index);
+void update_joystick_value(axis_index_t axis, uint8_t value);
+bool joystick_post_scan(void);
+
+
+#if !(defined JS_TOP_DEADZONE && defined JS_BOTTOM_DEADZONE)
+#undef JS_TOP_DEADZONE
+#define JS_TOP_DEADZONE JS_DEADZONE
+#undef JS_BOTTOM_DEADZONE
+#define JS_BOTTOM_DEADZONE JS_DEADZONE
+#endif
+

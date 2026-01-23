@@ -31,14 +31,16 @@ RT_TYPES = {
     'NONE': 0,
     'RAPID_TRIGGER': 1,
     'CONTINUOUS_RAPID_TRIGGER': 2,
-    'CONSTANT_RAPID_TRIGGER': 3
+    'CONSTANT_RAPID_TRIGGER': 3,
+    'JOYSTICK': 4
 }
 
 RT_NAMES = {
     0: 'NONE',
     1: 'RAPID_TRIGGER',
     2: 'CONTINUOUS_RAPID_TRIGGER',
-    3: 'CONSTANT_RAPID_TRIGGER'
+    3: 'CONSTANT_RAPID_TRIGGER',
+    4: 'JOYSTICK'
 }
 
 def generate_define(define, value=None):
@@ -59,7 +61,7 @@ def _transform_am(info_data):
     if 'analog_matrix' not in info_data:
         return info_data
 
-    he_hardware = info_data['analog_matrix']['hardware']
+    # he_hardware = info_data['analog_matrix']['hardware']
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
         info_data = _get_split_config(info_data)
@@ -542,8 +544,7 @@ def generate_profile_config(kb_info_json, config_h_lines):
                 key_mode = profile_data.get('key_modes', [0])
                 if len(key_mode) == 1:
                     key_mode = [key_mode[0] for _ in range(switch_num)]
-
-                key_modes.append(profile_data['key_modes'])
+                key_modes.append(key_mode)
 
             profile_num += 1
 
@@ -779,6 +780,9 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Transform priority key matrix positions to key indices
     get_priority_keys(info_data, config_h_lines)
 
+    if 'joystick' in info_data['analog_matrix']:
+        generate_joystick_config(info_data, config_h_lines)
+
     if 'debug_matrix_value' in he_json['config']:
         debug_matrix_value(info_data, config_h_lines)
 
@@ -822,6 +826,43 @@ def check_right_side_pins(info_data, config_h_lines):
             config_h_lines.append(generate_define(f'{pins.upper()}_R', f'{{ {", ".join(map(str, pins_r))} }}'))
 
     return info_data
+
+
+#MARK: Joystick config
+def generate_joystick_config(info_data, config_h_lines):
+    axis_indexes = {
+        "x": 0, "y": 1, "trigger": 2, "rx": 3, "ry": 4, "z": 5
+    }
+    resolution_names = {
+        "difference": 0, "lowest": 1, "positive_dominant": 2, "negative_dominant": 3, "cancel": 4
+    }
+    am_joystick = info_data['analog_matrix']['joystick']
+    layout = am_joystick.get('layout', 'XBOX')
+    config_h_lines.append(generate_define(f'{layout.upper()}_LAYOUT'))
+    axis_count = am_joystick.get('axes', 5)
+    config_h_lines.append(generate_define('JOYSTICK_AXIS_COUNT', axis_count))
+    #TODO: Update this with the standard amount of joystick buttons
+    config_h_lines.append(generate_define('JOYSTICK_BUTTON_COUNT', am_joystick.get('buttons', 10)))
+    if 'top_deadzone' in am_joystick:
+        config_h_lines.append(generate_define('JS_TOP_DEADZONE', am_joystick.get('top_deadzone')))
+        if 'bottom_deadzone' in am_joystick:
+            config_h_lines.append(generate_define('JS_BOTTOM_DEADZONE', am_joystick.get('bottom_deadzone')))
+    else:
+        config_h_lines.append(generate_define('JS_DEADZONE', am_joystick.get('deadzone', 10)))
+
+    method_config = am_joystick.get('resolution_methods', {})
+    resolutions = [[0] for _ in range(axis_count)]
+    #TODO: If I decide to undo the useless struct, undo thi
+    # resolutions = [0 for _ in range(axis_count)]
+    if method_config != {}:
+        for axis, method in method_config.items():
+            resolutions[axis_indexes[axis]][0] = resolution_names[method]
+            # resolutions[axis_indexes[axis]] = resolution_names[method]
+
+    config_h_lines.append(generate_define('AM_JOYSTICK_AXIS_CONFIG', f'{str(resolutions).replace('[', '{').replace(']', '}')}'))
+
+
+
 
 
 #MARK: Priority keys

@@ -228,7 +228,6 @@ ifneq ("$(wildcard $(KEYMAP_JSON))", "")
         -include $(KEYMAP_PATH)/rules.mk
     endif
 
-    # Load any rules.mk content from keymap.json
     INFO_RULES_MK = $(shell $(QMK_BIN) generate-rules-mk --quiet --escape --output $(INTERMEDIATE_OUTPUT)/src/rules.mk $(KEYMAP_JSON))
     include $(INFO_RULES_MK)
 
@@ -238,9 +237,10 @@ $(INTERMEDIATE_OUTPUT)/src/keymap.c: $(KEYMAP_JSON) $(DD_CONFIG_FILES)
 	$(eval CMD=$(QMK_BIN) json2c --quiet --output $(KEYMAP_C) $(KEYMAP_JSON))
 	@$(BUILD_CMD)
 
-#MARK: side
+#MARK: side assignment
 $(INTERMEDIATE_OUTPUT)/src/config.h: $(KEYMAP_JSON) $(DD_CONFIG_FILES)
 	@$(SILENT) || printf "$(MSG_GENERATING) $@" | $(AWK_CMD)
+#TODO: Remove the flag here if I decide to change how it's defined
 	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --output $(KEYMAP_H) $(KEYMAP_JSON) --side $(KBSIDE))
 	@$(BUILD_CMD)
 
@@ -435,6 +435,7 @@ KEYBOARD_SRC += $(INTERMEDIATE_OUTPUT)/src/default_keyboard.c
 #MARK: Side
 $(INTERMEDIATE_OUTPUT)/src/info_config.h: $(DD_CONFIG_FILES)
 	@$(SILENT) || printf "$(MSG_GENERATING) $@" | $(AWK_CMD)
+#TODO: Remove the flag here if I decide to change how it's defined
 	$(eval CMD=$(QMK_BIN) generate-config-h --quiet --keyboard $(KEYBOARD) --output $(INTERMEDIATE_OUTPUT)/src/info_config.h --side $(KBSIDE))
 	@$(BUILD_CMD)
 

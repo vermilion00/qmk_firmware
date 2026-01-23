@@ -65,6 +65,14 @@ enum qk_keycode_ranges {
     QK_SWAP_HANDS_MAX              = 0x56FF,
     QK_TAP_DANCE                   = 0x5700,
     QK_TAP_DANCE_MAX               = 0x57FF,
+    //MARK: Range
+    //TODO: Added here since there's a gap
+    QK_AM_PROFILE                  = 0x5800,
+    QK_AM_PROFILE_MAX              = 0x581F,
+    QK_ANALOG_MATRIX               = 0x5820,
+    QK_ANALOG_MATRIX_MAX           = 0x583F,
+    QK_AM_JOYSTICK_AXIS            = 0x5840,
+    QK_AM_JOYSTICK_AXIS_MAX        = 0x585F,
     QK_MAGIC                       = 0x7000,
     QK_MAGIC_MAX                   = 0x70FF,
     QK_MIDI                        = 0x7100,
@@ -93,10 +101,6 @@ enum qk_keycode_ranges {
     QK_KB_MAX                      = 0x7E3F,
     QK_USER                        = 0x7E40,
     QK_USER_MAX                    = 0x7FFF,
-    //MARK: Range
-    //TODO: See if I need this
-    QK_AM_PROFILE                  = 0x8000,
-    QK_AM_PROFILE_MAX              = 0x800F,
     QK_UNICODEMAP                  = 0x8000,
     QK_UNICODEMAP_MAX              = 0xBFFF,
     QK_UNICODE                     = 0x8000,
@@ -334,6 +338,25 @@ enum qk_keycode_defines {
     QK_SWAP_HANDS_OFF = 0x56F4,
     QK_SWAP_HANDS_ON = 0x56F5,
     QK_SWAP_HANDS_ONE_SHOT = 0x56F6,
+    //MARK: AM Keycodes
+    //TODO: Added here since there's a gap
+    AM_CALIBRATE = 0x5820,
+    AM_PRINT_CALIBRATION = 0x5821,
+    //TODO: Remove this, not needed
+    AM_PRINT_PROFILE = 0x5822,
+    // Joystick axes to allow mapping them to analog keys
+    //TODO: Perhaps add keycodes for ABXY etc? Or does JS_0 etc register as those and I just need aliases for them?
+    JS_LEFT_POSITIVE_X = 0x5840,
+    JS_LEFT_NEGATIVE_X = 0x5841,
+    JS_LEFT_POSITIVE_Y = 0x5842,
+    JS_LEFT_NEGATIVE_Y = 0x5843,
+    JS_LEFT_TRIGGER = 0x5844,
+    JS_RIGHT_TRIGGER = 0x5845,
+    JS_RIGHT_POSITIVE_X = 0x5846,
+    JS_RIGHT_NEGATIVE_X = 0x5847,
+    JS_RIGHT_POSITIVE_Y = 0x5848,
+    JS_RIGHT_NEGATIVE_Y = 0x5849,
+    //TODO: Add keycodes for missing 6th axis
     QK_MAGIC_SWAP_CONTROL_CAPS_LOCK = 0x7000,
     QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK = 0x7001,
     QK_MAGIC_TOGGLE_CONTROL_CAPS_LOCK = 0x7002,
@@ -839,11 +862,6 @@ enum qk_keycode_defines {
     QK_USER_29 = 0x7E5D,
     QK_USER_30 = 0x7E5E,
     QK_USER_31 = 0x7E5F,
-    //MARK: AM Keycodes
-    AM_CALIBRATE = 0x7E60,
-    AM_PRINT_CALIBRATION = 0x7E61,
-    //TODO: Remove this
-    AM_PRINT_PROFILE = 0x7E62,
 
 // Alias
     XXXXXXX    = KC_NO,
@@ -1471,6 +1489,17 @@ enum qk_keycode_defines {
     AM_CLBR    = AM_CALIBRATE,
     AM_PRNT    = AM_PRINT_CALIBRATION,
     AM_PRPR    = AM_PRINT_PROFILE,
+    JS_LPX     = JS_LEFT_POSITIVE_X,
+    JS_LNX     = JS_LEFT_NEGATIVE_X,
+    JS_LPY     = JS_LEFT_POSITIVE_Y,
+    JS_LNY     = JS_LEFT_NEGATIVE_Y,
+    JS_LT      = JS_LEFT_TRIGGER,
+    JS_RT      = JS_RIGHT_TRIGGER,
+    JS_RPX     = JS_RIGHT_POSITIVE_X,
+    JS_RNX     = JS_RIGHT_NEGATIVE_X,
+    JS_RPY     = JS_RIGHT_POSITIVE_Y,
+    JS_RNY     = JS_RIGHT_NEGATIVE_Y,
+    //TODO: Add 6th axis
 };
 
 // Range Helpers
@@ -1507,7 +1536,9 @@ enum qk_keycode_defines {
 #define IS_QK_UNICODE(code) ((code) >= QK_UNICODE && (code) <= QK_UNICODE_MAX)
 #define IS_QK_UNICODEMAP_PAIR(code) ((code) >= QK_UNICODEMAP_PAIR && (code) <= QK_UNICODEMAP_PAIR_MAX)
 //MARK: Helpers
-#define IS_QK_ANALOG_MATRIX(code) ((code) >= QK_AM_PROFILE && (code) <= QK_AM_PROFILE_MAX)
+#define IS_QK_AM_PROFILE(code) ((code) >= QK_AM_PROFILE && (code) <= QK_AM_PROFILE_MAX)
+#define IS_QK_ANALOG_MATRIX(code) ((code) >= QK_ANALOG_MATRIX && (code) <= QK_ANALOG_MATRIX_MAX)
+#define IS_QK_JOYSTICK_AXIS(code) ((code) >= QK_AM_JOYSTICK_AXIS && (code) <= QK_AM_JOYSTICK_AXIS_MAX)
 
 // Group Helpers
 #define IS_INTERNAL_KEYCODE(code) ((code) >= KC_NO && (code) <= KC_TRANSPARENT)
@@ -1534,7 +1565,8 @@ enum qk_keycode_defines {
 #define IS_QUANTUM_KEYCODE(code) ((code) >= QK_BOOTLOADER && (code) <= QK_LAYER_LOCK)
 #define IS_KB_KEYCODE(code) ((code) >= QK_KB_0 && (code) <= QK_KB_31)
 #define IS_USER_KEYCODE(code) ((code) >= QK_USER_0 && (code) <= QK_USER_31)
-#define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_PRINT_CALIBRATION)
+#define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_PRINT_PROFILE)
+#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_POSITIVE_X && (code) <= JS_RIGHT_TRIGGER)
 
 // Switch statement Helpers
 #define INTERNAL_KEYCODE_RANGE              KC_NO ... KC_TRANSPARENT
@@ -1561,4 +1593,6 @@ enum qk_keycode_defines {
 #define QUANTUM_KEYCODE_RANGE               QK_BOOTLOADER ... QK_LAYER_LOCK
 #define KB_KEYCODE_RANGE                    QK_KB_0 ... QK_KB_31
 #define USER_KEYCODE_RANGE                  QK_USER_0 ... QK_USER_31
-#define AM_KEYCODE_RANGE                    AM_CALIBRATE ... AM_PRINT_CALIBRATION
+#define ANALOG_MATRIX_KEYCODE_RANGE         AM_CALIBRATE ... AM_PRINT_PROFILE
+#define ANALOG_MATRIX_PROFILE_RANGE         QK_AM_PROFILE ... QK_AM_PROFILE_MAX
+#define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Y

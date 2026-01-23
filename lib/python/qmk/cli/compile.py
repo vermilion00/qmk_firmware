@@ -58,7 +58,8 @@ def compile(cli):
     # Build the environment vars
     envs = build_environment(cli.args.env)
 
-    # If a side is specified, run the make clean command so the side is registered properly
+    # If a side is specified, set the env variable accordingly
+    #TODO: Setting the side via -DSIDE_LEFT doesn't seem to update always, even with cli.args.clean
     if cli.args.side.lower() in ['left', 'l']:
         envs['KBSIDE'] = 'left'
         cli.args.clean = True

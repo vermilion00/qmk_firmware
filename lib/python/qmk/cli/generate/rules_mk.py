@@ -60,7 +60,6 @@ def generate_features_rules(features_dict):
 @cli.argument('-q', '--quiet', arg_only=True, action='store_true', help="Quiet mode, only output error messages")
 @cli.argument('-e', '--escape', arg_only=True, action='store_true', help="Escape spaces in quiet mode")
 @cli.argument('-kb', '--keyboard', arg_only=True, type=keyboard_folder, completer=keyboard_completer, help='Keyboard to generate rules.mk for.')
-# @cli.argument('-s', '--side', arg_only=True, type=str, default='', help='Defines SIDE_? to allow you to change configs easily')
 @cli.subcommand('Used by the make system to generate rules.mk from info.json', hidden=True)
 def generate_rules_mk(cli):
     """Generates a rules.mk file from info.json.
@@ -80,15 +79,6 @@ def generate_rules_mk(cli):
 
     info_rules_map = json_load(Path('data/mappings/info_rules.hjson'))
     rules_mk_lines = [GPL2_HEADER_SH_LIKE, GENERATED_HEADER_SH_LIKE]
-
-    # If a side is specified, run the make clean command so the side is registered properly
-    #TODO: This doesn't work, the side doesn't get passed like this, but would maybe mean I don't have to 'make clean' with the side param
-    # if cli.args.side.lower() in ['left', 'l']:
-    #     rules_mk_lines.append(generate_rule('KB_SIDE', 'left'))
-    #     # cli.args.clean = True
-    # elif cli.args.side.lower() in ['right', 'r']:
-    #     rules_mk_lines.append(generate_rule('KB_SIDE', 'right'))
-    #     # cli.args.clean = True
 
     # Iterate through the info_rules map to generate basic rules
     for rules_key, info_dict in info_rules_map.items():
@@ -120,6 +110,10 @@ def generate_rules_mk(cli):
         rules_mk_lines.append(generate_rule('ANALOG_MATRIX_ENABLE', 'yes'))
         #TODO: I think all this does is set -DHAL_USE_ADC and += analog.c, but maybe it does more?
         # rules_mk_lines.append(generate_rule('ANALOG_DRIVER_REQUIRED', 'yes'))
+        # Set JOYSTICK, if needed, without needing to enable it as a feature
+        if 'joystick' in kb_info_json['analog_matrix'] and kb_info_json['features'].get('joystick') != False:
+            rules_mk_lines.append(generate_rule('JOYSTICK_ENABLE', 'yes'))
+            rules_mk_lines.append(generate_rule('JOYSTICK_DRIVER', 'digital'))
 
     # Show the results
     dump_lines(cli.args.output, rules_mk_lines)
