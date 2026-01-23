@@ -91,8 +91,7 @@ def flash(cli):
     # Build the environment vars
     envs = build_environment(cli.args.env)
 
-    # If a side is specified, run the make clean command so the side is registered properly
-    #TODO: Would maybe be better if the side got defined via -DSIDE instead
+    # If a side is specified, set the env variable accordingly
     if cli.args.side.lower() in ['left', 'l']:
         envs['KBSIDE'] = 'left'
         cli.args.clean = True

@@ -219,5 +219,25 @@
             "minimum": 0,
             "maximum": 255
         }
+    },
+    "joystick_resolution_method": {
+        "type": "string",
+        "enum": [
+            "difference",
+            "Difference",
+            "DIFFERENCE",
+            "lowest",
+            "Lowest",
+            "LOWEST",
+            "positive_dominant",
+            "Positive_dominant",
+            "POSITIVE_DOMINANT",
+            "negative_dominant",
+            "Negative_dominant",
+            "NEGATIVE_DOMINANT",
+            "cancel",
+            "Cancel",
+            "CANCEL"
+        ]
     }
 }

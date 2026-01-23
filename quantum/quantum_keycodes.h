@@ -122,9 +122,8 @@
 #define OSM(mod) (QK_ONE_SHOT_MOD | ((mod)&0x1F))
 #define QK_ONE_SHOT_MOD_GET_MODS(kc) ((kc)&0x1F)
 
-//MARK: AM Profile toggle
+//MARK: AM Profile set
 // A-ctivate P-rofile - 32 profiles max
-//TODO: Make sure this doesn't cause issues with unicode
 #define AP(profile) (QK_AM_PROFILE | ((profile)&0x1F))
 
 #define OS_LCTL OSM(MOD_LCTL)

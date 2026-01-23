@@ -10,9 +10,21 @@
 #include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
-// #include "util.h"
+#include "util.h"
 // #include "bootloader.h"
 // #include "bootmagic/bootmagic.h"
+#ifdef JOYSTICK_ENABLE
+// #   include "joystick_aliases.h"
+#endif
+
+//TODO: Test if this works to add onto SPLIT_TRANSACTION_IDS_KB
+// #ifdef SPLIT_TRANSACTION_IDS_KB
+// #define KB_TRANSACTIONS SPLIT_TRANSACTION_IDS_KB
+// #undef SPLIT_TRANSACTION_IDS_KB
+// #define SPLIT_TRANSACTION_IDS_KB KB_TRANSACTIONS, AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
+// #else
+// #define SPLIT_TRANSACTION_IDS_KB AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
+// #endif
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -159,9 +171,10 @@ gpio_write_pin_high(B2)
 
 typedef enum rapid_trigger_t: uint8_t {
     none = 0,
-    rapid_trigger,
-    continuous_rapid_trigger,
-    constant_rapid_trigger
+    rapid_trigger = 1,
+    continuous_rapid_trigger = 2,
+    constant_rapid_trigger = 3,
+    joystick = 4
 } key_mode_t;
 
 //TODO: Decide what I'll do with this
@@ -179,7 +192,7 @@ typedef struct analog_key_t {
     #if defined USE_CONTINUOUS_RAPID_TRIGGER
     uint8_t rt_active;
     #endif
-    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || (defined JOYSTICK_ENABLE && defined USE_JOYSTICK)
     // The switch is counted as pressed below this value
     uint16_t trigger_value[AM_PROFILE_NUM];
     // The switch is counted as released above this value
@@ -194,6 +207,7 @@ typedef struct analog_key_t {
     // The distance that the switch is required to travel upwards before it's registered as released
     uint16_t rt_release_value[AM_PROFILE_NUM];
     #endif
+    uint16_t scan_value;
     uint16_t bottom_value;
     uint16_t top_value;
     uint8_t row;
@@ -259,7 +273,6 @@ extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
-// extern char side[];
 
 /* Function defines */
 void analog_matrix_init(void);
@@ -267,6 +280,26 @@ uint8_t analog_matrix_scan(void);
 void set_active_profile(uint8_t profile);
 uint8_t get_active_profile(void);
 void calibrate_switches(void);
+
+#if defined SPLIT_KEYBOARD
+typedef struct _slave_to_master_t {
+    uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+    uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+} slave_to_master_t;
+
+extern slave_to_master_t slave_data;
+
+// #if defined JOYSTICK_ENABLE
+// typedef struct axis_data_t {
+//     uint8_t axis_data[JOYSTICK_AXIS_COUNT * 2];
+// } axis_data_t;
+
+//TODO: Can I pass the location of the saved axis data directly, or do I need to copy it?
+// extern axis_data_t axis_data[JOYSTICK_AXIS_COUNT * 2];
+
+// void sync_joystick_values(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data);
+// #endif
+#endif
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

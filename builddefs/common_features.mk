@@ -338,8 +338,20 @@ ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
 	SRC += $(QUANTUM_DIR)/analog_matrix/multiplexer.c
 	SRC += $(QUANTUM_DIR)/process_keycode/process_analog_matrix.c
     #TODO: Check if this is the only thing ANALOG_DRIVER_REQUIRED does
-    OPT_DEFS += -DHAL_USE_ADC=TRUE
+	OPT_DEFS += -DHAL_USE_ADC=TRUE
     QUANTUM_LIB_SRC += analog.c
+
+	JOYSTICK_ENABLE ?= no
+	ifeq ($(strip $(JOYSTICK_ENABLE)), yes)
+		SRC += $(QUANTUM_DIR)/analog_matrix/analog_joystick.c
+	endif
+endif
+
+ifeq ($(KBSIDE),left)
+    OPT_DEFS += -DSIDE_LEFT
+endif
+ifeq ($(KBSIDE), right)
+    OPT_DEFS += -DSIDE_RIGHT
 endif
 
 # Deprecated driver names - do not use

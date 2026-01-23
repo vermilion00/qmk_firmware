@@ -17,7 +17,7 @@ from qmk.makefile import parse_rules_mk_file
 from qmk.math import compute
 from qmk.util import maybe_exit, truthy
 
-from qmk.he_config_h import _transform_am
+from qmk.am_config_h import _transform_am
 
 true_values = ['1', 'on', 'yes']
 false_values = ['0', 'off', 'no']

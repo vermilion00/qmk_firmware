@@ -592,6 +592,40 @@
                         }
                     }
                 },
+                "joystick": {
+                    "type": "object",
+                    "properties": {
+                        "layout": {
+                            "type": "string",
+                            "enum": [
+                                "xbox",
+                                "Xbox",
+                                "XBOX",
+                                "playstation",
+                                "Playstation",
+                                "PLAYSTATION",
+                                "nintendo",
+                                "Nintendo",
+                                "NINTENDO"
+                            ]
+                        },
+                        "axes": { "type": "integer" },
+                        "buttons": { "type": "integer" },
+                        "deadzone": { "type": "integer" },
+                        "top_deadzone": { "type": "integer" },
+                        "bottom_deadzone": { "type": "integer" },
+                        "resolution_methods": {
+                            "type": "object",
+                            "properties": {
+                                "x": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
+                                "y": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
+                                "trigger": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
+                                "rx": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
+                                "ry": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"}
+                            }
+                        }
+                    }
+                },
                 "profiles" : {
                     "type": "object",
                     "properties": {
