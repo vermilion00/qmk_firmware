@@ -140,6 +140,11 @@ const void (*init_functions_r[AM_INIT_KEY_NUM_R])(void) = AM_INIT_FUNCTIONS_R;
 uint8_t debug_mux_r[2] = DEBUG_MUX_VALUE_R;
 #endif
 
+#ifdef PRIORITY_INDICES_R
+const uint8_t priority_indices_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = PRIORITY_INDICES_R;
+const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
+#endif
+
 #else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 analog_key_t key_config[SWITCH_NUM];
 #ifdef MUX_PINS
@@ -175,7 +180,7 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 // #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
 uint8_t calibration_done = false;
-slave_to_master_t slave_data;
+// slave_to_master_t slave_data;
 
 #if KEYBOARD_SIDE == RIGHT
 const bool keyboard_left = RIGHT;
@@ -194,9 +199,11 @@ uint8_t priority_muxes[PRIORITY_MUX_NUM][3] = PRIORITY_MUXES;
 uint8_t matrix_scan_priority(matrix_row_t current_matrix[]);
 #endif
 
+//TODO: Maybe allow assigning them on a per layer basis?
 #ifdef PRIORITY_INDICES
 uint8_t scan_amt = 0;
-uint8_t priority_indices[PRIORITY_INDEX_NUM] = PRIORITY_INDICES;
+uint8_t priority_indices[MAX(SWITCH_NUM, SWITCH_NUM_R)] = PRIORITY_INDICES;
+SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 #endif
 
 //MARK: Init
@@ -343,20 +350,14 @@ uint8_t analog_matrix_scan() {
             // Check if a switch is at the position (matrix index > 0), and scan if so
             if(index > 0) {
 
-                //TODO: This doesn't seem fast enough to be worth
+                index -= 1;
+                //TODO: Can prob be optimized for the scan_amt updating to be more like the old version
                 #ifdef PRIORITY_INDICES
                 if(scan_amt < PRIORITY_LEVEL) {
-                    bool scan = false;
-                    for(uint8_t idx = 0; idx < PRIORITY_INDEX_NUM; idx++) {
-                        if(index == priority_indices[idx]) {
-                            scan = true;
-                        }
-                    }
-                    if(!scan) { continue; }
-                } else { scan_amt = 0; }
+                    if(!priority_indices[index]) { continue; }
+                }
                 #endif
 
-                index -= 1;
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
 
                 #ifdef DEBUG_MUX_VALUE
@@ -370,7 +371,6 @@ uint8_t analog_matrix_scan() {
                 delay_ns(ADC_SCAN_CYCLES);
                 #endif
 
-                //TODO: Fix printing stuff that comes after this
                 // Check if the value has changed enough to warrant an evaluation
                 //TODO: This could perhaps cause issues around the borders, with missing updates?
                 if (adc_value < key_config[index].scan_value + ADC_SMOOTHING && adc_value > key_config[index].scan_value - ADC_SMOOTHING) { continue; }
@@ -410,8 +410,9 @@ uint8_t analog_matrix_scan() {
     #endif
 
     #ifdef PRIORITY_INDICES
-    scan_amt += 1;
-    printf("%u\n", scan_amt);
+    if(scan_amt < PRIORITY_LEVEL) {
+        scan_amt += 1;
+    } else { scan_amt = 0; }
     #endif
 
     //TODO: Add debounce support, in case some people need it. Currently doesn't work for some reason
@@ -425,12 +426,12 @@ uint8_t analog_matrix_scan() {
     #endif
     #else // if DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
+    #ifndef SLAVE_LOW_PRIORITY
     matrix_has_changed |= matrix_post_scan();
-    #ifdef JOYSTICK_ENABLE
-    // Sync joystick values and evaluate keycodes if they have changed
-    //TODO: This currently causes a hit of ~1000 cps and lags right half
-    //Probably calls every included transaction as well, so I need to add the joystick sync as a transaction
-    // matrix_has_changed |= joystick_post_scan();
+    #else // Only synchronise the matrices during the full scans, if the slave is low priority
+    if(scan_amt == 0) {
+        matrix_has_changed |= matrix_post_scan();
+    }
     #endif
     #else
     matrix_scan_kb();
@@ -781,8 +782,6 @@ void calibrate_switches(void) {
 
 
 //MARK: Evaluate
-//TODO: Dynamically change type of arg based on matrix size
-// Create a matrix_index_t enum with nested #if statements checking the matrix size
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = key_config[index].pressed;
 
@@ -940,7 +939,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
         case constant_rapid_trigger:
         #if defined USE_CONSTANT_RAPID_TRIGGER
-        // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
+        // Check if the key has been pressed far enough for rapid trigger to activate it, or pressed down completely
         if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
             key_config[index].pressed = true;
             key_config[index].rt_threshold = value;
@@ -955,10 +954,15 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
         break;
 
+        //TODO: Returning true here means that this key location is executed every scan
+        //      Unfortunately, this means if another layer is activated with this profile active, it will just spam that key
+        //      Set a flag in evaluate joystick and ask create an analog joystick task that checks the flag and updates the array (and gets slave data)
         case joystick:
         #if defined USE_JOYSTICK && defined JOYSTICK_ENABLE
+        //TODO: Check if it makes a difference to leave this up
+        key_config[index].pressed = false;
         evaluate_joystick_axis(index);
-        return true;
+        return false;
         #else
         return false;
         #endif
@@ -1069,39 +1073,50 @@ static inline void delay_ns(uint16_t delay) {
 
 
 //MARK: Profiles
+// If true, layer_state_set doesn't update the profile together with the layer. Toggled via AM_LOCP.
+bool manual_profile_lock = false;
+
+uint8_t get_active_profile(void) { return active_profile; }
+
+void lock_profile(void) { manual_profile_lock = !manual_profile_lock; }
+
 #if AM_PROFILE_NUM > 1
 #ifndef SPLIT_KEYBOARD
 void set_active_profile(uint8_t profile) { active_profile = profile; }
-#else
+#else // ifndef SPLIT_KEYBOARD
 void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
         active_profile = profile;
         // Send the new profile to the slave
-        transaction_rpc_send(AM_PROFILE_SYNC, 8, &active_profile);
+        // transaction_rpc_send(AM_PROFILE_SYNC, 8, &active_profile);
     }
 }
 #endif // ifndef SPLIT_KEYBOARD else
 
-uint8_t get_current_profile(void) { return active_profile; }
-
 
 //MARK: Layer state
 layer_state_t layer_state_set_kb(layer_state_t state) {
+    #ifdef JOYSTICK_ENABLE
     uint8_t highest_layer = get_highest_layer(state);
-    for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-        // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
-        // If the highest active layer is in the layers list of that profile, activate it
-        if(profiles[profile].layers & (1 << highest_layer)) {
-            set_active_profile(profile);
-
-            // Only the lowest number profile should apply
-            return layer_state_set_user(state);
-        }
-    }
-    // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-    #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
-    set_active_profile(AM_DEFAULT_PROFILE);
+    create_joystick_mask(highest_layer);
     #endif
+    if (!manual_profile_lock) {
+        uint8_t highest_layer = get_highest_layer(state);
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
+            // If the highest active layer is in the layers list of that profile, activate it
+            if(profiles[profile].layers & (1 << highest_layer)) {
+                set_active_profile(profile);
+
+                // Only the lowest number profile should apply
+                return layer_state_set_user(state);
+            }
+        }
+        // If profile switch mode is default, switch to the default profile if layer is not set for any profile
+        #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
+        set_active_profile(AM_DEFAULT_PROFILE);
+        #endif
+    }
 
     // Need to call the user function
     return layer_state_set_user(state);
@@ -1144,15 +1159,22 @@ void assign_split_side(bool side) {
         memcpy(&init_keys, &init_keys_r, sizeof(init_keys_r));
         memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
         #endif
+
+        //TODO: Test this
+        #ifdef PRIORITY_INDEXES
+        memcpy(&priority_indexes, &priority_indexes_r, sizeof(priority_indexes));
+        priority_index_num = priority_index_num_r;
+        #endif
     }
 }
 #endif // if KEYBOARD_SIDE == UNKNOWN
+#endif // SPLIT_KEYBOARD
 
 
 // MARK: Profile sync
-void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
-    active_profile = *(const uint8_t*)in_data;
-}
+// void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data) {
+//     active_profile = *(const uint8_t*)in_data;
+// }
 
 
 // //MARK: Cal Sync
@@ -1196,16 +1218,16 @@ void sync_profile_state(uint8_t in_buflen, const void* in_data, uint8_t out_bufl
 
 
 //MARK: Transactions
-void keyboard_post_init_kb(void) {
-    transaction_register_rpc(AM_PROFILE_SYNC, sync_profile_state);
-    // transaction_register_rpc(AM_JOYSTICK_SYNC, sync_joystick_values);
-    // transaction_register_rpc(AM_CALIBRATION_M2S_SYNC, split_calibration);
-    // transaction_register_rpc(AM_CALIBRATION_S2M_SYNC, send_calibration_data);
-    // transaction_register_rpc(AM_CALIBRATION_STATE_SYNC, sync_calibration_state);
+// void keyboard_post_init_kb(void) {
+//     transaction_register_rpc(AM_PROFILE_SYNC, sync_profile_state);
+//     // transaction_register_rpc(AM_JOYSTICK_SYNC, sync_joystick_values);
+//     // transaction_register_rpc(AM_CALIBRATION_M2S_SYNC, split_calibration);
+//     // transaction_register_rpc(AM_CALIBRATION_S2M_SYNC, send_calibration_data);
+//     // transaction_register_rpc(AM_CALIBRATION_STATE_SYNC, sync_calibration_state);
 
-    keyboard_post_init_user();
-}
-#endif // ifdef SPLIT_KEYBOARD
+//     keyboard_post_init_user();
+// }
+// #endif // ifdef SPLIT_KEYBOARD
 
 //MARK: Priority scan
 //TODO: Check if I this is a better improvement for non-split keyboards

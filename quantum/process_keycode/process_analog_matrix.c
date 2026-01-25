@@ -19,23 +19,42 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return false;
+
         case AM_PRINT_CALIBRATION:
             if(record->event.pressed) {
                 print_calibration_data();
             }
             return false;
+
         case AM_PRINT_PROFILE:
             if(record->event.pressed) {
                 printf("\nActive profile: %u\n", active_profile);
                 break;
             }
             return false;
-        case ANALOG_MATRIX_PROFILE_RANGE:
-            if (record->event.pressed) {
-                // 32 profiles max
-                set_active_profile(keycode&0x1F);
+
+        case AM_LOCK_PROFILE:
+            if(record->event.pressed) {
+                manual_profile_lock = !manual_profile_lock;
+                break;
             }
             return false;
+
+        case ANALOG_MATRIX_PROFILE_RANGE:
+        //TODO: Test this
+            if (record->event.pressed) {
+                // Turn on manual profile lock if switching to a new profile, turn it off when switching to the currently active profile
+                if((keycode & 0x1F) == active_profile) {
+                    manual_profile_lock = false;
+                } else {
+                    // 32 profiles max
+                    set_active_profile(keycode&0x1F);
+                    manual_profile_lock = true;
+                }
+
+            }
+            return false;
+
         #ifdef JOYSTICK_ENABLE
         case JOYSTICK_AXIS_RANGE:
             const uint8_t index = matrix_to_num[record->event.key.row][record->event.key.col] - 1;
