@@ -99,10 +99,13 @@ enum serial_transaction_id {
     PUT_ACTIVITY,
 #endif // SPLIT_ACTIVITY_ENABLE
 
-#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+#if defined(ANALOG_MATRIX_ENABLE)
+    PUT_AM_PROFILE,
+#   if defined(JOYSTICK_ENABLE)
     GET_JOYSTICK_CHECKSUM,
     GET_JOYSTICK_DATA,
-#endif
+#   endif // JOYSTICK_ENABLE
+#endif //ANALOG_MATRIX_ENABLE
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
     PUT_RPC_INFO,

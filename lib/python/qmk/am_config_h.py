@@ -866,79 +866,78 @@ def generate_joystick_config(info_data, config_h_lines):
 
 
 #MARK: Priority keys
-def get_priority_keys(info_data, config_h_lines):
-    if 'priority_keys' not in info_data['analog_matrix']['config']:
-        return info_data
-
-    priority_keys = info_data['analog_matrix']['config']['priority_keys']
-    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
-    num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
-    rows = info_data['matrix_size']['rows']
-    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
-    priority_muxes = []
-    priority_muxes_r = []
-    if 'split' in info_data and info_data['split'].get('enabled', False):
-        matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
-        num_to_mux_r = info_data['analog_matrix']['hardware']['num_to_mux_right']
-
-    # Convert all matrix positions in the array into mux combos
-    for key in priority_keys:
-        if key[0] < row_split:
-            num = matrix_to_num[key[0]][key[1]] - 1
-            #TODO: Either flip mux channel and adc channel here or during assignment
-            mux = num_to_mux[num]
-            mux.append(num)
-            # Result is a list of mux channel, adc channel, matrix index
-            priority_muxes.append(mux)
-        else:
-            num = matrix_to_num_r[key[0] - row_split][key[1]] - 1
-            mux = num_to_mux_r[num]
-            mux.append(num)
-            priority_muxes_r.append(mux)
-
-    # Sort the array by mux channels in ascending order, so that it will have to be set less often
-    priority_muxes.sort()
-    priority_muxes_r.sort()
-
-    config_h_lines.append(generate_define("PRIORITY_MUXES", f'{str(priority_muxes).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define("PRIORITY_MUX_NUM", len(priority_muxes)))
-
-    if priority_muxes_r != []:
-        config_h_lines.append(generate_define("PRIORITY_MUXES_R", f'{str(priority_muxes_r).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define("PRIORITY_MUX_NUM_R", len(priority_muxes_r)))
-
-#MARK: Priority idx
 # def get_priority_keys(info_data, config_h_lines):
 #     if 'priority_keys' not in info_data['analog_matrix']['config']:
 #         return info_data
 
 #     priority_keys = info_data['analog_matrix']['config']['priority_keys']
 #     matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+#     num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
 #     rows = info_data['matrix_size']['rows']
 #     row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
-#     priority_idx = []
-#     priority_idx_r = []
+#     priority_muxes = []
+#     priority_muxes_r = []
 #     if 'split' in info_data and info_data['split'].get('enabled', False):
 #         matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
-
+#         num_to_mux_r = info_data['analog_matrix']['hardware']['num_to_mux_right']
 
 #     # Convert all matrix positions in the array into mux combos
 #     for key in priority_keys:
-#         #TODO: Check if it's < or <=
 #         if key[0] < row_split:
-#             idx = matrix_to_num[key[0]][key[1]]
+#             num = matrix_to_num[key[0]][key[1]] - 1
+#             #TODO: Either flip mux channel and adc channel here or during assignment
+#             mux = num_to_mux[num]
+#             mux.append(num)
 #             # Result is a list of mux channel, adc channel, matrix index
-#             priority_idx.append(idx)
+#             priority_muxes.append(mux)
 #         else:
-#             idx = matrix_to_num_r[key[0] - row_split][key[1]]
-#             priority_idx_r.append(idx)
+#             num = matrix_to_num_r[key[0] - row_split][key[1]] - 1
+#             mux = num_to_mux_r[num]
+#             mux.append(num)
+#             priority_muxes_r.append(mux)
 
-#     config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
-#     config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", len(priority_idx)))
+#     # Sort the array by mux channels in ascending order, so that it will have to be set less often
+#     priority_muxes.sort()
+#     priority_muxes_r.sort()
 
-#     if priority_idx_r != []:
-#         config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
-#         config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", len(priority_idx_r)))
+#     config_h_lines.append(generate_define("PRIORITY_MUXES", f'{str(priority_muxes).replace('[', '{').replace(']', '}')}'))
+#     config_h_lines.append(generate_define("PRIORITY_MUX_NUM", len(priority_muxes)))
+
+#     if priority_muxes_r != []:
+#         config_h_lines.append(generate_define("PRIORITY_MUXES_R", f'{str(priority_muxes_r).replace('[', '{').replace(']', '}')}'))
+#         config_h_lines.append(generate_define("PRIORITY_MUX_NUM_R", len(priority_muxes_r)))
+
+#MARK: Priority idx
+def get_priority_keys(info_data, config_h_lines):
+    if 'priority_keys' not in info_data['analog_matrix']['config']:
+        return info_data
+
+    switch_num = info_data['analog_matrix']['hardware']['switch_num']
+    switch_num_r = info_data['analog_matrix']['hardware'].get('switch_num_r', 0)
+    priority_keys = info_data['analog_matrix']['config']['priority_keys']
+    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+    rows = info_data['matrix_size']['rows']
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
+    priority_idx = [0 for _ in range(switch_num)]
+    priority_idx_r = [0 for _ in range(switch_num_r)]
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
+
+    for key in priority_keys:
+        if key[0] < row_split:
+            priority_idx[matrix_to_num[key[0]][key[1]]] = 1
+        else:
+            priority_idx_r[matrix_to_num_r[key[0] - row_split][key[1]]] = 1
+
+    config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", priority_idx.count(1)))
+
+    if row_split != rows:
+        config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", priority_idx_r.count(1)))
+        # Assume the slave is the half with no priority keys
+        if priority_idx.count(1) == 0 or priority_idx_r.count(1) == 0:
+            config_h_lines.append(generate_define("SLAVE_LOW_PRIORITY"))
 
 
 #MARK: Height layout
