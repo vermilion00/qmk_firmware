@@ -231,12 +231,12 @@ typedef struct _split_shared_memory_t {
     split_slave_activity_sync_t activity_sync;
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
-// #if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
-//     uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
-// #endif
-#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+#if defined(ANALOG_MATRIX_ENABLE)
+    uint8_t am_profile;
+#   if defined(JOYSTICK_ENABLE)
     joystick_slave_axis_sync_t axis_data;
-#endif
+#   endif // defined(JOYSTICK_ENABLE)
+#endif // defined(ANALOG_MATRIX_ENABLE)
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
     rpc_sync_info_t rpc_info;

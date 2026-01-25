@@ -1,12 +1,13 @@
 #pragma once
 
-// #include "matrix.h"
+#include "matrix.h"
 #include <stdint.h>
 // #include <stdbool.h>
 // #include <sys/cdefs.h>
 #include "action_layer.h"
 // #include "gpio.h"
 // #include "he_matrix.h"
+#include "analog_matrix.h"
 #include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
@@ -142,17 +143,6 @@
 #define SPLIT_MUTABLE
 #endif
 
-#ifdef SPLIT_KEYBOARD
-#if defined RPC_S2M_BUFFER_SIZE
-#   warning "S2M buffer size needs to be at least equal to the number of switches on slave side * ADC resolution (10 bits by default)!"
-#endif
-
-#undef RPC_S2M_BUFFER_SIZE
-// 32 bits per switch needed
-#define RPC_S2M_BUFFER_SIZE 32 * MAX(SWITCH_NUM, SWITCH_NUM_R)
-// #define DATA_BUFFER_LEN CEILING(MAX(SWITCH_NUM, SWITCH_NUM_R), 3)
-#endif // defined SPLIT_KEYBOARD
-
 #ifndef SWITCH_NUM_R
 #   define SWITCH_NUM_R 0
 #endif
@@ -167,9 +157,10 @@
 #define LED_ON \
 gpio_set_pin_output_push_pull(B2); \
 gpio_write_pin_high(B2)
+
 #define LED_OFF gpio_write_pin_low(B2)
 
-typedef enum rapid_trigger_t: uint8_t {
+typedef enum _key_mode_t: uint8_t {
     none = 0,
     rapid_trigger = 1,
     continuous_rapid_trigger = 2,
@@ -183,8 +174,6 @@ typedef struct Profile {
     layer_state_t layers;
 } Profile;
 
-//TODO: Bit fields are an option to cut down on space, but it will cause a performance hit
-//      because all values will have to be bitshifted every access
 typedef struct analog_key_t {
     uint8_t pressed;
     // 0 = None, 1-3 = RT, 4-9 = Reserved, 10-255 = Special keys (Gamepad etc)
@@ -230,7 +219,7 @@ typedef union {
 #undef ADC_RESOLUTION
 #endif
 #define ADC_RESOLUTION 10
-#define MAX_ADC_VALUE (1 << ADC_RESOLUTION) - 1
+#define MAX_ADC_VALUE 1023
 
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
@@ -263,6 +252,7 @@ typedef union {
 
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
+extern bool manual_profile_lock;
 #if AM_PROFILE_NUM > 1
 #define PROFILE_MUTABLE
 #else
@@ -279,27 +269,17 @@ void analog_matrix_init(void);
 uint8_t analog_matrix_scan(void);
 void set_active_profile(uint8_t profile);
 uint8_t get_active_profile(void);
+void lock_profile(void);
 void calibrate_switches(void);
 
-#if defined SPLIT_KEYBOARD
-typedef struct _slave_to_master_t {
-    uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-    uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-} slave_to_master_t;
+// #if defined SPLIT_KEYBOARD
+// typedef struct _slave_to_master_t {
+//     uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+//     uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
+// } slave_to_master_t;
 
-extern slave_to_master_t slave_data;
-
-// #if defined JOYSTICK_ENABLE
-// typedef struct axis_data_t {
-//     uint8_t axis_data[JOYSTICK_AXIS_COUNT * 2];
-// } axis_data_t;
-
-//TODO: Can I pass the location of the saved axis data directly, or do I need to copy it?
-// extern axis_data_t axis_data[JOYSTICK_AXIS_COUNT * 2];
-
-// void sync_joystick_values(uint8_t in_buflen, const void* in_data, uint8_t out_buflen, void* out_data);
+// extern slave_to_master_t slave_data;
 // #endif
-#endif
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

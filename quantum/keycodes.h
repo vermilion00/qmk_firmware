@@ -344,6 +344,7 @@ enum qk_keycode_defines {
     AM_PRINT_CALIBRATION = 0x5821,
     //TODO: Remove this, not needed
     AM_PRINT_PROFILE = 0x5822,
+    AM_LOCK_PROFILE = 0x5823,
     // Joystick axes to allow mapping them to analog keys
     //TODO: Perhaps add keycodes for ABXY etc? Or does JS_0 etc register as those and I just need aliases for them?
     JS_LEFT_POSITIVE_X = 0x5840,
@@ -1489,6 +1490,7 @@ enum qk_keycode_defines {
     AM_CLBR    = AM_CALIBRATE,
     AM_PRNT    = AM_PRINT_CALIBRATION,
     AM_PRPR    = AM_PRINT_PROFILE,
+    AM_LOCP    = AM_LOCK_PROFILE,
     JS_LPX     = JS_LEFT_POSITIVE_X,
     JS_LNX     = JS_LEFT_NEGATIVE_X,
     JS_LPY     = JS_LEFT_POSITIVE_Y,
@@ -1565,8 +1567,9 @@ enum qk_keycode_defines {
 #define IS_QUANTUM_KEYCODE(code) ((code) >= QK_BOOTLOADER && (code) <= QK_LAYER_LOCK)
 #define IS_KB_KEYCODE(code) ((code) >= QK_KB_0 && (code) <= QK_KB_31)
 #define IS_USER_KEYCODE(code) ((code) >= QK_USER_0 && (code) <= QK_USER_31)
-#define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_PRINT_PROFILE)
-#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_POSITIVE_X && (code) <= JS_RIGHT_TRIGGER)
+#define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_LOCK_PROFILE)
+//TODO: When adding the 6th axis, update the keycode here
+#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_LEFT_POSITIVE_X && (code) <= JS_RIGHT_NEGATIVE_Y)
 
 // Switch statement Helpers
 #define INTERNAL_KEYCODE_RANGE              KC_NO ... KC_TRANSPARENT
@@ -1593,6 +1596,7 @@ enum qk_keycode_defines {
 #define QUANTUM_KEYCODE_RANGE               QK_BOOTLOADER ... QK_LAYER_LOCK
 #define KB_KEYCODE_RANGE                    QK_KB_0 ... QK_KB_31
 #define USER_KEYCODE_RANGE                  QK_USER_0 ... QK_USER_31
-#define ANALOG_MATRIX_KEYCODE_RANGE         AM_CALIBRATE ... AM_PRINT_PROFILE
+#define ANALOG_MATRIX_KEYCODE_RANGE         QK_ANALOG_MATRIX ... QK_ANALOG_MATRIX_MAX
 #define ANALOG_MATRIX_PROFILE_RANGE         QK_AM_PROFILE ... QK_AM_PROFILE_MAX
+//TODO: When adding the 6th axis, update the keycode here
 #define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Y
