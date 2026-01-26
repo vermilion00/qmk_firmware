@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "info_config.h"
+// #include "matrix.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Key mapping
@@ -109,3 +111,18 @@ const key_override_t* key_override_get_raw(uint16_t key_override_idx);
 const key_override_t* key_override_get(uint16_t key_override_idx);
 
 #endif // defined(KEY_OVERRIDE_ENABLE)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Joystick
+
+#if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+
+typedef uint8_t matrix_row_t;
+
+extern bool joystick_layer;
+
+extern matrix_row_t joystick_mask[MATRIX_ROWS];
+
+// Create a mask of all joystick axis keys in the highest active layer
+void create_joystick_mask(uint8_t current_layer);
+#endif

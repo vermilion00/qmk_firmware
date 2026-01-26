@@ -3,6 +3,9 @@
 #include "analog_matrix.h"
 // #include "info_config.h"
 #include "joystick_aliases.h"
+#ifndef USE_JOYSTICK
+#include "keymap_introspection.h"
+#endif
 // #include "report.h"
 
 typedef enum axis_name_t {
@@ -46,15 +49,12 @@ extern const uint8_t matrix_to_num_r[MATRIX_ROWS][MATRIX_COLS];
 
 extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
-extern bool joystick_layer;
-extern matrix_row_t joystick_matrix[MATRIX_ROWS];
 
 void analog_joystick_init(void);
 void evaluate_joystick_axis(uint8_t index);
 void update_joystick_value(axis_index_t axis, uint8_t value);
 bool joystick_post_scan(void);
-void create_joystick_mask(uint8_t current_layer);
-
+void analog_joystick_task(void);
 
 #if !(defined JS_TOP_DEADZONE && defined JS_BOTTOM_DEADZONE)
 #undef JS_TOP_DEADZONE

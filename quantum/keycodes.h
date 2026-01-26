@@ -349,14 +349,15 @@ enum qk_keycode_defines {
     //TODO: Perhaps add keycodes for ABXY etc? Or does JS_0 etc register as those and I just need aliases for them?
     JS_LEFT_POSITIVE_X = 0x5840,
     JS_LEFT_NEGATIVE_X = 0x5841,
-    JS_LEFT_POSITIVE_Y = 0x5842,
-    JS_LEFT_NEGATIVE_Y = 0x5843,
+    // The Y axis is inverted, with the negative Y axis mapping to forward movement in games
+    JS_LEFT_NEGATIVE_Y = 0x5842,
+    JS_LEFT_POSITIVE_Y = 0x5843,
     JS_LEFT_TRIGGER = 0x5844,
     JS_RIGHT_TRIGGER = 0x5845,
     JS_RIGHT_POSITIVE_X = 0x5846,
     JS_RIGHT_NEGATIVE_X = 0x5847,
-    JS_RIGHT_POSITIVE_Y = 0x5848,
-    JS_RIGHT_NEGATIVE_Y = 0x5849,
+    JS_RIGHT_NEGATIVE_Y = 0x5848,
+    JS_RIGHT_POSITIVE_Y = 0x5849,
     //TODO: Add keycodes for missing 6th axis
     QK_MAGIC_SWAP_CONTROL_CAPS_LOCK = 0x7000,
     QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK = 0x7001,

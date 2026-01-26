@@ -59,7 +59,11 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
         case JOYSTICK_AXIS_RANGE:
             const uint8_t index = matrix_to_num[record->event.key.row][record->event.key.col] - 1;
             // Subtract the first axis keycode to get the axis index
+            #ifndef USE_JOYSTICK
+            update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
+            #else
             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
+            #endif
             return false;
         #endif
     }

@@ -635,7 +635,16 @@ static bool matrix_task(void) {
 
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         const matrix_row_t current_row = matrix_get_row(row);
+
+        #ifndef JOYSTICK_ENABLE
         const matrix_row_t row_changes = current_row ^ matrix_previous[row];
+        #else
+        matrix_row_t row_changes = current_row ^ matrix_previous[row];
+        // Always count joystick axis keys as changed to trigger updates
+        if(joystick_state.dirty) {
+            row_changes |= joystick_mask[row];
+        }
+        #endif
 
         if (!row_changes || has_ghost_in_row(row, current_row)) {
             continue;
@@ -798,8 +807,12 @@ void keyboard_task(void) {
 #endif
 
 //TODO: This means that an actual joystick is incompatible with analog matrix
-#if defined JOYSTICK_ENABLE && !defined ANALOG_MATRIX_ENABLE
+#if defined JOYSTICK_ENABLE
+#if defined ANALOG_MATRIX_ENABLE
+    analog_joystick_task();
+#else
     joystick_task();
+#endif
 #endif
 
 #ifdef BATTERY_ENABLE

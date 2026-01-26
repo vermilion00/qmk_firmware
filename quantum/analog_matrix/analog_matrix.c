@@ -428,14 +428,14 @@ uint8_t analog_matrix_scan() {
     #ifdef SPLIT_KEYBOARD
     #ifndef SLAVE_LOW_PRIORITY
     matrix_has_changed |= matrix_post_scan();
-    #else // Only synchronise the matrices during the full scans, if the slave is low priority
+    #else // Only synchronise the matrices during the full scans, if the slave is low priority (Doesn't contain priority keys)
     if(scan_amt == 0) {
         matrix_has_changed |= matrix_post_scan();
     }
-    #endif
-    #else
+    #endif // ifndef SLAVE_LOW_PRIORITY
+    #else // ifdef SPLIT_KEYBOARD
     matrix_scan_kb();
-    #endif
+    #endif // ifdef SPLIT_KEYBOARD
     #endif // if DEBOUNCE > 0
 
     return matrix_has_changed;
@@ -785,8 +785,28 @@ void calibrate_switches(void) {
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = key_config[index].pressed;
 
+    //TODO: Do I want to check for joystick_key? Only useful for USE_JOYSTICK, but won't be as performant
+    // If USE_JOYSTICK is defined, the user has specifically set the keymode to 4 on the desired keys
+    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
+    // bool joystick_key = false;
+    const uint8_t row = key_config[index].row;
+    const uint8_t col = key_config[index].col;
+    key_mode_t key_mode = key_config[index].mode[active_profile];
+
+    // If the key is set as a joystick axis, use the joystick evaluation
+    if(joystick_layer){
+        if(joystick_mask[row] & 1 << col) {
+            key_mode = joystick;
+            // joystick_key = true;
+        }
+    }
+    #else
+    // const bool joystick_key = true;
+    const key_mode_t key_mode = key_config[index].mode[active_profile];
+    #endif
+
 #if INVERT_ADC == TRUE
-    switch(key_config[index].mode[active_profile]) {
+    switch(key_mode) {
         case none:
         #if defined USE_NONE
         if(value > key_config[index].trigger_value[active_profile]) {
@@ -873,7 +893,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
     }
 
 #else //if INVERT_ADC == TRUE
-    switch(key_config[index].mode[active_profile]) {
+    switch(key_mode) {
         case none:
         #if defined USE_NONE
         if(value < key_config[index].trigger_value[active_profile]) {
@@ -954,26 +974,14 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         #endif // defined USE_CONSTANT_RAPID_TRIGGER
         break;
 
-        //TODO: Returning true here means that this key location is executed every scan
-        //      Unfortunately, this means if another layer is activated with this profile active, it will just spam that key
-        //      Set a flag in evaluate joystick and ask create an analog joystick task that checks the flag and updates the array (and gets slave data)
-        case joystick:
-        #if defined USE_JOYSTICK && defined JOYSTICK_ENABLE
-        //TODO: Check if it makes a difference to leave this up
-        key_config[index].pressed = false;
-        evaluate_joystick_axis(index);
-        return false;
-        #else
-        return false;
-        #endif
-        break;
-
         default:
-        #if defined USE_SPECIAL
-        //TODO: Call special key eval function here
-        //evaluate_special(index, value)
-        #endif //defined USE_SPECIAL
-        break; //TODO: Break or no?
+        #if defined JOYSTICK_ENABLE
+        evaluate_joystick_axis(index);
+        // if(joystick_key) { return true; } else { return false; }
+        return true;
+
+        #endif
+        return false;
     }
 #endif //if INVERT_ADC == TRUE else
 
@@ -1087,6 +1095,7 @@ void set_active_profile(uint8_t profile) { active_profile = profile; }
 void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
         active_profile = profile;
+        //TODO: Manually trigger profile transaction instead of having it checked every scan
         // Send the new profile to the slave
         // transaction_rpc_send(AM_PROFILE_SYNC, 8, &active_profile);
     }
@@ -1094,16 +1103,37 @@ void set_active_profile(uint8_t profile) {
 #endif // ifndef SPLIT_KEYBOARD else
 
 
+//Clear the matrix and switch state of all joystick keys
+void reset_joystick_keys(void) {
+    // Reset the pressed state of all joystick keys to avoid stuck keys
+    for(uint8_t index = 0; index < switch_num; index++) {
+        const uint8_t row = key_config[index].row;
+        const uint8_t col = key_config[index].col;
+
+        if(joystick_mask[row] & 1 << col) {
+            key_config[index].pressed = false;
+        }
+    }
+    // Reset the matrix state of all joystick keys
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        matrix[row] &= ~joystick_mask[row];
+    }
+}
+
+
 //MARK: Layer state
 layer_state_t layer_state_set_kb(layer_state_t state) {
-    #ifdef JOYSTICK_ENABLE
+    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
     uint8_t highest_layer = get_highest_layer(state);
+
+    if(joystick_layer) { reset_joystick_keys(); }
+
     create_joystick_mask(highest_layer);
     #endif
+
     if (!manual_profile_lock) {
         uint8_t highest_layer = get_highest_layer(state);
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            // Profile layers is a bitmap, where a 1 means that the profile should be used if on that layer
             // If the highest active layer is in the layers list of that profile, activate it
             if(profiles[profile].layers & (1 << highest_layer)) {
                 set_active_profile(profile);

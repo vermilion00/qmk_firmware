@@ -187,6 +187,11 @@ typedef struct analog_key_t {
     // The switch is counted as released above this value
     uint16_t release_value[AM_PROFILE_NUM];
     #endif
+    //TODO: Test if it's worth to have fields for the travel diff, or just calculate it every time
+    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
+    uint16_t joystick_travel;
+    int16_t joystick_value;
+    #endif
     #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released

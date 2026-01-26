@@ -613,6 +613,7 @@
                         "deadzone": { "type": "integer" },
                         "top_deadzone": { "type": "integer" },
                         "bottom_deadzone": { "type": "integer" },
+                        "resolution_method": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
                         "resolution_methods": {
                             "type": "object",
                             "properties": {
