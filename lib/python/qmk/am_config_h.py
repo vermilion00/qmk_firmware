@@ -831,7 +831,7 @@ def check_right_side_pins(info_data, config_h_lines):
 #MARK: Joystick config
 def generate_joystick_config(info_data, config_h_lines):
     axis_indexes = {
-        "x": 0, "y": 1, "trigger": 2, "rx": 3, "ry": 4, "z": 5
+        "x": 0, "y": 1, "trigger": 2, "rx": 3, "ry": 4, "rz": 5
     }
     resolution_names = {
         "difference": 0, "lowest": 1, "positive_dominant": 2, "negative_dominant": 3, "cancel": 4
@@ -842,7 +842,7 @@ def generate_joystick_config(info_data, config_h_lines):
     axis_count = am_joystick.get('axes', 5)
     config_h_lines.append(generate_define('JOYSTICK_AXIS_COUNT', axis_count))
     #TODO: Update this with the standard amount of joystick buttons
-    config_h_lines.append(generate_define('JOYSTICK_BUTTON_COUNT', am_joystick.get('buttons', 10)))
+    config_h_lines.append(generate_define('JOYSTICK_BUTTON_COUNT', am_joystick.get('buttons', 16)))
     if 'top_deadzone' in am_joystick:
         config_h_lines.append(generate_define('JS_TOP_DEADZONE', am_joystick.get('top_deadzone')))
         if 'bottom_deadzone' in am_joystick:
@@ -851,18 +851,13 @@ def generate_joystick_config(info_data, config_h_lines):
         config_h_lines.append(generate_define('JS_DEADZONE', am_joystick.get('deadzone', 10)))
 
     method_config = am_joystick.get('resolution_methods', {})
-    resolutions = [[0] for _ in range(axis_count)]
-    #TODO: If I decide to undo the useless struct, undo thi
-    # resolutions = [0 for _ in range(axis_count)]
+    # Use the resolution_method option as the default for any axis that isn't specified
+    resolutions = [[resolution_names[am_joystick.get('resolution_method', 'difference').lower()]] for _ in range(axis_count)]
     if method_config != {}:
         for axis, method in method_config.items():
             resolutions[axis_indexes[axis]][0] = resolution_names[method]
-            # resolutions[axis_indexes[axis]] = resolution_names[method]
 
     config_h_lines.append(generate_define('AM_JOYSTICK_AXIS_CONFIG', f'{str(resolutions).replace('[', '{').replace(']', '}')}'))
-
-
-
 
 
 #MARK: Priority keys
@@ -906,6 +901,7 @@ def generate_joystick_config(info_data, config_h_lines):
 #     if priority_muxes_r != []:
 #         config_h_lines.append(generate_define("PRIORITY_MUXES_R", f'{str(priority_muxes_r).replace('[', '{').replace(']', '}')}'))
 #         config_h_lines.append(generate_define("PRIORITY_MUX_NUM_R", len(priority_muxes_r)))
+
 
 #MARK: Priority idx
 def get_priority_keys(info_data, config_h_lines):
