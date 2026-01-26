@@ -1,6 +1,8 @@
 // Copyright 2022 Nick Brassel (@tzarc)
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <stdint.h>
+#include "analog_matrix/analog_matrix.h"
 #if defined(COMMUNITY_MODULES_ENABLE)
 #    include "community_modules_introspection.h"
 #endif // defined(COMMUNITY_MODULES_ENABLE)
@@ -176,6 +178,30 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 }
 
 #endif // defined(KEY_OVERRIDE_ENABLE)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Joystick
+
+#if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+bool joystick_layer = false;
+
+matrix_row_t joystick_mask[MATRIX_ROWS];
+
+void create_joystick_mask(uint8_t current_layer) {
+    joystick_layer = false;
+    memset(joystick_mask, 0, sizeof(joystick_mask));
+
+    for(uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        for(uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if(IS_QK_JOYSTICK_AXIS(keymaps[current_layer][row][col])) {
+                joystick_mask[row] |= 1 << col;
+                joystick_layer = true;
+            }
+        }
+    }
+}
+
+#endif // defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Community modules (must be last in this file!)
