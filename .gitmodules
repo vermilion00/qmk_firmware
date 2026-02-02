@@ -28,3 +28,6 @@
 [submodule "modules/getreuer"]
 	path = modules/getreuer
 	url = https://github.com/getreuer/qmk-modules.git
+[submodule "modules/drashna"]
+	path = modules/drashna
+	url = https://github.com/drashna/qmk_modules.git
