@@ -1,0 +1,23 @@
+{
+    "features": {
+        "deferred_exec": true,
+        "pointing_device": true
+    },
+    "keycodes": [
+        {
+            "aliases": [
+                "GST_TAP"
+            ],
+            "key": "CM_MOUSE_GESTURE_TAP"
+        },
+        {
+            "aliases": [
+                "GST_HLD"
+            ],
+            "key": "CM_MOUSE_GESTURE_HOLD"
+        }
+    ],
+    "license": "GPL-2.0-or-later",
+    "maintainer": "drashna",
+    "module_name": "Pointing Device Gestures"
+}
