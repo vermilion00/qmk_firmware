@@ -907,15 +907,6 @@ void process_action(keyrecord_t *record, action_t action) {
         layer_off(get_oneshot_layer());
     }
 #endif
-
-//MARK: process_am
-//TODO: Add NO_AM_KEYCODES define
-// #ifdef ANALOG_MATRIX_ENABLE
-// #   ifndef NO_AM_KEYCODES
-//     if (IS_QK_ANALOG_MATRIX(action.key.code))
-//     process_analog_matrix(uint16_t keycode, keyrecord_t *record);
-// #   endif
-// #endif
 }
 
 /** \brief Utilities for actions. (FIXME: Needs better description)

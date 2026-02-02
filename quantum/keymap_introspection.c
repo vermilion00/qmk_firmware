@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
-#include "analog_matrix/analog_matrix.h"
+#include "analog_matrix.h"
+#include "analog_matrix/analog_joystick.h"
+#include "gpio.h"
+#include "info_config.h"
+#include "keyboard.h"
+#include "keycodes.h"
+#include "matrix.h"
+// #include "analog_matrix/analog_matrix.h"
 #if defined(COMMUNITY_MODULES_ENABLE)
 #    include "community_modules_introspection.h"
 #endif // defined(COMMUNITY_MODULES_ENABLE)
@@ -186,18 +193,52 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 bool joystick_layer = false;
 
 matrix_row_t joystick_mask[MATRIX_ROWS];
+#ifdef SPLIT_KEYBOARD
+extern uint8_t thisHand;
+#else
+const uint8_t thisHand = 0;
+#endif
+bool master;
 
+//TODO:
+// The switch states of some keys appears to get stuck after switching to the joystick layer/profile, if the joystick stuff is on the slave side
+//       mostly number keys? Possibly syncing to the wrong location? The matrix location perhaps
+//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?)
+
+//MARK: joystick mask
 void create_joystick_mask(uint8_t current_layer) {
+    master = is_keyboard_master();
     joystick_layer = false;
+    //TODO: Do I even need the joystick mask if I save the axis to the key config directly?
+    // Still useful for resetting only the joystick keys, but can be used for other things
     memset(joystick_mask, 0, sizeof(joystick_mask));
 
-    for(uint8_t row = 0; row < MATRIX_ROWS; row++) {
+    //TODO: Make sure this doesn't cause issues when the joystick layer state is different
+    // The master needs to check every keycode, the slave only the keycodes for the slave half
+    // printf("Layer: %u\n", current_layer);
+    for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
+        // for(uint8_t row = thisHand; row < (MATRIX_ROWS_PER_HAND + thisHand); row++) {
+        //TODO: Is matrix col LTR in matrix array? Cuz that means that joystick_mask is inverted
+        //      Doesn't look like it's flipped, but maybe test anyway
         for(uint8_t col = 0; col < MATRIX_COLS; col++) {
-            if(IS_QK_JOYSTICK_AXIS(keymaps[current_layer][row][col])) {
-                joystick_mask[row] |= 1 << col;
+            const uint16_t keycode = keymaps[current_layer][row][col];
+            // printf("K: %u, ", keycode);
+            // const uint16_t keycode = keycode_at_keymap_location(current_layer, row, col);
+            // if(IS_QK_JOYSTICK_AXIS(keycode)) {
+            const uint8_t key_index = matrix_to_num[row - thisHand][col] - 1;
+
+            if(IS_AM_JOYSTICK_AXIS(keycode)) {
                 joystick_layer = true;
+                joystick_mask[row] |= 1 << col;
+                printf("JS R:%u, C:%u\n", row, col);
+                //TODO: Test to make sure this doesn't overflow or smth
+                key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
+                // printf("A: %i, ", key_config[key_index].axis_index);
+            } else {
+                key_config[key_index].axis_index = -1;
             }
         }
+        // printf("\n");
     }
 }
 
