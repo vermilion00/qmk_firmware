@@ -2,8 +2,10 @@
 #include "action.h"
 #include "joystick.h"
 #include "keycodes.h"
+#include "keymap_introspection.h"
 #include "print.h"
 #include "analog_matrix.h"
+#include "matrix.h"
 #include "process_analog_matrix.h"
 #ifdef JOYSTICK_ENABLE
 #   include "analog_joystick.h"
@@ -55,20 +57,69 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
-        #ifdef JOYSTICK_ENABLE
+        // #ifdef JOYSTICK_ENABLE
+        // case JOYSTICK_AXIS_RANGE:
+        //     const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
+        //     // Subtract the first axis keycode to get the axis index
+        //     #ifndef USE_JOYSTICK
+        //     update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
+        //     #else
+        //     update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
+        //     #endif
+        //     return false;
+        // #endif
+    }
+    return true;
+}
+
+#ifdef SPLIT_KEYBOARD
+extern uint8_t thisHand;
+#else
+const uint8_t thisHand = 0;
+#endif
+
+//MARK: Action
+#ifdef JOYSTICK_ENABLE
+bool process_analog_joystick(uint16_t keycode) {
+    //TODO: Check if it's faster to check for them
+    if(!joystick_state.dirty || !joystick_layer) return true;
+
+    switch (keycode) {
         case JOYSTICK_AXIS_RANGE:
-            const uint8_t index = matrix_to_num[record->event.key.row][record->event.key.col] - 1;
+            // LED_ON;
+            // const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
             // Subtract the first axis keycode to get the axis index
             #ifndef USE_JOYSTICK
-            update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
+            // update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
+            evaluate_joystick_axis(keycode - QK_AM_JOYSTICK_AXIS);
             #else
             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
             #endif
             return false;
-        #endif
     }
     return true;
 }
+
+// bool process_analog_joystick(keyrecord_t* record) {
+//     if(!joystick_state.dirty) return false;
+//     // LED_ON;
+
+//     uint16_t keycode = get_record_keycode(record, true);
+
+//     switch (keycode) {
+//         case JOYSTICK_AXIS_RANGE:
+//             const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
+//             // Subtract the first axis keycode to get the axis index
+//             #ifndef USE_JOYSTICK
+//             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
+//             #else
+//             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
+//             #endif
+//             return false;
+//     }
+//     return false;
+// }
+#endif
 
 
 // This currently only prints the data for the master side, plug in the other half to print its data

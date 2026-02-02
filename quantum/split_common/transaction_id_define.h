@@ -100,7 +100,7 @@ enum serial_transaction_id {
 #endif // SPLIT_ACTIVITY_ENABLE
 
 #if defined(ANALOG_MATRIX_ENABLE)
-    PUT_AM_PROFILE,
+    PUT_AM_DATA,
 #   if defined(JOYSTICK_ENABLE)
     GET_JOYSTICK_CHECKSUM,
     GET_JOYSTICK_DATA,

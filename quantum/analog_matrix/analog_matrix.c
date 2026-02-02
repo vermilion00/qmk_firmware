@@ -5,28 +5,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <sys/cdefs.h>
-// #include "_wait.h"
-// #include "action_layer.h"
-// #include "analog.h"
 #include "bootloader.h"
 #include "debug.h"
-// #include "gpio.h"
-// #include "hal_pal.h"
-// #include "hal_pal_lld.h"
 #include "info_config.h"
+#include "joystick.h"
 #include "keyboard.h"
-// #include "keycodes.h"
+#include "keymap_introspection.h"
 #include "matrix.h"
 #include "multiplexer.h"
-// #include "atomic_util.h"
 #include "print.h"
-// #include "stm32_gpio.h"
 #include "suspend.h"
-#include "transaction_id_define.h"
-#include "transactions.h"
+//TODO: Check if I need to remove these
+#ifdef SPLIT_KEYBOARD
+// #include "transaction_id_define.h"
+// #include "transactions.h"
+#endif
 #if DEBOUNCE > 0
 #include "debounce.h"
 #endif
@@ -87,6 +80,7 @@ static inline void set_sensor_power(uint8_t index);
 #endif
 
 PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
+uint8_t highest_layer = 0;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 
@@ -255,11 +249,16 @@ void analog_matrix_init(void) {
         calibrate_switches();
     }
 
+    // Check keys like the calibration key or bootmagic key before scanning begins
+    scan_init_keys();
+
     // Translate the trigger height etc into the equivalent ADC value
     translate_mm_to_value();
 
-    // Check keys like the calibration key or bootmagic key before scanning begins
-    scan_init_keys();
+    #ifdef JOYSTICK_ENABLE
+    // Create the joystick mask
+    create_joystick_mask(highest_layer);
+    #endif
 
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
@@ -424,6 +423,7 @@ uint8_t analog_matrix_scan() {
     matrix_has_changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     matrix_scan_kb();
     #endif
+
     #else // if DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
     #ifndef SLAVE_LOW_PRIORITY
@@ -638,12 +638,12 @@ void calibrate_switches(void) {
 
                     if(first_scan) {
                         #if INVERT_ADC == FALSE
-                        key_config[matrix_index].top_value = adc_value;
-                        key_config[matrix_index].bottom_value = adc_value - 50;
+                        key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                        key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
 
                         #else
-                        key_config[matrix_index].top_value = adc_value - 50;
-                        key_config[matrix_index].bottom_value = adc_value;
+                        key_config[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
+                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
 
                         continue;
@@ -785,20 +785,29 @@ void calibrate_switches(void) {
 static inline bool evaluate_value(uint8_t index, uint16_t value) {
     bool prev_pressed = key_config[index].pressed;
 
-    //TODO: Do I want to check for joystick_key? Only useful for USE_JOYSTICK, but won't be as performant
     // If USE_JOYSTICK is defined, the user has specifically set the keymode to 4 on the desired keys
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
-    // bool joystick_key = false;
-    const uint8_t row = key_config[index].row;
-    const uint8_t col = key_config[index].col;
+    // const uint8_t row = key_config[index].row;
+    // const uint8_t col = key_config[index].col;
     key_mode_t key_mode = key_config[index].mode[active_profile];
 
+    //TODO: Check the performance impact of getting the actual index here
+    //      Could an axis_index[], where axis_index[keycode - JS_POSITIVE_X] = index (of the switch)
+    //      Or save the axis index to the switch mode by setting it instead of the joystick layer
+    //      Then write the eval result to axis_value directly instead of to a placeholder
+
     // If the key is set as a joystick axis, use the joystick evaluation
+    //TODO: Maybe the slave half doesn't set the joystick mask correctly?
+    //      Need to check if the row_split offset does or doesn't need to be applied
     if(joystick_layer){
-        if(joystick_mask[row] & 1 << col) {
+        //TODO: If I'm saving the axis index anyway, I can check that instead
+        // Can even write the axis to the key mode directly, instead of
+        if(key_config[index].axis_index != -1) {
             key_mode = joystick;
-            // joystick_key = true;
         }
+        // if(joystick_mask[row] & 1 << col) {
+            // key_mode = joystick;
+        // }
     }
     #else
     // const bool joystick_key = true;
@@ -976,9 +985,11 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
         default:
         #if defined JOYSTICK_ENABLE
-        evaluate_joystick_axis(index);
-        // if(joystick_key) { return true; } else { return false; }
-        return true;
+        translate_joystick_axis(index);
+        joystick_state.dirty = true;
+        // return true;
+        //TODO: Check if this helps
+        return false;
 
         #endif
         return false;
@@ -1102,11 +1113,12 @@ void set_active_profile(uint8_t profile) {
 }
 #endif // ifndef SPLIT_KEYBOARD else
 
-
-//Clear the matrix and switch state of all joystick keys
+#ifdef JOYSTICK_ENABLE
+// Clear the matrix and switch state of all joystick keys
 void reset_joystick_keys(void) {
     // Reset the pressed state of all joystick keys to avoid stuck keys
     for(uint8_t index = 0; index < switch_num; index++) {
+        // Here I could also check if the joystick axis field is set
         const uint8_t row = key_config[index].row;
         const uint8_t col = key_config[index].col;
 
@@ -1119,26 +1131,38 @@ void reset_joystick_keys(void) {
         matrix[row] &= ~joystick_mask[row];
     }
 }
+#endif
+
+// void reset_key_states(void) {
+//     for(uint8_t index = 0; index < switch_num; index++) {
+//         key_config[index].pressed = false;
+//     }
+//     // memset(&matrix, 0, sizeof(matrix));
+//     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+//         matrix[row] = 0;
+//     }
+// }
 
 
 //MARK: Layer state
 layer_state_t layer_state_set_kb(layer_state_t state) {
-    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
-    uint8_t highest_layer = get_highest_layer(state);
+    highest_layer = get_highest_layer(state);
 
+    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
+    //TODO: Check if the stuck non-joystick keys issue is resolved by resetting the whole matrix
+    // if(joystick_layer) { reset_key_states(); }
     if(joystick_layer) { reset_joystick_keys(); }
 
     create_joystick_mask(highest_layer);
     #endif
 
     if (!manual_profile_lock) {
-        uint8_t highest_layer = get_highest_layer(state);
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             // If the highest active layer is in the layers list of that profile, activate it
             if(profiles[profile].layers & (1 << highest_layer)) {
                 set_active_profile(profile);
 
-                // Only the lowest number profile should apply
+                // Only the lowest profile should apply
                 return layer_state_set_user(state);
             }
         }
@@ -1259,10 +1283,8 @@ void assign_split_side(bool side) {
 // }
 // #endif // ifdef SPLIT_KEYBOARD
 
+
 //MARK: Priority scan
-//TODO: Check if I this is a better improvement for non-split keyboards
-//      Check how to syncing works, if it's on a timer or smth else, and if throttling
-//      the scan rate there would help
 #ifdef PRIORITY_MUXES
 uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
     bool matrix_has_changed = false;

@@ -1,5 +1,6 @@
 #pragma once
 
+// #include "analog_joystick.h"
 #include "matrix.h"
 #include <stdint.h>
 // #include <stdbool.h>
@@ -190,7 +191,9 @@ typedef struct analog_key_t {
     //TODO: Test if it's worth to have fields for the travel diff, or just calculate it every time
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
     uint16_t joystick_travel;
-    int16_t joystick_value;
+    uint8_t joystick_value;
+    //TODO: Add a field for the axis index
+    int8_t axis_index;
     #endif
     #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
@@ -267,6 +270,7 @@ extern bool manual_profile_lock;
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
+extern uint8_t highest_layer;
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 
 /* Function defines */
@@ -276,15 +280,6 @@ void set_active_profile(uint8_t profile);
 uint8_t get_active_profile(void);
 void lock_profile(void);
 void calibrate_switches(void);
-
-// #if defined SPLIT_KEYBOARD
-// typedef struct _slave_to_master_t {
-//     uint16_t top_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-//     uint16_t bottom_values[MAX(SWITCH_NUM_L, SWITCH_NUM_R)];
-// } slave_to_master_t;
-
-// extern slave_to_master_t slave_data;
-// #endif
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

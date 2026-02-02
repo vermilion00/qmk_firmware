@@ -347,7 +347,7 @@ bool process_record_quantum_helper(uint16_t keycode, keyrecord_t *record) {
     }
 #endif
 
-    if (!(
+        if (!(
 #if defined(KEY_LOCK_ENABLE)
             // Must run first to be able to mask key_up events.
             process_key_lock(&keycode, record) &&
@@ -355,6 +355,13 @@ bool process_record_quantum_helper(uint16_t keycode, keyrecord_t *record) {
 #if defined(DYNAMIC_MACRO_ENABLE) && !defined(DYNAMIC_MACRO_USER_CALL)
             // Must run asap to ensure all keypresses are recorded.
             process_dynamic_macro(keycode, record) &&
+#endif
+#if defined(ANALOG_MATRIX_ENABLE)
+            process_analog_matrix(keycode, record) &&
+//TODO: Moved out of here to check if slave processing all keycodes is the problem
+// #if defined(JOYSTICK_ENABLE)
+            // process_analog_joystick(keycode) &&
+// #endif
 #endif
 #ifdef REPEAT_KEY_ENABLE
             process_last_key(keycode, record) && process_repeat_key(keycode, record) &&
@@ -383,7 +390,7 @@ bool process_record_quantum_helper(uint16_t keycode, keyrecord_t *record) {
             process_sequencer(keycode, record) &&
 #endif
 #if defined(MIDI_ENABLE) && defined(MIDI_ADVANCED)
-            process_midi(keycode, record) &&
+process_midi(keycode, record) &&
 #endif
 #ifdef AUDIO_ENABLE
             process_audio(keycode, record) &&
@@ -459,10 +466,6 @@ bool process_record_quantum_helper(uint16_t keycode, keyrecord_t *record) {
 #endif
 #ifndef NO_ACTION_ONESHOT
             process_oneshot(keycode, record) &&
-#endif
-//MARK: process call
-#if defined ANALOG_MATRIX_ENABLE && !defined NO_AM_KEYCODES
-            process_analog_matrix(keycode, record) &&
 #endif
             process_quantum(keycode, record))) {
         return false;

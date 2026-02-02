@@ -17,11 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include "keyboard.h"
-#include "analog_matrix/analog_joystick.h"
 #include "keycode_config.h"
+#include "quantum.h"
 //MARK: Include
 #ifdef ANALOG_MATRIX_ENABLE
 #   include "analog_matrix.h"
+#   ifdef JOYSTICK_ENABLE
+#       include "process_analog_matrix.h"
+#       include "analog_joystick.h"
+#   endif
 #else
 #   include "matrix.h"
 #endif
@@ -408,6 +412,14 @@ __attribute__((weak)) bool is_keyboard_left(void) {
  *   - splits where the slave side needs to process for rgb/oled functionality
  */
 __attribute__((weak)) bool should_process_keypress(void) {
+    //TODO: Test if the current issues are caused by the slave processing all keycodes, instead of just joystick ones
+    // #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+    // // Process the joystick state on the slave as well
+    // return is_keyboard_master() || joystick_state.dirty;
+    // #else
+    // return is_keyboard_master();
+    // #endif
+
     return is_keyboard_master();
 }
 
@@ -633,6 +645,7 @@ static bool matrix_task(void) {
     matrix_scan_perf_task();
 
     // Short-circuit the complete matrix processing if it is not necessary
+    // #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
     if (!matrix_changed) {
         generate_tick_event();
 
@@ -648,16 +661,13 @@ static bool matrix_task(void) {
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         const matrix_row_t current_row = matrix_get_row(row);
 
-        #ifndef JOYSTICK_ENABLE
-        const matrix_row_t row_changes = current_row ^ matrix_previous[row];
+        #ifdef JOYSTICK_ENABLE
+        const matrix_row_t row_changes = (current_row ^ matrix_previous[row]) | joystick_mask[row];
         #else
-        matrix_row_t row_changes = current_row ^ matrix_previous[row];
-        // Always count joystick axis keys as changed to trigger updates
-        if(joystick_state.dirty) {
-            row_changes |= joystick_mask[row];
-        }
+        const matrix_row_t row_changes = current_row ^ matrix_previous[row];
         #endif
 
+        //TODO: Test performance without ghost function
         if (!row_changes || has_ghost_in_row(row, current_row)) {
             continue;
         }
@@ -667,9 +677,21 @@ static bool matrix_task(void) {
             if (row_changes & col_mask) {
                 const bool key_pressed = current_row & col_mask;
 
+                //TODO: Maybe process them in here, and add a || joystick_state.dirty or joystick_layer
                 if (process_keypress) {
                     action_exec(MAKE_KEYEVENT(row, col, key_pressed));
                 }
+
+                // Process the joystick action on master and slave
+                #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+                // // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
+                // //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
+                if (joystick_layer) {
+                    keyrecord_t record = {.event = MAKE_KEYEVENT(row, col, true)};
+                    uint16_t keycode = get_record_keycode(&record, true);
+                    process_analog_joystick(keycode);
+                }
+                #endif
 
                 switch_events(row, col, key_pressed);
             }
@@ -689,6 +711,10 @@ void quantum_task(void) {
 #ifdef SPLIT_KEYBOARD
     // some tasks should only run on master
     if (!is_keyboard_master()) return;
+#endif
+
+#if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+    analog_joystick_task();
 #endif
 
 #ifdef AUDIO_ENABLE
@@ -819,12 +845,8 @@ void keyboard_task(void) {
 #endif
 
 //TODO: This means that an actual joystick is incompatible with analog matrix
-#if defined JOYSTICK_ENABLE
-#if defined ANALOG_MATRIX_ENABLE
-    analog_joystick_task();
-#else
+#if defined JOYSTICK_ENABLE && !defined ANALOG_MATRIX_ENABLE
     joystick_task();
-#endif
 #endif
 
 #ifdef BATTERY_ENABLE

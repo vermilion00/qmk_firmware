@@ -232,7 +232,7 @@ typedef struct _split_shared_memory_t {
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
 #if defined(ANALOG_MATRIX_ENABLE)
-    uint8_t am_profile;
+    uint8_t am_data;
 #   if defined(JOYSTICK_ENABLE)
     joystick_slave_axis_sync_t axis_data;
 #   endif // defined(JOYSTICK_ENABLE)

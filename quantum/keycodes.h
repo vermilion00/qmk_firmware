@@ -66,13 +66,12 @@ enum qk_keycode_ranges {
     QK_TAP_DANCE                   = 0x5700,
     QK_TAP_DANCE_MAX               = 0x57FF,
     //MARK: Range
-    //TODO: Added here since there's a gap
     QK_AM_PROFILE                  = 0x5800,
     QK_AM_PROFILE_MAX              = 0x581F,
     QK_ANALOG_MATRIX               = 0x5820,
     QK_ANALOG_MATRIX_MAX           = 0x583F,
     QK_AM_JOYSTICK_AXIS            = 0x5840,
-    QK_AM_JOYSTICK_AXIS_MAX        = 0x585F,
+    QK_AM_JOYSTICK_AXIS_MAX        = 0x584B,
     QK_MAGIC                       = 0x7000,
     QK_MAGIC_MAX                   = 0x70FF,
     QK_MIDI                        = 0x7100,
@@ -346,19 +345,19 @@ enum qk_keycode_defines {
     AM_PRINT_PROFILE = 0x5822,
     AM_LOCK_PROFILE = 0x5823,
     // Joystick axes to allow mapping them to analog keys
-    //TODO: Perhaps add keycodes for ABXY etc? Or does JS_0 etc register as those and I just need aliases for them?
     JS_LEFT_POSITIVE_X = 0x5840,
     JS_LEFT_NEGATIVE_X = 0x5841,
     // The Y axis is inverted, with the negative Y axis mapping to forward movement in games
     JS_LEFT_NEGATIVE_Y = 0x5842,
     JS_LEFT_POSITIVE_Y = 0x5843,
-    JS_LEFT_TRIGGER = 0x5844,
-    JS_RIGHT_TRIGGER = 0x5845,
+    JS_LEFT_POSITIVE_Z = 0x5844,
+    JS_LEFT_NEGATIVE_Z = 0x5845,
     JS_RIGHT_POSITIVE_X = 0x5846,
     JS_RIGHT_NEGATIVE_X = 0x5847,
     JS_RIGHT_NEGATIVE_Y = 0x5848,
     JS_RIGHT_POSITIVE_Y = 0x5849,
-    //TODO: Add keycodes for missing 6th axis
+    JS_RIGHT_POSITIVE_Z = 0x584A,
+    JS_RIGHT_NEGATIVE_Z = 0x584B,
     QK_MAGIC_SWAP_CONTROL_CAPS_LOCK = 0x7000,
     QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK = 0x7001,
     QK_MAGIC_TOGGLE_CONTROL_CAPS_LOCK = 0x7002,
@@ -1496,13 +1495,16 @@ enum qk_keycode_defines {
     JS_LNX     = JS_LEFT_NEGATIVE_X,
     JS_LPY     = JS_LEFT_POSITIVE_Y,
     JS_LNY     = JS_LEFT_NEGATIVE_Y,
-    JS_LT      = JS_LEFT_TRIGGER,
-    JS_RT      = JS_RIGHT_TRIGGER,
+    JS_LT      = JS_LEFT_POSITIVE_Z,
+    JS_RT      = JS_LEFT_NEGATIVE_Z,
+    JS_LPZ     = JS_LEFT_POSITIVE_Z,
+    JS_LNZ     = JS_LEFT_NEGATIVE_Z,
     JS_RPX     = JS_RIGHT_POSITIVE_X,
     JS_RNX     = JS_RIGHT_NEGATIVE_X,
     JS_RPY     = JS_RIGHT_POSITIVE_Y,
     JS_RNY     = JS_RIGHT_NEGATIVE_Y,
-    //TODO: Add 6th axis
+    JS_RPZ     = JS_RIGHT_POSITIVE_Z,
+    JS_RNZ     = JS_RIGHT_NEGATIVE_Z,
 };
 
 // Range Helpers
@@ -1569,8 +1571,7 @@ enum qk_keycode_defines {
 #define IS_KB_KEYCODE(code) ((code) >= QK_KB_0 && (code) <= QK_KB_31)
 #define IS_USER_KEYCODE(code) ((code) >= QK_USER_0 && (code) <= QK_USER_31)
 #define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_LOCK_PROFILE)
-//TODO: When adding the 6th axis, update the keycode here
-#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_LEFT_POSITIVE_X && (code) <= JS_RIGHT_NEGATIVE_Y)
+#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_LEFT_POSITIVE_X && (code) <= JS_RIGHT_NEGATIVE_Z)
 
 // Switch statement Helpers
 #define INTERNAL_KEYCODE_RANGE              KC_NO ... KC_TRANSPARENT
@@ -1599,5 +1600,5 @@ enum qk_keycode_defines {
 #define USER_KEYCODE_RANGE                  QK_USER_0 ... QK_USER_31
 #define ANALOG_MATRIX_KEYCODE_RANGE         QK_ANALOG_MATRIX ... QK_ANALOG_MATRIX_MAX
 #define ANALOG_MATRIX_PROFILE_RANGE         QK_AM_PROFILE ... QK_AM_PROFILE_MAX
-//TODO: When adding the 6th axis, update the keycode here
-#define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Y
+// The Y axes are flipped, with a negative Y axis corresponding to a forward movement in games
+#define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Z

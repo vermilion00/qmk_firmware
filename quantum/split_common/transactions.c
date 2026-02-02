@@ -18,9 +18,11 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "action_layer.h"
 #include "crc.h"
 #include "debug.h"
 #include "info_config.h"
+#include "keymap_introspection.h"
 #include "matrix.h"
 #include "host.h"
 #include "action_util.h"
@@ -918,55 +920,100 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 
 #endif // defined(OS_DETECTION_ENABLE) && defined(SPLIT_DETECTED_OS_ENABLE)
 
+//MARK: AM Profile and Layer
 ////////////////////////////////////////////////////
-// Analog Matrix profile synchronisation
+// Analog Matrix profile (and layer) synchronisation
 
 //TODO: This would currently cause it to sync every scan, when syncing on specific keycodes would be enough. Can I trigger the sync via keycode?
 #if defined(ANALOG_MATRIX_ENABLE)
-//TODO: Find a better way to get a single variable from it
-// #include "analog_matrix.h"
 
-static bool am_profile_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+//TODO: Find a way to trigger this from layer_state_set/keycode, not every matrix scan
+static bool am_data_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static uint8_t last_profile = DEFAULT_PROFILE;
     static uint32_t last_update = 0;
-    uint8_t profile = get_active_profile();
-    return send_if_data_mismatch(PUT_AM_PROFILE, &last_update, &profile, &split_shmem->am_profile, sizeof(uint8_t));
+    bool changed = false;
+    uint8_t data = active_profile;
+
+    if (active_profile != last_profile) {
+        last_profile = active_profile;
+        changed = true;
+    }
+
+    #ifdef JOYSTICK_ENABLE
+    static uint8_t last_layer = 0;
+    if (highest_layer != last_layer) {
+        last_layer = highest_layer;
+        // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
+        data |= highest_layer << 4;
+        changed = true;
+    }
+    #endif
+
+    if (!changed) return true;
+
+    return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(uint8_t));
 }
 
-static void am_profile_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     split_shared_memory_lock();
-    active_profile = split_shmem->am_profile;
+    #ifdef JOYSTICK_ENABLE
+    //TODO: Make sure this is correct
+    static uint8_t last_layer = 0;
+    // If joystick is enabled, the first for bits contain the profile, while the last 4 contain the highest active layer
+    highest_layer = split_shmem->am_data >> 4;
+    #endif
+    active_profile = split_shmem->am_data & 0b00001111;
     split_shared_memory_unlock();
+
+    // Create a joystick mask for the slave
+    #ifdef JOYSTICK_ENABLE
+    if(last_layer != highest_layer) {
+        last_layer = highest_layer;
+        create_joystick_mask(highest_layer);
+    }
+    #endif
 }
 
 //TODO: Add calibration sync handlers
 
-#   define TRANSACTIONS_AM_PROFILE_MASTER() TRANSACTION_HANDLER_MASTER(am_profile)
-#   define TRANSACTIONS_AM_PROFILE_SLAVE() TRANSACTION_HANDLER_SLAVE(am_profile)
-#   define TRANSACTIONS_AM_PROFILE_REGISTRATIONS [PUT_AM_PROFILE] = trans_initiator2target_initializer(am_profile),
+#   define TRANSACTIONS_AM_DATA_MASTER() TRANSACTION_HANDLER_MASTER(am_data)
+#   define TRANSACTIONS_AM_DATA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_data)
+#   define TRANSACTIONS_AM_DATA_REGISTRATIONS [PUT_AM_DATA] = trans_initiator2target_initializer(am_data),
 
 #else // defined(ANALOG_MATRIX_ENABLE)
 
-#   define TRANSACTIONS_AM_PROFILE_MASTER()
-#   define TRANSACTIONS_AM_PROFILE_SLAVE()
-#   define TRANSACTIONS_AM_PROFILE_REGISTRATIONS
+#   define TRANSACTIONS_AM_DATA_MASTER()
+#   define TRANSACTIONS_AM_DATA_SLAVE()
+#   define TRANSACTIONS_AM_DATA_REGISTRATIONS
 
 #endif // defined(ANALOG_MATRIX_ENABLE)
 
+//MARK: AM Joystick
 ////////////////////////////////////////////////////
 // Analog Matrix Joystick synchronisation
 
-//Currently causes a performance hit of ~17.5% and doesn't work, but it does get called
 #if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
 #include "analog_joystick.h"
-static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    static uint32_t     last_update                    = 0;
-    // static matrix_row_t last_axis_values[JOYSTICK_AXIS_COUNT * 2] = {0}; // last successfully-read matrix, so we can replicate if there are checksum errors
-    matrix_row_t        temp_axis_values[JOYSTICK_AXIS_COUNT * 2];       // holding area while we test whether or not checksum is correct
 
-    bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, temp_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
+static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    // If we're not on a layer with joystick keys, we don't need to sync
+    if(!joystick_layer) return true;
+
+    static uint32_t last_update = 0;
+    uint8_t slave_axis_values[JOYSTICK_AXIS_COUNT * 2];
+
+    // memset(slave_axis_values, 0, sizeof(slave_axis_values));
+    bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, slave_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
     if (okay) {
-        //TODO: This won't work, since the axis_values aren't cleared between updates. It would keep adding up, then overflowing.
-        for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) { axis_values[index] += temp_axis_values[0]; }
+        for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
+            // printf("B%u: %u, ", index, axis_values[index]);
+            // Only assign the values if the master array at that index is 0, to avoid overwriting the values
+            if(axis_values[index] == 0) {
+                axis_values[index] = slave_axis_values[index];
+                // printf("C: %u, ", slave_axis_values[index]);
+            }
+            // printf("A%u: %u\n", index, axis_values[index]);
+        }
     }
     return okay;
 }
@@ -976,12 +1023,9 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
     split_shmem->axis_data.checksum = crc8(split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
 }
 
-//TODO: Make sure this is correct
-// Do I really need separate registrations for this? I don't think so
 // clang-format off
 #define TRANSACTIONS_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
 #define TRANSACTIONS_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE_AUTOLOCK(joystick)
-//TODO: Update this
 #define TRANSACTIONS_JOYSTICK_REGISTRATIONS \
     [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum), \
     [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values),
@@ -1022,7 +1066,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_HAPTIC_REGISTRATIONS
     TRANSACTIONS_ACTIVITY_REGISTRATIONS
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
-    TRANSACTIONS_AM_PROFILE_REGISTRATIONS
+    TRANSACTIONS_AM_DATA_REGISTRATIONS
     TRANSACTIONS_JOYSTICK_REGISTRATIONS
 // clang-format on
 
@@ -1055,7 +1099,11 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
-    TRANSACTIONS_AM_PROFILE_MASTER();
+    //TODO: I'm assuming I can use the registrations here, but then run these transactions myself instead of here
+    //      I think this just calls all these transactions, which I can do myself
+    //Problem: These aren't in header files, putting them in headers causes issues with the static function definition
+    //      I could put the funcs in a header and use a global var to keep track of retries,
+    TRANSACTIONS_AM_DATA_MASTER();
     TRANSACTIONS_JOYSTICK_MASTER();
     return true;
 }
@@ -1080,7 +1128,8 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_HAPTIC_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
-    TRANSACTIONS_AM_PROFILE_SLAVE();
+    //TODO: Still call the slave stuff every scan, if they're not called by the master transaction
+    TRANSACTIONS_AM_DATA_SLAVE();
     TRANSACTIONS_JOYSTICK_SLAVE();
 }
 
