@@ -15,6 +15,7 @@
  */
 
 #include "quantum.h"
+#include "process_quantum.h"
 #include "qmk_settings.h"
 
 #ifdef SLEEP_LED_ENABLE
