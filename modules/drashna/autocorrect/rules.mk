@@ -1,1 +1,0 @@
-AUTOCORRECT_ENABLE := no

@@ -1,7 +1,0 @@
-{
-    "features": {
-        "console": true
-    },
-    "maintainer": "drashna",
-    "module_name": "Console Keylogging"
-}
