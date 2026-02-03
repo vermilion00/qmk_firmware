@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
+#ifdef ANALOG_MATRIX_ENABLE
 #include "analog_matrix.h"
+#ifdef JOYSTICK_ENABLE
 #include "analog_matrix/analog_joystick.h"
+#endif
+#endif
 #include "gpio.h"
 #include "info_config.h"
 #include "keyboard.h"

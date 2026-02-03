@@ -16,12 +16,12 @@
 
 #define _CLMK 0
 #define _GMCL 1
-#define _GMQW 2
-#define _GMPD 3
-#define _MOUSE 4
-#define _FN 5
-#define _LALT 6
-#define _FN2 7
+// #define _GMQW 2
+// #define _GMPD 3
+#define _MOUSE 2
+#define _FN 3
+#define _LALT 4
+#define _FN2 5
 
 #define CARET_VAL 50
 #define SCROLL_VAL 40
@@ -134,25 +134,25 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // 									                                  KC_LCTL, KC_LALT,			 KC_ENT
 //   ),
 
-  [_GMQW] = LAYOUT(
-     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
-     KC_TAB , KC_Q,    KC_Q,    KC_W,    KC_E,    KC_R,                   			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-     KC_BSPC, KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-     KC_EQL,  KC_V,    KC_X,    KC_Y,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, TG(_GMQW),
-                               KC_LBRC, KC_RBRC,													 	  	                            KC_PLUS, KC_EQL,
-										                 KC_O,    KC_SPC,  MO_LALT,			 MO(_FN), KC_LSFT, ALT_TAB,
-												                      KC_LCTL, KC_LALT,			 KC_ENT
-  ),
+//   [_GMQW] = LAYOUT(
+//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
+//      KC_TAB , KC_Q,    KC_Q,    KC_W,    KC_E,    KC_R,                   			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
+//      KC_BSPC, KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+//      KC_EQL,  KC_V,    KC_X,    KC_Y,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, TG(_GMQW),
+//                                KC_LBRC, KC_RBRC,													 	  	                            KC_PLUS, KC_EQL,
+// 										                 KC_O,    KC_SPC,  MO_LALT,			 MO(_FN), KC_LSFT, ALT_TAB,
+// 												                      KC_LCTL, KC_LALT,			 KC_ENT
+//   ),
 
-  [_GMPD] = LAYOUT(
-     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
-     KC_TAB,  KC_Q,    JS_LT,   JS_LPY,  JS_RT,   KC_B,                    			          KC_J,    JS_LT,   JS_RPY,  JS_RT,   KC_SCLN, KC_MINS,
-     KC_W,    KC_A,    JS_LNX,  JS_LNY,  JS_LPX,  KC_G,                    			          KC_K,    JS_RNX,  JS_RNY,  JS_RPX,  KC_O,    KC_QUOT,
-     KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_NO,  KC_DOT,  KC_SLSH, MO(_FN),
-                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-									                                  KC_LCTL, KC_LALT,			 KC_ENT
-  ),
+//   [_GMPD] = LAYOUT(
+//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
+//      KC_TAB,  KC_Q,    JS_LT,   JS_LPY,  JS_RT,   KC_B,                    			          KC_J,    JS_LT,   JS_RPY,  JS_RT,   KC_SCLN, KC_MINS,
+//      KC_W,    KC_A,    JS_LNX,  JS_LNY,  JS_LPX,  KC_G,                    			          KC_K,    JS_RNX,  JS_RNY,  JS_RPX,  KC_O,    KC_QUOT,
+//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_NO,  KC_DOT,  KC_SLSH, MO(_FN),
+//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
+//   ),
 
   [_MOUSE] = LAYOUT(
      KC_ESC,  CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			          CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,
@@ -188,7 +188,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      QK_BOOT, JS_0,   JS_1,   JS_2,   JS_3,   KC_F5,                   			          AM_LOCP,   AP(0),   AP(1),   AP(2),  KC_F10,  KC_BSPC,
      AM_PRNT, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      AM_CLBR, KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
-     AM_PRPR, TG(_GMPD),   KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
+     AM_PRPR, KC_HOME,   KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                KC_MPRV, KC_MNXT,  													                                    KC_MPRV, KC_MNXT,
 										         LCTAB, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
 												                      KC_LCTL, _______,	   		KC_LALT
@@ -491,17 +491,17 @@ layer_state_t layer_state_set_user(layer_state_t state){
             socd_cleaner_enabled = true;
 			break;
 
-        case _GMQW:
-            game_layer = true;
-			if(!rgblight_is_enabled()){
-				rgblight_enable_noeeprom();
-			}
-			rgblight_sethsv_noeeprom(HSV_TURQUOISE);
-			break;
+        // case _GMQW:
+        //     game_layer = true;
+		// 	if(!rgblight_is_enabled()){
+		// 		rgblight_enable_noeeprom();
+		// 	}
+		// 	rgblight_sethsv_noeeprom(HSV_TURQUOISE);
+		// 	break;
 
-        default:
-            rgblight_sethsv_noeeprom(HSV_YELLOW);
-            break;
+        // default:
+        //     rgblight_sethsv_noeeprom(HSV_YELLOW);
+        //     break;
     }
     return state;
 }

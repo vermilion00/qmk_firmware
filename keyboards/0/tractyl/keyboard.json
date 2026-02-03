@@ -7,7 +7,7 @@
     "build": {
         "debounce_type": "asym_eager_defer_pk",
 		"firmware_format": "uf2",
-		"lto": false
+		"lto": true
     },
     "debounce": 5,
     "usb": {

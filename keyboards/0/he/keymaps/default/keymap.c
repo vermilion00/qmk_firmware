@@ -1,9 +1,9 @@
-#include "joystick_aliases.h"
 #include QMK_KEYBOARD_H
+// #include "joystick_aliases.h"
 #include "action.h"
 #include "action_layer.h"
 #include "analog_matrix.h"
-#include "joystick.h"
+// #include "joystick.h"
 #include "keycodes.h"
 #include "modules/getreuer/socd_cleaner/socd_cleaner.h"
 #include "quantum.h"
@@ -12,7 +12,7 @@
 
 #define MOUSE_LAYER_TIME 400
 #define DRAGSCROLL_TIME 200
-// #define constrain_hid(amt) ((amt) < -127 ? -127 : ((amt) > 127 ? 127 : (amt)))
+// #define constrain_hid(amt) ((amt) < -127 ? -127 : ((amt) > 127 ? 127 : (amt))) test
 
 #define _CLMK 0
 #define _GMCL 1
@@ -33,8 +33,6 @@
 -Use Auto mouse layer feature?
 */
 
-
-static bool alt_tab = false;
 static bool mouse_lock = false;
 static bool mslk = false;
 static bool caret_mode = false;
@@ -71,15 +69,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ),
 
 // Default
-  [_GMCL] = LAYOUT(
-     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
-     KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-     KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-     KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-									                                  KC_LCTL, KC_LALT,			 KC_ENT
-  ),
+//   [_GMCL] = LAYOUT(
+//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
+//      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
+//      KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
+//   ),
 
 //   [_GMCL] = LAYOUT(
 //      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
@@ -124,15 +122,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //   ),
 
 // All right half
-//   [_GMCL] = LAYOUT(
-//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          JS_0,    JS_1,    JS_2,    JS_3,    JS_4,    JS_5,
-//      KC_TAB,  KC_Q,    JS_9,    JS_Y,    JS_11,   JS_12,                    			      JS_6,    JS_LT,   JS_RPY,  JS_RT,   KC_SCLN, KC_MINS,
-//      KC_W,    KC_A,    JS_X,    JS_A,    JS_B,    KC_G,                    			          JS_7,    JS_RNX,  JS_RNY,  JS_RPX,  KC_O,    KC_QUOT,
-//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          JS_8,    JS_LNX,  JS_LPY,  JS_LPX,  JS_LNY, MO(_FN),
-//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
-//   ),
+  [_GMCL] = LAYOUT(
+     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          JS_0,    JS_1,    JS_2,    JS_3,    JS_4,    JS_5,
+     KC_TAB,  KC_Q,    JS_9,    JS_Y,    JS_11,   JS_12,                    			      JS_6,    JS_LT,   JS_RPY,  JS_RT,   KC_SCLN, KC_MINS,
+     KC_W,    KC_A,    JS_X,    JS_A,    JS_B,    KC_G,                    			          JS_7,    JS_RNX,  JS_RNY,  JS_RPX,  KC_O,    KC_QUOT,
+     KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          JS_8,    JS_LNX,  JS_LPY,  JS_LPX,  JS_LNY, MO(_FN),
+                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+									                                  KC_LCTL, KC_LALT,			 KC_ENT
+  ),
 
   [_GMQW] = LAYOUT(
      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
@@ -220,37 +218,6 @@ socd_cleaner_t socd_opposing_pairs[] = {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        case KC_T:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    tap_code(KC_TAB);
-                }
-                return false;
-            }
-            return true;
-
-        case KC_R:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
-
-        case KC_S:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
-
 		case MS_BTN1:
 			if(record->event.pressed){
 				mouse_timer = timer_read();
@@ -302,10 +269,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 			if (record->event.pressed) {
 					register_code(KC_LALT);
 					tap_code(KC_TAB);
-					alt_tab = true;
+                    layer_on(_FN);
 			} else {
 				unregister_code(KC_LALT);
-				alt_tab = false;
+                layer_off(_FN);
 			}
 			return false;
 
@@ -313,10 +280,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 register_code(KC_LCTL);
                 tap_code(KC_TAB);
-                alt_tab = true;
             } else {
                 unregister_code(KC_LCTL);
-                alt_tab = false;
             }
             return false;
 

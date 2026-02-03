@@ -4,6 +4,12 @@
         "rows": 12,
         "cols": 6
     },
+    "customKeycodes": [
+        {"name": "LALT layer", "title": "Turns on the LALT Layer and sets a flag for additional functionality", "shortName": "LALT"},
+        {"name": "Mouse Off", "title": "Turns off the mouse layer and acts as the keycode on the layer beneath it", "shortName": "MSOF"},
+        {"name": "ALT_TAB", "title": "A keycode for the alt tab action for encoders", "shortName": "ALTB"},
+        {"name": "SFT_TAB", "title": "A keycode for the shift tab action for encoders", "shortName": "SFTB"}
+    ],
     "layouts": {
         "keymap": [
 		  [
@@ -96,7 +102,7 @@
 			{
 			  "x": 2
 			},
-			"13, 0",
+			"11, 0",
 			"10, 0",
 			"10, 1"
 		  ],
@@ -109,7 +115,7 @@
 			{
 			  "x": 2
 			},
-			"13, 1"
+			"11, 1"
 		  ]
 		]
     }

@@ -23,9 +23,7 @@
 #if DEBOUNCE > 0
 #include "debounce.h"
 #endif
-#if AM_NO_EEPROM == FALSE
 #include "eeconfig.h"
-#endif
 #ifdef JOYSTICK_ENABLE
 #include "analog_joystick.h"
 #endif

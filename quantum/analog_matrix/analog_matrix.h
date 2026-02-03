@@ -8,16 +8,16 @@
 #include "action_layer.h"
 // #include "gpio.h"
 // #include "he_matrix.h"
-#include "analog_matrix.h"
-#include "eeconfig.h"
+// #include "analog_matrix.h"
+// #include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
 // #include "bootloader.h"
 // #include "bootmagic/bootmagic.h"
-#ifdef JOYSTICK_ENABLE
-// #   include "joystick_aliases.h"
-#endif
+// #ifdef JOYSTICK_ENABLE
+#   include "joystick_aliases.h"
+// #endif
 
 //TODO: Test if this works to add onto SPLIT_TRANSACTION_IDS_KB
 // #ifdef SPLIT_TRANSACTION_IDS_KB
