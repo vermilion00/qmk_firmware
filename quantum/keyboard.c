@@ -372,6 +372,11 @@ __attribute__((weak)) bool matrix_can_read(void) {
  * FIXME: needs doc
  */
 void keyboard_setup(void) {
+//TODO: Remove this
+//MARK: Bootloader entry
+#ifdef ANALOG_MATRIX_ENABLE
+    _force_bootloader();
+#endif
     print_set_sendchar(sendchar);
 #ifdef EEPROM_DRIVER
     eeprom_driver_init();

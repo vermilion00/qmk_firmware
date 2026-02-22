@@ -8,6 +8,8 @@
 3. EEPROMs
 4. LUT
 
+-Change position of init to happen at current position of _force_bootloader?
+
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
     -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman

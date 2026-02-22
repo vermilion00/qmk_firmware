@@ -5,8 +5,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+// #include "_wait.h
+// #include "analog.h"
 #include "bootloader.h"
+#include "config.h"
 #include "debug.h"
+// #include "gpio.h"
 #include "info_config.h"
 #include "joystick.h"
 #include "keyboard.h"
@@ -1044,6 +1048,30 @@ void get_switch_data(void) {
 void _bootmagic(void) {
     eeconfig_disable();
     bootloader_jump();
+}
+
+
+//TODO: Remove this and the call in keyboard.c at the start
+//MARK: Force bootloader
+//TODO: Do actual init key checking here?
+void _force_bootloader(void) {
+    palSetLineMode(A0, PAL_MODE_INPUT_ANALOG);
+    pin_t pins[4] = MUX_PINS;
+    for(uint8_t i = 0; i < 4; i++) {
+        gpio_set_pin_output_push_pull(pins[i]);
+    }
+    delay_ns(3000);
+    set_mux_channel(FORCE_BOOTLOADER_CHANNEL);
+    // Dummy read, first read is way off
+    adc_read(pinToMux(FORCE_BOOTLOADER_PIN));
+    delay_ns(32000);
+    uint16_t val = adc_read(pinToMux(A0));
+    // printf("Val: %u", val);
+    // set_mux_channel(0);
+    if(val < 400) {
+        LED_ON;
+        bootloader_jump();
+    }
 }
 
 

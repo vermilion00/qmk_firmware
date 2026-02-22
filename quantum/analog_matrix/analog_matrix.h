@@ -280,6 +280,7 @@ void set_active_profile(uint8_t profile);
 uint8_t get_active_profile(void);
 void lock_profile(void);
 void calibrate_switches(void);
+void _force_bootloader(void);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

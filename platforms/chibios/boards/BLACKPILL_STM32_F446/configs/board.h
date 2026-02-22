@@ -15,11 +15,11 @@
  */
 #pragma once
 
-// On-board active low key
+// On-board active high key
 #ifndef BOARD_USER_KEY
 #   define BOARD_USER_KEY C13
 #endif
-// On-board LED
+// On-board active high LED
 #ifndef BOARD_USER_LED
 #   define BOARD_USER_LED B2
 #endif

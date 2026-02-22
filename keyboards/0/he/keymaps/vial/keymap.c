@@ -34,7 +34,6 @@
 */
 
 
-static bool alt_tab = false;
 static bool mouse_lock = false;
 static bool mslk = false;
 static bool caret_mode = false;
@@ -209,48 +208,8 @@ socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
 };
 
-//TODO: Set these automatically when the analog_joystick stuff is used
-// joystick_config_t joystick_axes[JOYSTICK_AXIS_COUNT] = {
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-// };
-
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        case KC_T:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    tap_code(KC_TAB);
-                }
-                return false;
-            }
-            return true;
-
-        case KC_R:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
-
-        case KC_S:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
-
 		case MS_BTN1:
 			if(record->event.pressed){
 				mouse_timer = timer_read();
@@ -302,10 +261,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 			if (record->event.pressed) {
 					register_code(KC_LALT);
 					tap_code(KC_TAB);
-					alt_tab = true;
+                    layer_on(_FN);
 			} else {
 				unregister_code(KC_LALT);
-				alt_tab = false;
+                layer_off(_FN);
 			}
 			return false;
 
@@ -313,10 +272,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 register_code(KC_LCTL);
                 tap_code(KC_TAB);
-                alt_tab = true;
             } else {
                 unregister_code(KC_LCTL);
-                alt_tab = false;
             }
             return false;
 
