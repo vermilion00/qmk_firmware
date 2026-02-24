@@ -155,11 +155,21 @@
 #define LAST_PROFILE 1
 
 //TODO: Remove this before upload
+#ifdef LED_PIN
+#ifndef LED_INVERTED
 #define LED_ON \
-gpio_set_pin_output_push_pull(B2); \
-gpio_write_pin_high(B2)
+gpio_set_pin_output_push_pull(LED_PIN); \
+gpio_write_pin_high(LED_PIN)
 
-#define LED_OFF gpio_write_pin_low(B2)
+#define LED_OFF gpio_write_pin_low(LED_PIN)
+#else
+#define LED_ON \
+gpio_set_pin_output_push_pull(LED_PIN); \
+gpio_write_pin_low(LED_PIN)
+
+#define LED_OFF gpio_write_pin_high(LED_PIN)
+#endif
+#endif
 
 typedef enum _key_mode_t: uint8_t {
     none = 0,
