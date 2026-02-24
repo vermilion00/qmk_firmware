@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/cdefs.h>
+// #include "_wait.h
+// #include "analog.h"
 #include "bootloader.h"
 #include "debug.h"
 #include "info_config.h"
@@ -13,6 +16,7 @@
 #include "keymap_introspection.h"
 #include "matrix.h"
 #include "multiplexer.h"
+#include "nvm_eeconfig.h"
 #include "print.h"
 #include "suspend.h"
 //TODO: Check if I need to remove these
@@ -28,6 +32,16 @@
 #endif
 #ifdef JOYSTICK_ENABLE
 #include "analog_joystick.h"
+#endif
+
+#if AM_NO_EEPROM == FALSE
+// typedef struct cal_data_t {
+//     uint16_t top_value;
+//     uint16_t bottom_value;
+// } cal_data_t;
+// cal_data_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+//TODO: I should probably use this
+analog_switch_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #endif
 
 
@@ -242,6 +256,8 @@ void analog_matrix_init(void) {
 
     get_switch_data();
 
+    //TODO: Remove this after tests
+    // calibrate_switches();
     // TODO: Load key matrix struct with calibration and distance data from the EEPROM
     // Get the min/max values of each switch from EEPROM
     if(!get_calibration_data()) {
@@ -250,7 +266,9 @@ void analog_matrix_init(void) {
     }
 
     // Check keys like the calibration key or bootmagic key before scanning begins
+    #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
     scan_init_keys();
+    #endif
 
     // Translate the trigger height etc into the equivalent ADC value
     translate_mm_to_value();
@@ -503,7 +521,7 @@ bool get_calibration_data(void) {
     return false;
     #endif
 
-    #if AM_NO_EEPROM == TRUE
+#   if AM_NO_EEPROM == TRUE
     #if !defined AM_TOP_VALUES || !defined AM_BOTTOM_VALUES
     return false;
     #endif
@@ -519,8 +537,12 @@ bool get_calibration_data(void) {
     }
     #else
 
+    #   if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
     const uint16_t top_values[] = AM_TOP_VALUES;
     const uint16_t bottom_values[] = AM_BOTTOM_VALUES;
+    #   else
+    return false;
+    #   endif
     #endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 
     #if DYNAMIC_CALIBRATION == FALSE
@@ -557,22 +579,34 @@ bool get_calibration_data(void) {
     return true;
 
 #   else //if AM_NO_EEPROM == TRUE
-    //TODO: Test this, eeprom doesn't seem to be configured for the F446
-    typedef struct cal_data_t {
-        uint16_t top_value;
-        uint16_t bottom_value;
-    } cal_data_t;
-    cal_data_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 
     // Read the calibration data from EEPROM
+    //TODO: I don't think i need the cast here
     eeconfig_read_keyboard((analog_switch_t*)&calibration_data);
 
     //TODO: Add dynamic calibration stuff here
     for(uint8_t key = 0; key < switch_num; key++) {
+        //TODO: Remove these when it works
+        printf("%u: Top: %u, Bottom: %u\n", key, calibration_data[key].top_value, calibration_data[key].bottom_value);
+        // TODO: Check if this is fine
+        // Check if the switch data makes sense, start calibration if not
+        if(calibration_data[key].top_value < 10 || calibration_data[key].bottom_value < 10) return false;
+        if(calibration_data[key].top_value > 1000 || calibration_data[key].bottom_value > 1000) return false;
+        #if INVERT_ADC == FALSE
+        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 50) return false;
+        if(calibration_data[key].top_value <= calibration_data[key].bottom_value) return false;
+        #else
+        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 50) return false;
+        if(calibration_data[key].top_value >= calibration_data[key].bottom_value) return false;
+        #endif
+
+        print("Ok\n");
+
+        // All checks passed for this switch
+        //TODO: Check if deadzones are applied here or not
         key_config[key].top_value = calibration_data[key].top_value;
         key_config[key].bottom_value = calibration_data[key].bottom_value;
     }
-    //TODO: Check if the data aligns with configured matrix size?
 
     return true;
     #endif //else AM_NO_EEPROM == TRUE
@@ -580,20 +614,18 @@ bool get_calibration_data(void) {
 
 
 //MARK: Calibrate
+//TODO: Check if the difference between top and bottom value is at least ~50 or so, before allowing calibration to finish
 void calibrate_switches(void) {
     uint16_t adc_value;
     uint8_t matrix_index;
     // Save config values after x scans without a change
     uint32_t scans_without_change = SCANS_WITHOUT_CHANGE;
     bool first_scan = true;
-    char side[7] = "";
+    //TODO: Calibration sync needs to be added
+    __attribute__((unused)) bool calibration_done = false;
 
-    #if AM_NO_EEPROM == FALSE
-    typedef struct cal_data_t {
-        uint16_t top_value;
-        uint16_t bottom_value;
-    } cal_data_t;
-    cal_data_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    #if AM_NO_EEPROM == TRUE || defined SPLIT_KEYBOARD
+    char side[7] = "";
     #endif
 
     #ifdef SPLIT_KEYBOARD
@@ -608,6 +640,7 @@ void calibrate_switches(void) {
     #endif
 
     while(true) {
+        LED_ON;
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
             #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
             dprintf("Mux: %i\n", mux_channel);
@@ -671,6 +704,10 @@ void calibrate_switches(void) {
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
+
+                    } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < 50) {
+                        scans_without_change = SCANS_WITHOUT_CHANGE;
+                        calibration_done = false;
                     }
 
                     #else // if INVERT_ADC == TRUE
@@ -684,6 +721,7 @@ void calibrate_switches(void) {
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
+
                     } else if (adc_value < key_config[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
                         key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
                         #if AM_NO_EEPROM == FALSE
@@ -693,6 +731,12 @@ void calibrate_switches(void) {
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
+                        calibration_done = false;
+
+                    // Check if new valid calibration values have been saved for this key
+                    //TODO: Check more stuff here
+                    } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 50) {
+                        scans_without_change = SCANS_WITHOUT_CHANGE;
                         calibration_done = false;
                     }
                     #endif // else INVERT_ADC == TRUE
@@ -712,7 +756,9 @@ void calibrate_switches(void) {
         first_scan = false;
         scans_without_change += 1;
         //TODO: Change this to a more precise method
+        //TODO: I don't think the qmk tick is incremented here, but if I can do that I could use it to keep time precisely
         if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
+            LED_OFF;
             #if AM_NO_EEPROM == FALSE
             //TODO: Save calibration data to eeprom
             // save_calibration();
@@ -773,9 +819,8 @@ void calibrate_switches(void) {
                 //     break;
                 // }
             // }
-            //TODO: Remove this break when sync works
-            break;
             #endif
+            break;
         }
     }
 }
@@ -1046,6 +1091,33 @@ void get_switch_data(void) {
 void _bootmagic(void) {
     eeconfig_disable();
     bootloader_jump();
+}
+
+
+//TODO: Remove this and the call in keyboard.c at the start
+//MARK: Force bootloader
+//TODO: Do actual init key checking here?
+void _force_bootloader(void) {
+    // palSetLineMode(A0, PAL_MODE_INPUT_ANALOG);
+    // //TODO: This probably doesn't work with dynamic side assignment
+    // #ifdef MUX_PINS
+    // pin_t pins[4] = MUX_PINS;
+    // for(uint8_t i = 0; i < 4; i++) {
+    //     gpio_set_pin_output_push_pull(pins[i]);
+    // }
+    // delay_ns(3000);
+    // set_mux_channel(FORCE_BOOTLOADER_CHANNEL);
+    // #endif
+    // // Dummy read, first read is way off
+    // adc_read(pinToMux(FORCE_BOOTLOADER_PIN));
+    // delay_ns(32000);
+    // uint16_t val = adc_read(pinToMux(A0));
+    // // printf("Val: %u", val);
+    // // set_mux_channel(0);
+    // if(val < 400) {
+    //     LED_ON;
+    //     bootloader_jump();nn
+    // }
 }
 
 

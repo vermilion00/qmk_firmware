@@ -1,0 +1,4 @@
+VIA_ENABLE = yes
+VIAL_ENABLE = yes
+EEPROM_DRIVER = transient
+QMK_SETTINGS = no
