@@ -1,0 +1,11 @@
+#pragma once
+
+#define VIAL_KEYBOARD_UID {0xCF, 0xD5, 0x00, 0x68, 0x1F, 0x07, 0x5C, 0x72}
+#define VIAL_UNLOCK_COMBO_ROWS { 0, 6 }
+#define VIAL_UNLOCK_COMBO_COLS { 0, 5 }
+
+#define DYNAMIC_KEYMAP_LAYER_COUNT 6
+#define NO_ACTION_TAPPING
+
+#define TRANSIENT_EEPROM_SIZE 8192
+
