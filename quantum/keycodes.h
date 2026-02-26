@@ -1493,16 +1493,14 @@ enum qk_keycode_defines {
     AM_LOCP    = AM_LOCK_PROFILE,
     JS_LPX     = JS_LEFT_POSITIVE_X,
     JS_LNX     = JS_LEFT_NEGATIVE_X,
-    JS_LPY     = JS_LEFT_POSITIVE_Y,
     JS_LNY     = JS_LEFT_NEGATIVE_Y,
-    JS_LT      = JS_LEFT_POSITIVE_Z,
-    JS_RT      = JS_LEFT_NEGATIVE_Z,
+    JS_LPY     = JS_LEFT_POSITIVE_Y,
     JS_LPZ     = JS_LEFT_POSITIVE_Z,
     JS_LNZ     = JS_LEFT_NEGATIVE_Z,
     JS_RPX     = JS_RIGHT_POSITIVE_X,
     JS_RNX     = JS_RIGHT_NEGATIVE_X,
-    JS_RPY     = JS_RIGHT_POSITIVE_Y,
     JS_RNY     = JS_RIGHT_NEGATIVE_Y,
+    JS_RPY     = JS_RIGHT_POSITIVE_Y,
     JS_RPZ     = JS_RIGHT_POSITIVE_Z,
     JS_RNZ     = JS_RIGHT_NEGATIVE_Z,
 };
@@ -1555,6 +1553,7 @@ enum qk_keycode_defines {
 #define IS_SWAP_HANDS_KEYCODE(code) ((code) >= QK_SWAP_HANDS_TOGGLE && (code) <= QK_SWAP_HANDS_ONE_SHOT)
 #define IS_MAGIC_KEYCODE(code) ((code) >= QK_MAGIC_SWAP_CONTROL_CAPS_LOCK && (code) <= QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK)
 #define IS_MIDI_KEYCODE(code) ((code) >= QK_MIDI_ON && (code) <= QK_MIDI_PITCH_BEND_UP)
+#define IS_MIDI_NOTE(code) ((code) >= QK_MIDI_NOTE_C_0 && (code) <= QK_MIDI_NOTE_B_5)
 #define IS_SEQUENCER_KEYCODE(code) ((code) >= QK_SEQUENCER_ON && (code) <= QK_SEQUENCER_STEPS_CLEAR)
 #define IS_JOYSTICK_KEYCODE(code) ((code) >= QK_JOYSTICK_BUTTON_0 && (code) <= QK_JOYSTICK_BUTTON_31)
 #define IS_PROGRAMMABLE_BUTTON_KEYCODE(code) ((code) >= QK_PROGRAMMABLE_BUTTON_1 && (code) <= QK_PROGRAMMABLE_BUTTON_32)
@@ -1583,6 +1582,7 @@ enum qk_keycode_defines {
 #define SWAP_HANDS_KEYCODE_RANGE            QK_SWAP_HANDS_TOGGLE ... QK_SWAP_HANDS_ONE_SHOT
 #define MAGIC_KEYCODE_RANGE                 QK_MAGIC_SWAP_CONTROL_CAPS_LOCK ... QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK
 #define MIDI_KEYCODE_RANGE                  QK_MIDI_ON ... QK_MIDI_PITCH_BEND_UP
+#define MIDI_NOTE_RANGE                     QK_MIDI_NOTE_C_0 ... QK_MIDI_NOTE_B_5
 #define SEQUENCER_KEYCODE_RANGE             QK_SEQUENCER_ON ... QK_SEQUENCER_STEPS_CLEAR
 #define JOYSTICK_KEYCODE_RANGE              QK_JOYSTICK_BUTTON_0 ... QK_JOYSTICK_BUTTON_31
 #define PROGRAMMABLE_BUTTON_KEYCODE_RANGE   QK_PROGRAMMABLE_BUTTON_1 ... QK_PROGRAMMABLE_BUTTON_32
@@ -1600,5 +1600,4 @@ enum qk_keycode_defines {
 #define USER_KEYCODE_RANGE                  QK_USER_0 ... QK_USER_31
 #define ANALOG_MATRIX_KEYCODE_RANGE         QK_ANALOG_MATRIX ... QK_ANALOG_MATRIX_MAX
 #define ANALOG_MATRIX_PROFILE_RANGE         QK_AM_PROFILE ... QK_AM_PROFILE_MAX
-// The Y axes are flipped, with a negative Y axis corresponding to a forward movement in games
 #define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Z

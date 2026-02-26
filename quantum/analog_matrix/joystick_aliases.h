@@ -29,6 +29,8 @@
 #define JS_DPL JS_12
 #define JS_DPAD_RIGHT JS_13
 #define JS_DPR JS_13
+#define JS_LT JS_LNZ
+#define JS_RT JS_LPZ
 #endif
 
 /* Playstation button naming */

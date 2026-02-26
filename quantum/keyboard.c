@@ -649,11 +649,12 @@ static bool matrix_task(void) {
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         const matrix_row_t current_row = matrix_get_row(row);
 
-        #ifdef JOYSTICK_ENABLE
-        const matrix_row_t row_changes = (current_row ^ matrix_previous[row]) | joystick_mask[row];
-        #else
+        //TODO: Probably not necessary to force checking all axis positions
+        // #ifdef JOYSTICK_ENABLE
+        // const matrix_row_t row_changes = (current_row ^ matrix_previous[row]) | joystick_mask[row];
+        // #else
         const matrix_row_t row_changes = current_row ^ matrix_previous[row];
-        #endif
+        // #endif
 
         //TODO: Test performance without ghost function
         if (!row_changes || has_ghost_in_row(row, current_row)) {
@@ -673,7 +674,7 @@ static bool matrix_task(void) {
                 // Process the joystick action on master and slave
                 #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
                 // // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
-                // //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
+                //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
                 if (joystick_layer) {
                     keyrecord_t record = {.event = MAKE_KEYEVENT(row, col, true)};
                     uint16_t keycode = get_record_keycode(&record, true);

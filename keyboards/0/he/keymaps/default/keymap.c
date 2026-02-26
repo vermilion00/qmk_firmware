@@ -1,4 +1,5 @@
 #include "joystick_aliases.h"
+#include "keymap_us.h"
 #include QMK_KEYBOARD_H
 #include "action.h"
 #include "action_layer.h"
@@ -65,21 +66,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
      KC_BSPC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
      KC_LGUI, KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
-                               KC_LBRC, KC_RBRC, 								   						  	                            KC_PLUS, KC_EQL,
+                               KC_LABK, KC_RABK, 								   						  	                            KC_PLUS, KC_EQL,
 										                 ALT_TAB, KC_SPC,  MO_LALT,         MO(_FN),  KC_LSFT, KC_MPLY,
 												                      KC_LCTL, KC_LALT,			KC_ENT
   ),
 
 // Default
-  [_GMCL] = LAYOUT(
-     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
-     KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-     KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-     KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-									                                  KC_LCTL, KC_LALT,			 KC_ENT
-  ),
+//   [_GMCL] = LAYOUT(
+//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
+//      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
+//      KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
+//   ),
 
 //   [_GMCL] = LAYOUT(
 //      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
@@ -91,15 +92,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // 									                                  KC_LCTL, KC_LALT,			 KC_ENT
 //   ),
 
-//   [_GMCL] = LAYOUT(
-//      JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    KC_0,    KC_BSPC,
-//      KC_TAB,  KC_Q,    KC_W,    JS_LPY,    KC_P,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-//      KC_W,    KC_NO,    KC_NO,    KC_NO,    KC_T,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
-//   ),
+  [_GMCL] = LAYOUT(
+     JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    KC_0,    KC_BSPC,
+     KC_TAB,  JS_RPY,    JS_LT,    JS_LPY,  JS_RT,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
+     KC_W,    JS_RNY,    JS_LNX,    JS_11,    JS_LNY,    JS_LPX,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+     KC_E,    KC_V,    JS_RNX,    KC_D,    JS_RPX,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+									                                  KC_LCTL, KC_LALT,			 KC_ENT
+  ),
 
 //   Mixed gamepad matrix
 //   [_GMCL] = LAYOUT(
@@ -178,8 +179,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			          KC_F6,   KC_F7,   KC_F8,  KC_F9,  KC_F10,  KC_DEL,
      KC_TAB,  _______, KC_LBRC, KC_COLN, KC_RBRC, KC_LPRN,             	   		              KC_COMM, KC_7,    KC_8,   KC_9,   KC_SCLN, KC_SS,
      KC_DEL,  KC_RCBR, KC_LCBR, KC_UNDS, KC_RCBR, KC_AT,              	   			          KC_QUOT, KC_4,    KC_5,   KC_6,   KC_0,   KC_QUOT,
-     KC_LGUI, TG(1),   KC_LPRN, KC_HASH, KC_RPRN, KC_SCLN,            	   			          KC_DOT,  KC_1,    KC_2,   KC_3,   KC_0,   KC_BSLS,
-                               KC_LABK, KC_RABK,  													 	 	                            _______,_______,
+     KC_LGUI, TG(1),   KC_LPRN, KC_HASH, KC_RPRN, KC_MPLY,            	   			          KC_DOT,  KC_1,    KC_2,   KC_3,   KC_0,   KC_BSLS,
+                               KC_MPRV, KC_MNXT,  													 	 	                            _______,_______,
 										                 LCTAB, _______, _______,	  	     MO(_FN2),_______, _______,
 												                      _______, MO(_FN2),	   		 _______
   ),
@@ -208,15 +209,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
 };
-
-//TODO: Set these automatically when the analog_joystick stuff is used
-// joystick_config_t joystick_axes[JOYSTICK_AXIS_COUNT] = {
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-//     JOYSTICK_AXIS_VIRTUAL,
-// };
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {

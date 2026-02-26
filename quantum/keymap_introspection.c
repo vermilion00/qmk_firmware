@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
-#include "analog_matrix.h"
-#include "analog_matrix/analog_joystick.h"
 #include "gpio.h"
 #include "info_config.h"
 #include "keyboard.h"
 #include "keycodes.h"
 #include "matrix.h"
-// #include "analog_matrix/analog_matrix.h"
 #if defined(COMMUNITY_MODULES_ENABLE)
 #    include "community_modules_introspection.h"
 #endif // defined(COMMUNITY_MODULES_ENABLE)
@@ -186,11 +183,15 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 
 #endif // defined(KEY_OVERRIDE_ENABLE)
 
+#if defined(ANALOG_MATRIX_ENABLE)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Joystick
-
+// Analog Matrix Joystick
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+#include "analog_matrix.h"
+#include "analog_joystick.h"
 bool joystick_layer = false;
+
+extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 
 matrix_row_t joystick_mask[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
@@ -202,8 +203,9 @@ bool master;
 
 //TODO:
 // The switch states of some keys appears to get stuck after switching to the joystick layer/profile, if the joystick stuff is on the slave side
-//       mostly number keys? Possibly syncing to the wrong location? The matrix location perhaps
-//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?)
+//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?) Specifically mouse layer gets stuck
+
+//TODO: Is the reason for the issues perhaps me trying to read the wrong keys when I'm checking the right half joystick axes on the main half? (In the process_joystick thingy)
 
 //MARK: joystick mask
 void create_joystick_mask(uint8_t current_layer) {
@@ -215,34 +217,99 @@ void create_joystick_mask(uint8_t current_layer) {
 
     //TODO: Make sure this doesn't cause issues when the joystick layer state is different
     // The master needs to check every keycode, the slave only the keycodes for the slave half
-    // printf("Layer: %u\n", current_layer);
-    for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
-        // for(uint8_t row = thisHand; row < (MATRIX_ROWS_PER_HAND + thisHand); row++) {
-        //TODO: Is matrix col LTR in matrix array? Cuz that means that joystick_mask is inverted
-        //      Doesn't look like it's flipped, but maybe test anyway
+    for(uint8_t row = 0; row < MATRIX_ROWS_PER_HAND; row++) {
+    // for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
         for(uint8_t col = 0; col < MATRIX_COLS; col++) {
-            const uint16_t keycode = keymaps[current_layer][row][col];
-            // printf("K: %u, ", keycode);
-            // const uint16_t keycode = keycode_at_keymap_location(current_layer, row, col);
-            // if(IS_QK_JOYSTICK_AXIS(keycode)) {
-            const uint8_t key_index = matrix_to_num[row - thisHand][col] - 1;
+            //TODO: Check if this is the correct row offset in all regards
+            //      If this is the only important spot then I can just count to MATRIX_ROWS_PER_HAND here on the slave
+            //TODO: This still doesn't work correctly because matrix_to_num only has the info for its half
+            //      Current fix is to only check master half for axes
+            //      One way of fixing it is to use the row/col info saved to each switch instead of matrix_to_num, and have the key_config array saved to the master, instead of just its half
+            uint8_t key_index = matrix_to_num[row][col];
+            // uint8_t key_index = matrix_to_num[row - thisHand][col];
 
+            if(key_index == 0) continue;
+
+            key_index -= 1;
+            //TODO: When the master checks every row instead of just the master half, fix this
+            const uint16_t keycode = keymaps[current_layer][row + thisHand][col];
             if(IS_AM_JOYSTICK_AXIS(keycode)) {
                 joystick_layer = true;
                 joystick_mask[row] |= 1 << col;
-                printf("JS R:%u, C:%u\n", row, col);
                 //TODO: Test to make sure this doesn't overflow or smth
                 key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
-                // printf("A: %i, ", key_config[key_index].axis_index);
             } else {
                 key_config[key_index].axis_index = -1;
             }
+            // printf("K: %u, A: %i\n", key_index, key_config[key_index].axis_index);
         }
-        // printf("\n");
     }
 }
 
 #endif // defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Analog Matrix MIDI
+
+#if defined(MIDI_ENABLE) && !defined(USE_MIDI)
+#include "analog_matrix.h"
+#include "analog_midi.h"
+bool midi_layer = false;
+
+matrix_row_t midi_mask[MATRIX_ROWS];
+#ifdef SPLIT_KEYBOARD
+extern uint8_t thisHand;
+#else
+const uint8_t thisHand = 0;
+#endif
+bool master;
+
+//TODO:
+// The switch states of some keys appears to get stuck after switching to the joystick layer/profile, if the joystick stuff is on the slave side
+//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?) Specifically mouse layer gets stuck
+
+//MARK: joystick mask
+void create_midi_mask(uint8_t current_layer) {
+    master = is_keyboard_master();
+    midi_layer = false;
+    memset(midi_mask, 0, sizeof(midi_mask));
+
+    // The master needs to check every keycode, the slave only the keycodes for the slave half
+    // printf("Layer: %u\n", current_layer);
+    for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
+        for(uint8_t col = 0; col < MATRIX_COLS; col++) {
+            const uint16_t keycode = keymaps[current_layer][row][col];
+            const uint8_t key_index = matrix_to_num[row - thisHand][col] - 1;
+
+            if(IS_MIDI_NOTE(keycode)) {
+                midi_layer = true;
+                midi_mask[row] |= 1 << col;
+                printf("MIDI R:%u, C:%u\n", row, col);
+                //TODO: Put whatever logic i'll use here
+                // key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
+            } else {
+                // key_config[key_index].axis_index = -1;
+            }
+        }
+    }
+}
+
+#endif // defined(MIDI_ENABLE) && !defined(USE_JOYSTICK)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Analog Matrix Masks
+void create_layer_masks(uint8_t current_layer) {
+    #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+    create_joystick_mask(current_layer);
+    #endif
+    #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
+    create_midi_mask(current_layer);
+    #endif
+    //TODO: Add more mask functions here as necessary
+}
+
+#endif //  defined(ANALOG_MATRIX_ENABLE)
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Community modules (must be last in this file!)
