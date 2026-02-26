@@ -8,6 +8,7 @@
 #include "keyboard.h"
 #include "keycodes.h"
 #include "matrix.h"
+#include "keymap_introspection.h"
 #ifdef SPLIT_KEYBOARD
 #   include "transport.h"
 #endif
@@ -15,14 +16,14 @@
 #define clamp_axis(value) (value < 0 ? 0 : (value > 127 ? 127 : value))
 
 //Add curve option
-//TODO: Go through and set the smallest type everywhere (including the key_config fields)
+// TODO: Go through and set the smallest type everywhere (including the key_config fields)
 SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+#ifdef SPLIT_KEYBOARD
+uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
 const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
 #endif
 
 // Double the amount of axes, since every axis is represented by two keys
-// int16_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT] = AM_JOYSTICK_AXIS_CONFIG;
 
@@ -51,12 +52,25 @@ void analog_joystick_init(void) {
         #endif
         #endif // ifdef USE_JOYSTICK
     }
+
+    #ifdef SPLIT_KEYBOARD
+    if(is_keyboard_master() && !is_keyboard_left()) {
+        memcpy(&matrix_to_num_slave, matrix_to_num, sizeof(matrix_to_num_slave));
+    }
+
+    #if KEYBOARD_SIDE == UNKNOWN
+    if(!is_keyboard_left()) {
+        memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num));
+    }
+    #endif
+    #endif
 }
+
 
 //MARK: Evaluate
 //TODO: Is it faster to pass all as params, or just pass index?
 // Calculate the joystick component value
-void translate_joystick_axis(uint8_t index) {
+bool translate_joystick_axis(uint8_t index) {
     //TODO: Check if I can use larger values here to avoid the float
     // Since the trigger value for this profile isn't used anyway, use the field to store the axis value instead
     const uint16_t scan_value = key_config[index].scan_value;
@@ -65,11 +79,10 @@ void translate_joystick_axis(uint8_t index) {
     uint16_t* const axis_value = &key_config[index].trigger_value[active_profile];
     #else
     uint16_t* const travel_diff = &key_config[index].joystick_travel;
-    //TODO: If I decide against this, revert this
-    //      Or remove hte joystick_value field
-    // uint8_t* const axis_value = &key_config[index].joystick_value;
     uint8_t* const axis_value = &axis_values[key_config[index].axis_index];
     #endif
+
+    uint8_t prev_value = *axis_value;
 
     #ifndef INVERT_ADC
     if(scan_value > key_config[index].top_value - JS_TOP_DEADZONE) { *axis_value = 0; }
@@ -81,22 +94,26 @@ void translate_joystick_axis(uint8_t index) {
     else if(scan_value > key_config[index].bottom_value - JS_BOTTOM_DEADZONE) { *axis_value = 127; }
     else { *axis_value = clamp_axis((((float)(scan_value - key_config[index].top_value - JS_TOP_DEADZONE)) / *travel_diff) * 127); }
     #endif
+
+    return (prev_value == *axis_value);
 }
 
 
 //MARK: Update axis
 // Same as joystick_set_axis except the boundary check
-void joystick_update_axis(uint8_t axis, int16_t value) {
-    // if (value != joystick_state.axes[axis]) {
-        // joystick_state.axes[axis] = value;
-        // joystick_state.dirty      = true;
-    // }
-    joystick_state.axes[axis] = value;
+bool joystick_update_axis(uint8_t axis, int16_t value) {
+    if (value != joystick_state.axes[axis]) {
+        joystick_state.axes[axis] = value;
+        joystick_state.dirty      = true;
+        return true;
+    }
+    // joystick_state.axes[axis] = value;
+    return false;
 }
 
 
 //MARK: Eval axis
-void evaluate_joystick_axis(axis_name_t axis) {
+bool evaluate_joystick_axis(axis_name_t axis) {
     int16_t joystick_value = 0;
     uint8_t axis_index = axis * 2;
 
@@ -145,80 +162,30 @@ void evaluate_joystick_axis(axis_name_t axis) {
             break;
     }
 
-    joystick_update_axis(axis, joystick_value);
+    return joystick_update_axis(axis, joystick_value);
 }
 
-// void update_joystick_value(axis_index_t axis_index, uint8_t value) {
+extern matrix_row_t matrix[MATRIX_ROWS];
+// Clear the matrix and switch state of all joystick keys
+void reset_joystick_keys(void) {
+    // Reset the pressed state of all joystick keys to avoid stuck keys
+    for(uint8_t index = 0; index < switch_num; index++) {
+        // Here I could also check if the joystick axis field is set
+        const uint8_t row = key_config[index].row;
+        const uint8_t col = key_config[index].col;
 
-//     // This has the positive and negative values for each axis separated
-//     axis_values[axis_index] = value;
-
-//     if(!is_keyboard_master()) {
-//         return;
-//     }
-
-//     uint8_t axis = axis_index / 2;
-//     // Get the index of the positive axis part
-//     axis_index = axis * 2;
-
-//     // printf("axis_index: %u\n", axis_index);
-
-//     int16_t joystick_value = 0;
-
-//     // If both keys are pressed:
-//     switch(axis_config[axis].resolution) {
-//         case DIFFERENCE:
-//             //TODO: Make sure this won't underflow when axis_values is uint8_t
-//             // Set the output to be the difference between them; default option
-//             joystick_value = axis_values[axis_index] - axis_values[axis_index + 1];
-//             break;
-
-//         case LOWEST:
-//             // Ignore the component that isn't pressed as far
-//             if(axis_values[axis_index] > axis_values[axis_index + 1]) {
-//                 joystick_value = axis_values[axis_index];
-//             } else if (axis_values[axis_index] <= axis_values[axis_index + 1]) {
-//                 joystick_value = -axis_values[axis_index + 1];
-//             }
-//             break;
-
-//         case POSITIVE_DOMINANT:
-//             // Ignore the negative component
-//             if(axis_values[axis_index] > 0) {
-//                 joystick_value = axis_values[axis_index];
-//             } else {
-//                 joystick_value = -axis_values[axis_index + 1];
-//             }
-//             break;
-
-//         case NEGATIVE_DOMINANT:
-//             // Ignore the positive component
-//             if(axis_values[axis_index + 1] > 0) {
-//                 joystick_value = -axis_values[axis_index + 1];
-//             }
-//             else {
-//                 joystick_value = axis_values[axis_index];
-//             }
-//             break;
-
-//         case CANCEL:
-//             // Don't output anything
-//             if(axis_values[axis_index] > 0 && axis_values[axis_index + 1] > 0) {
-//                 joystick_value = 0;
-//             } else {
-//                 joystick_value = axis_values[axis_index] - axis_values[axis_index + 1];
-//             }
-//             break;
-//     }
-
-//     joystick_update_axis(axis, joystick_value);
-// }
-
-
+        if(joystick_mask[row] & 1 << col) {
+            key_config[index].pressed = false;
+        }
+    }
+    // Reset the matrix state of all joystick keys
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        matrix[row] &= ~joystick_mask[row];
+    }
+}
 
 //MARK: Joystick task
 void analog_joystick_task(void) {
-    // if (!joystick_state.dirty) return;
     //TODO: This is just for testing, if it fixes stuff then find a way to avoid calculating all axes
     // for (uint8_t axis = 0; axis < 5; axis++) {
     //     evaluate_joystick_axis(axis);

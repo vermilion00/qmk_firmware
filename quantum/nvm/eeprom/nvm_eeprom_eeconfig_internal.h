@@ -31,15 +31,14 @@ typedef struct PACKED {
     uint8_t  rgblight_ext;
     uint8_t  connection;
     //TODO: Why are these always on, is it because they're small?
-    //TODO: SWITCH_NUM isn't available here, fix it
     #ifdef ANALOG_MATRIX_ENABLE
-    #ifdef SPLIT_KEYBOARD
-    uint32_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
-    #else
-    uint32_t calibration_data[SWITCH_NUM];
+    //TODO: Make this less of a hack
+    #ifndef SWITCH_NUM_R
+    #   define SWITCH_NUM_R 0
     #endif
-    #else
-    uint32_t calibration_data;
+    uint32_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    // #else
+    // uint32_t calibration_data;
     #endif
 } eeprom_core_t;
 

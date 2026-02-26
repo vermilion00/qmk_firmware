@@ -113,16 +113,26 @@ const key_override_t* key_override_get(uint16_t key_override_idx);
 #endif // defined(KEY_OVERRIDE_ENABLE)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Joystick
+// ANALOG_MATRIX
 
+#if defined(ANALOG_MATRIX_ENABLE)
+// This function creates masks for all used special functions on the layer (joystick, midi etc)
+void create_layer_masks(uint8_t current_layer);
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
-
 typedef uint8_t matrix_row_t;
-
 extern bool joystick_layer;
-
 extern matrix_row_t joystick_mask[MATRIX_ROWS];
-
 // Create a mask of all joystick axis keys in the highest active layer
 void create_joystick_mask(uint8_t current_layer);
+#endif
+
+#if defined(MIDI_ENABLE) && !defined(USE_MIDI)
+#if !(defined (JOYSTICK_ENABLE) && !defined(USE_JOYSTICK))
+typedef uint8_t matrix_row_t;
+#endif
+extern bool midi_layer;
+extern matrix_row_t midi_mask[MATRIX_ROWS];
+// Create a mask of all joystick axis keys in the highest active layer
+void create_midi_mask(uint8_t current_layer);
+#endif
 #endif

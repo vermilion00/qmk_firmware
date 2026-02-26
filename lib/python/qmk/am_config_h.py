@@ -27,6 +27,7 @@ INIT_FUNCTIONS = {
     'CALIBRATION_KEY': 'calibrate_switches'
 }
 
+#TODO: Do I need the joystick type here?
 RT_TYPES = {
     'NONE': 0,
     'RAPID_TRIGGER': 1,
@@ -830,16 +831,16 @@ def check_right_side_pins(info_data, config_h_lines):
 
 #MARK: Joystick config
 def generate_joystick_config(info_data, config_h_lines):
-    axis_indexes = {
-        "x": 0, "y": 1, "trigger": 2, "rx": 3, "ry": 4, "rz": 5
+    AXIS_INDICES = {
+        "x": 0, "y": 1, "trigger": 2, "z": 2, "rx": 3, "ry": 4, "rz": 5
     }
-    resolution_names = {
+    RESOLUTION_NAMES = {
         "difference": 0, "lowest": 1, "positive_dominant": 2, "negative_dominant": 3, "cancel": 4
     }
     am_joystick = info_data['analog_matrix']['joystick']
     layout = am_joystick.get('layout', 'XBOX')
     config_h_lines.append(generate_define(f'{layout.upper()}_LAYOUT'))
-    axis_count = am_joystick.get('axes', 5)
+    axis_count = am_joystick.get('axes', 6)
     config_h_lines.append(generate_define('JOYSTICK_AXIS_COUNT', axis_count))
     #TODO: Update this with the standard amount of joystick buttons
     config_h_lines.append(generate_define('JOYSTICK_BUTTON_COUNT', am_joystick.get('buttons', 16)))
@@ -848,14 +849,14 @@ def generate_joystick_config(info_data, config_h_lines):
         if 'bottom_deadzone' in am_joystick:
             config_h_lines.append(generate_define('JS_BOTTOM_DEADZONE', am_joystick.get('bottom_deadzone')))
     else:
-        config_h_lines.append(generate_define('JS_DEADZONE', am_joystick.get('deadzone', 10)))
+        config_h_lines.append(generate_define('JS_DEADZONE', am_joystick.get('deadzone', 15)))
 
     method_config = am_joystick.get('resolution_methods', {})
     # Use the resolution_method option as the default for any axis that isn't specified
-    resolutions = [[resolution_names[am_joystick.get('resolution_method', 'difference').lower()]] for _ in range(axis_count)]
+    resolutions = [[RESOLUTION_NAMES[am_joystick.get('resolution_method', 'difference').lower()]] for _ in range(axis_count)]
     if method_config != {}:
         for axis, method in method_config.items():
-            resolutions[axis_indexes[axis]][0] = resolution_names[method]
+            resolutions[AXIS_INDICES[axis]][0] = RESOLUTION_NAMES[method]
 
     config_h_lines.append(generate_define('AM_JOYSTICK_AXIS_CONFIG', f'{str(resolutions).replace('[', '{').replace(']', '}')}'))
 

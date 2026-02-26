@@ -33,7 +33,7 @@
         "config": {
             "nbootloader_key": [0, 1],
             "ncalibration_key": [0, 2],
-            "scans_without_change": 60000,
+            "scans_without_change": 6000,
             "debug_scan_values": false,
             "debug_scan_no_input": false,
             "no_eeprom": false,
@@ -52,6 +52,13 @@
                 "release_height": [0.75],
                 "layers": [1, 2]
             }
+        }
+    },
+    "neeprom": {
+        "wear_leveling": {
+            "driver": "embedded_flash",
+            "logical_size": 6144,
+            "backing_size": 12288
         }
     },
     "layouts": {

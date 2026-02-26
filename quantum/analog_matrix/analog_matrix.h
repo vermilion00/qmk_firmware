@@ -1,32 +1,13 @@
 #pragma once
 
-// #include "analog_joystick.h"
 #include "matrix.h"
 #include <stdint.h>
-// #include <stdbool.h>
-// #include <sys/cdefs.h>
 #include "action_layer.h"
-// #include "gpio.h"
-// #include "he_matrix.h"
 #include "analog_matrix.h"
 #include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
-// #include "bootloader.h"
-// #include "bootmagic/bootmagic.h"
-#ifdef JOYSTICK_ENABLE
-// #   include "joystick_aliases.h"
-#endif
-
-//TODO: Test if this works to add onto SPLIT_TRANSACTION_IDS_KB
-// #ifdef SPLIT_TRANSACTION_IDS_KB
-// #define KB_TRANSACTIONS SPLIT_TRANSACTION_IDS_KB
-// #undef SPLIT_TRANSACTION_IDS_KB
-// #define SPLIT_TRANSACTION_IDS_KB KB_TRANSACTIONS, AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
-// #else
-// #define SPLIT_TRANSACTION_IDS_KB AM_PROFILE_SYNC, AM_CALIBRATION_SYNC
-// #endif
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -139,8 +120,6 @@
 #endif
 
 #else // SPLIT_KEYBOARD defined but side is unknown at init
-//TODO: Change the arrays to be const always, only the pointer that is used should be mutable
-//      If I only need the pointer when side is unknown, then remove this
 #define SPLIT_MUTABLE
 #endif
 
@@ -156,19 +135,22 @@
 
 //TODO: Remove this before upload
 #ifdef LED_PIN
-#ifndef LED_INVERTED
+#   ifndef LED_INVERTED
 #define LED_ON \
 gpio_set_pin_output_push_pull(LED_PIN); \
 gpio_write_pin_high(LED_PIN)
 
 #define LED_OFF gpio_write_pin_low(LED_PIN)
-#else
+#   else
 #define LED_ON \
 gpio_set_pin_output_push_pull(LED_PIN); \
 gpio_write_pin_low(LED_PIN)
 
 #define LED_OFF gpio_write_pin_high(LED_PIN)
-#endif
+#   endif
+#else
+#define LED_ON
+#define LED_OFF
 #endif
 
 typedef enum _key_mode_t: uint8_t {
@@ -202,8 +184,10 @@ typedef struct analog_key_t {
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
     uint16_t joystick_travel;
     uint8_t joystick_value;
-    //TODO: Add a field for the axis index
     int8_t axis_index;
+    #endif
+    #if defined MIDI_ENABLE && !defined USE_MIDI
+    uint8_t midi_velocity;
     #endif
     #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
     // The switch is counted as pressed, when the rapid trigger crosses this threshold
@@ -220,16 +204,6 @@ typedef struct analog_key_t {
     uint8_t row;
     uint8_t col;
 } analog_key_t;
-
-#ifndef AM_NO_EEPROM
-typedef union {
-    uint32_t raw;
-    struct {
-        uint16_t top_value;
-        uint16_t bottom_value;
-    };
-} switch_data_t;
-#endif
 
 /* Configuration defaults */
 #ifdef ADC_RESOLUTION

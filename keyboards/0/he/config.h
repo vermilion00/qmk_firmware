@@ -21,10 +21,12 @@
 // #   define USB_POLLING_INTERVAL_MS 1
 // #endif
 
-// #define JOYSTICK_AXIS_COUNT 6
-// #define JOYSTICK_BUTTON_COUNT 16
-
 #define DEBUG_MATRIX_SCAN_RATE
+
+#define LED_PIN B2
+
+//TODO: Add a voltage divider to check vbus using a gpio pin, this means SPLIT_USB_DETECT isn't required
+//#define USB_VBUS_PIN __
 
 // Pointing Device Accel
 #define POINTING_DEVICE_ACCEL_TAKEOFF 2.7      // lower/higher value = curve takes off more smoothly/abruptly

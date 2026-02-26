@@ -48,26 +48,21 @@ typedef struct analog_joystick_t {
     conflict_options_t resolution;
 } analog_joystick_t;
 
-extern const uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
-// extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS];
+extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 extern const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+extern uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #endif
 
-// extern int16_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
 
 void analog_joystick_init(void);
-void translate_joystick_axis(uint8_t index);
-// void update_joystick_value(axis_component_t axis_component, uint8_t value);
-void evaluate_joystick_axis(axis_name_t axis);
+bool translate_joystick_axis(uint8_t index);
+bool evaluate_joystick_axis(axis_name_t axis);
 bool joystick_post_scan(void);
 void analog_joystick_task(void);
-//TODO: I can try to put this in a separate header, currently gives problems bc of static, but maybe just not worth?
-// #ifdef SPLIT_KEYBOARD
-// static bool am_data_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]);
-// #endif
+void reset_joystick_keys(void);
 
 #if !defined JS_TOP_DEADZONE
 #define JS_TOP_DEADZONE JS_DEADZONE

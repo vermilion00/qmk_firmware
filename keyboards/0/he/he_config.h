@@ -8,6 +8,9 @@
 3. EEPROMs
 4. LUT
 
+-The eeprom data is wiped on stm32-dfu chips when flashing firmware
+    -Either use external storage, another bootloader (tinyuf2) or no-eeprom
+
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
     -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
@@ -33,8 +36,6 @@
     -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
     -Also means that I'd need to either have extra space in the switch config for the joystick diff, or calculate it every update
 
--Add keycode to lock/unlock switching profiles via layers, to allow combining keycodes and layers
-
 Joystick:
 -Currently, the slave side seems to not work, probs because the stuff is just not synced
 -Sync the state of the slave axis_values array to master, and evaluate there
@@ -45,13 +46,16 @@ Joystick:
     -Joystick feature, or key_mode on the profile?
 -To support multiple keys, the first one should set, the second one should +
     -Or reset state to 0 before and + all of them, pressing multiple keys of the same axis at once is unlikely
+-Slave side axes will only work if the master has access to the slave matrix_to_num at least
 
--To build own lut curve, add mode where the currently sensed distance and value is printed for a switch
-
--Enable FPU on supported processors
-    -Check if it causes problems?
-    -Make sure floats are used, not doubles
-    -Not really necessary, just makes init faster
+MIDI:
+-Basically the same logic as the joystick stuff
+-Also use a mask with all the notes
+-Allow triggering the midi send command off of the trigger height/rt setting
+    -When the switch is triggered, the software looks at the change in value between now and the last scan(?) or over multiple and calculates the velocity off of that
+    -Maybe even have different modes for how many values it should save to calculate a more precise velocity
+-Use a defined multiplier to change the scaling of the velocity, so a difference of 10 could mean 127 or 56 vel
+-Use a process_* function similar to the joystick to catch the values
 
 -Split init happens after matrix init, so set a flag in calibration init key func and check that later
 
@@ -61,13 +65,6 @@ Joystick:
     -Or at least only delete the keyboard folder
     -Can probably just touch config.h
     -Will that work when other files are also dependent on the flag?
-
--*Add option to define keys that get scanned every scan, every other key only gets scanned
- every x scans instead for higher update rate (if I can get 8khz to work)
-    -Current implementation barely helps
-    -8Khz is doable but the PHY situation is annoying
-    -Add stuff so that other half also doesn't get scanned
-        -Is this necessary when syncing already happens rarely?
 
 -If calibrating, sync calibration start/end and values every print
     -Print data for each half independently
@@ -81,16 +78,12 @@ Joystick:
     -Allow defining own lut
     -Instead of offsetting the scan value with the lut, use it to offset the height values at init
     -Support for switch presets containing travel distance and lut
--*If no switch data is in eeprom, immediately go into calibration mode, save data to eeprom when no changes have been made for many cycles, break out
--Change system to interrupt based?
+    -Instead of lut, use a definable function? Would help with different values
+
 -Try a higher buffer depth and circular buffer?
 -Add always inline stuff
 
--Special modes
-    -Stored in he_matrix[key].mode[profile], 0 = Default, 1-3 = RT, 10... = Special keys
-    -Joystick axes
-    -Make a separate json option for SOCD and combine it with RT for eval?
-    -Dynamic Keystroke (4 press distances with separate actions)
+-Add mode for multiple actions on one key (DKS) somehow
 
 -EEPROM stuff:
     -Check if anything needs to be saved at the end of the flash (bootloader flag?)
@@ -118,10 +111,22 @@ Joystick:
 
 -Add MIDI mode with velocity controlled by the change in adc value
     -Allow triggering past a certain height instead of only at the bottom
+    -Basically a copy of the joystick stuff I guess
 
 -Enable interleaved ADC mode for supported mcus
 
 -Make sure no conflicts happen with other features using the ADC
+
+BUGS:
+-A high smoothing value causes keys to get stuck occasionally (40 to replicate)
+-The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
+-The joystick layer registers weird keys occasionally, like ctrl when I've unbound it from that position
+    -Also specifically the rnx and rpx keys are spammed
+    -The joystick layer problems disappear when right y axes keys aren't in the keymap
+    -Not a problem with the specific location they're in
+-I need to have one more joystick axis than I use in my keymap (or at least I need 6 axes to be able to use RY)
+-The value for LPX is updated binarily (not the axis at key T)
+    -Is it cuz that's the first index?
 
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
@@ -129,9 +134,3 @@ Joystick:
 -LED on B2 is active high
 -Button on C13 is active high
 */
-
-// //DEBUG
-// #undef HE_TOP_VALUES
-// #define HE_TOP_VALUES {[0 ... SWITCH_NUM - 1] = 630 }
-// #undef HE_BOTTOM_VALUES
-// #define HE_BOTTOM_VALUES {[0 ... SWITCH_NUM - 1] = 270 }
