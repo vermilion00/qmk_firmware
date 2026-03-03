@@ -32,6 +32,10 @@
 #   define KEYBOARD_SIDE UNKNOWN
 #endif
 
+#ifndef AM_NO_EEPROM
+#   define AM_NO_EEPROM FALSE
+#endif
+
 // This is set up so that the normal definitions can be used, only need to assign if the side
 // is set at init
 #if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
@@ -132,6 +136,7 @@
 
 #define DEFAULT_PROFILE 0
 #define LAST_PROFILE 1
+#define MANUAL_PROFILE 2
 
 //TODO: Remove this before upload
 #ifdef LED_PIN

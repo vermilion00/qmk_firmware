@@ -1490,7 +1490,7 @@ enum qk_keycode_defines {
     AM_CLBR    = AM_CALIBRATE,
     AM_PRNT    = AM_PRINT_CALIBRATION,
     AM_PRPR    = AM_PRINT_PROFILE,
-    AM_LOCP    = AM_LOCK_PROFILE,
+    AM_LOCK    = AM_LOCK_PROFILE,
     JS_LPX     = JS_LEFT_POSITIVE_X,
     JS_LNX     = JS_LEFT_NEGATIVE_X,
     JS_LNY     = JS_LEFT_NEGATIVE_Y,

@@ -124,7 +124,7 @@
 
 //MARK: AM Profile set
 // A-ctivate P-rofile - 32 profiles max
-#define AP(profile) (QK_AM_PROFILE | ((profile)&0x1F))
+#define AM_AP(profile) (QK_AM_PROFILE | ((profile)&0x1F))
 
 #define OS_LCTL OSM(MOD_LCTL)
 #define OS_LSFT OSM(MOD_LSFT)

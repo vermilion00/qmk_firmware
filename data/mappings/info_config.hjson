@@ -38,6 +38,7 @@
     "SWITCH_NUM": {"info_key": "analog_matrix.hardware.switch_num", "value_type": "int"},
     "SWITCH_NUM_R": {"info_key": "analog_matrix.hardware.switch_num_right", "value_type": "int"},
     "INVERT_ADC": {"info_key": "analog_matrix.hardware.invert_adc", "value_type": "bool"},
+
     "ADC_SCAN_DELAY": {"info_key": "analog_matrix.config.adc_scan_delay", "value_type": "int"},
     "MUX_SELECT_DELAY": {"info_key": "analog_matrix.config.mux_select_delay", "value_type": "int"},
     "POWER_SELECT_DELAY": {"info_key": "analog_matrix.config.power_select_delay", "value_type": "int"},

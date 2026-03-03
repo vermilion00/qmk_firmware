@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/cdefs.h>
+// #include <sys/cdefs.h>
 // #include "_wait.h
 // #include "analog.h"
 #include "bootloader.h"
@@ -617,10 +617,7 @@ void calibrate_switches(void) {
     bool first_scan = true;
     //TODO: Calibration sync needs to be added
     __attribute__((unused)) bool calibration_done = false;
-
-    #if AM_NO_EEPROM == TRUE || defined SPLIT_KEYBOARD
     char side[7] = "";
-    #endif
 
     #ifdef SPLIT_KEYBOARD
     // if(is_keyboard_master()) {
@@ -1198,6 +1195,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
     #endif
     create_layer_masks(highest_layer);
 
+    #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
     if (!manual_profile_lock) {
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             // If the highest active layer is in the layers list of that profile, activate it
@@ -1213,6 +1211,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         set_active_profile(AM_DEFAULT_PROFILE);
         #endif
     }
+    #endif
 
     // Need to call the user function
     return layer_state_set_user(state);

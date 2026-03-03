@@ -189,7 +189,8 @@
                     { "text": "PS/2 Mouse", "link": "/features/ps2_mouse" },
                     { "text": "Split Keyboard", "link": "/features/split_keyboard" },
                     { "text": "Stenography", "link": "/features/stenography" },
-                    { "text": "Wireless", "link": "/features/wireless" }
+                    { "text": "Wireless", "link": "/features/wireless" },
+                    { "text": "Analog Matrix", "link": "/features/analog_matrix" }
                 ]
             },
             {
