@@ -124,6 +124,7 @@ bool process_analog_joystick(uint16_t keycode) {
 
 // This currently only prints the data for the master side, plug in the other half to print its data
 //TODO: Send slave data over and print it as well
+//      Don't forget to update the docs once it works
 void print_calibration_data(void) {
     char side[7] = "";
     #ifdef SPLIT_KEYBOARD

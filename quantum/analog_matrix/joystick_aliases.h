@@ -20,7 +20,7 @@
 #define JS_START JS_7
 #define JS_LS JS_8
 #define JS_RS JS_9
-//TODO: Check if these are correct. Do the JS_n buttons even map to the standard correctly?
+//TODO: Check if these are correct. Do the JS_n buttons even map to the expected buttons correctly?
 #define JS_DPAD_UP JS_10
 #define JS_DPU JS_10
 #define JS_DPAD_DOWN JS_11

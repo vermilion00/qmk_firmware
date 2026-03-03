@@ -8,8 +8,17 @@
 3. EEPROMs
 4. LUT
 
--The eeprom data is wiped on stm32-dfu chips when flashing firmware
-    -Either use external storage, another bootloader (tinyuf2) or no-eeprom
+-Allow toggling priority key mode, with options to enable it on certain profiles automatically
+
+-*Add manual profile switch mode, to keep profiles from switching automatically with layers
+    -Test this
+
+-Take a look at bootmagic to turn on RGB stuff when calibrating, and turn it off when finished?
+
+-Check if setting a larger amount of adc pins than necessary is a problem
+-What if one half needs more mux/adc pins than the other?
+
+-Allow setting stuff in config.h directly again
 
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
@@ -84,6 +93,8 @@ MIDI:
 -Add always inline stuff
 
 -Add mode for multiple actions on one key (DKS) somehow
+    -Use switch mode >= 10
+    -switch mode - 10 gives us the index in an array of dks structs, where up to 4 heights are mapped to 4 actions
 
 -EEPROM stuff:
     -Check if anything needs to be saved at the end of the flash (bootloader flag?)
@@ -128,6 +139,7 @@ BUGS:
 -The value for LPX is updated binarily (not the axis at key T)
     -Is it cuz that's the first index?
 
+-Current code doesn't work with AVR, palSetLineMode etc isn't a thing (but can be fixed, low prio)
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
 -Pins are set to input by default -> QMK sets unused pins to output high (Why not low?)

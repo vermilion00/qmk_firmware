@@ -92,15 +92,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // 									                                  KC_LCTL, KC_LALT,			 KC_ENT
 //   ),
 
-  [_GMCL] = LAYOUT(
-     JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    KC_0,    KC_BSPC,
-     KC_TAB,  JS_RPY,    JS_LT,    JS_LPY,  JS_RT,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
-     KC_W,    JS_RNY,    JS_LNX,    JS_11,    JS_LNY,    JS_LPX,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-     KC_E,    KC_V,    JS_RNX,    KC_D,    JS_RPX,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-									                                  KC_LCTL, KC_LALT,			 KC_ENT
-  ),
+//   [_GMCL] = LAYOUT(
+//      JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    KC_0,    KC_BSPC,
+//      KC_TAB,  KC_Q,    JS_LT,    JS_LPY,  JS_RT,    KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
+//      KC_W,    KC_A,    JS_LNX,    JS_LNY,    JS_LPX,    KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+//      KC_E,    KC_V,    JS_RNX,    KC_D,    JS_RPX,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
+//   ),
 
 //   Mixed gamepad matrix
 //   [_GMCL] = LAYOUT(
@@ -114,15 +114,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //   ),
 
   // All left half
-//   [_GMCL] = LAYOUT(
-//      JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    JS_14,    JS_15,
-//      KC_TAB,  KC_Q,    JS_LT,    JS_LPY,    JS_RT,    KC_B,                    			          JS_6,    JS_7,    JS_8,    JS_9,    KC_SCLN, KC_MINS,
-//      KC_W,    KC_A,    JS_LNX,    JS_LNY,    JS_LPX,    KC_G,                    			          JS_16,    JS_17,    JS_18,    KC_NO,    KC_O,    KC_QUOT,
-//      KC_E,    KC_V,    JS_RNX,    JS_RPY,    JS_RPX,    JS_RNY,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
-//   ),
+  [_GMCL] = LAYOUT(
+     JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    JS_14,    JS_15,
+     KC_TAB,  KC_Q,    JS_LT,    JS_LPY,    JS_RT,    KC_B,                    			          JS_6,    JS_7,    JS_8,    JS_9,    KC_SCLN, KC_MINS,
+     KC_W,    KC_A,    JS_LNX,    JS_LNY,    JS_LPX,    KC_G,                    			          JS_16,    JS_17,    JS_18,    KC_NO,    KC_O,    KC_QUOT,
+     KC_E,    KC_V,    JS_RNX,    JS_RPY,    JS_RPX,    JS_RNY,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+                               KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
+						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+									                                  KC_LCTL, KC_LALT,			 KC_ENT
+  ),
 
 // All right half
 //   [_GMCL] = LAYOUT(
@@ -161,7 +161,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			          CK_MSOF, MS_BTN1, MS_BTN2, MS_BTN3, KC_MPLY, KC_QUOT,
      KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			          CK_MSOF, MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
                                CK_MSOF, CK_MSOF,											              	                            KC_PLUS, KC_EQL,
-										                 _______, CK_MSOF, _______,		    MO(_FN),  KC_LSFT, _______,
+										                 _______, CK_MSOF, MO(MO_LALT),	    MO(_FN),  KC_LSFT, _______,
 												                      CK_MSOF, KC_LSFT,			KC_ENT
   ),
 
@@ -186,7 +186,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ),
 
   [_FN2] = LAYOUT(
-     QK_BOOT, JS_0,   JS_1,   JS_2,   JS_3,   KC_F5,                   			          AM_LOCP,   AP(0),   AP(1),   AP(2),  KC_F10,  KC_BSPC,
+     QK_BOOT, JS_0,   JS_1,   JS_2,   JS_3,   KC_F5,                   			          AM_LOCK,   AM_AP(0),   AM_AP(1),   AM_AP(2),  KC_F10,  KC_BSPC,
      AM_PRNT, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      AM_CLBR, KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
      AM_PRPR, TG(_GMPD),   KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,

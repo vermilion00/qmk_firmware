@@ -635,10 +635,13 @@
                             "enum": [
                                 "default",
                                 "last",
+                                "manual"
                                 "Default",
                                 "Last",
+                                "Manual",
                                 "DEFAULT",
-                                "LAST"
+                                "LAST",
+                                "MANUAL"
                             ]
                         },
                         "profile_0": {

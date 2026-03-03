@@ -1,3 +1,9 @@
+# Analog Matrix
+
+This branch contains an analog matrix feature. The documentation for it can be found here:
+['docs/features/analog_matrix.md'](docs/features/analog_matrix.md)
+
+
 # Quantum Mechanical Keyboard Firmware
 
 [![Current Version](https://img.shields.io/github/tag/qmk/qmk_firmware.svg)](https://github.com/qmk/qmk_firmware/tags)
