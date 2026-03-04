@@ -1,16 +1,3 @@
-TODO:
-* Make analog_matrix the main page, then have hardware and software config as two separate subpages
-* Do I need to specifically set ADC_1 and/or DMA info in mcuconf?
-* Show function calls
-* Add example code for functions
-* Draw a schematic for an example keyboard, and base my explanations on that
-* Test the power feature, then add it to the docs
-* Improve and test dynamic calibration, then add to docs
-* Make a split keyboard section summarizing all stuff
-* Add keycodes to relevant sections
-* Include information about endpoints etc, for MIDI and joystick features, in the mcu list
-* Add options to the config options doc and the data driven doc
-
 # Analog Matrix
 
 While the analog matrix feature is functional, it still needs a lot of testing and has only been confirmed to be working on the STM32F411 and STM32F446, though every STM32F4 or higher chip should work (in theory).
@@ -20,14 +7,17 @@ This feature hasn't been tested together with other features that require the us
 To activate this feature, simply configure the analog_matrix object in your info.json, it will set the required make rules automatically.
 
 This is a list of tested microcontrollers:
+
 | Microcontroller |       Working      |      EEPROM     |
 |-----------------|--------------------|-----------------|
 | STM32F446       | :heavy_check_mark: | :x:<sup>1</sup> |
 | STM32F411       | :heavy_check_mark: | :x:<sup>2</sup> |
+| RP2040<sup>3</sup> | :heavy_check_mark: | :heavy_check_mark: |
 | Any AVR chip    | :x:                | :x:             |
 
-1: Persistent storage works only with an external chip
+1: Persistent storage works only with an external chip   
 2: EEPROM/Flash is reset by flashing firmware, can be fixed by using a different bootloader (tinyuf2) or an external chip
+3: While the RP2040 works without issues, it only has four usable ADC channels per chip.
 
 ## What works?
 
@@ -88,6 +78,7 @@ Roughly in descending order of priority:
 * Controlling sensor power via GPIO
 * Assigning a color to a profile
 
+
 # Calibration
 
 If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a calibration key and hold that during startup (more info in the config section.) If the keyboard doesn't yet have any calibration values saved, it should automatically enter calibration mode.
@@ -127,7 +118,7 @@ While less convenient than the other option, this is a workaround for chips that
 }
 ```
 
-For split keyboards, the left and right half are separated, with the left half getting the values shown above, while the right half has the same options, but with the _right suffix: 
+For split keyboards, the left and right half are separated:
 ```json
 "top_values": [632, 701, 682, 643],
 "bottom_values": [239, 290, 276, 254]
@@ -135,13 +126,15 @@ For split keyboards, the left and right half are separated, with the left half g
 "bottom_values_right": [242, 291, 286, 253]
 ```
 
+
 # AVR configuration
 
-This feature doesn't work on AVR chips.
+This feature doesn't work on AVR chips. Support may be added in the future, but ARM is preferred due to firmware size limitations.
+
 
 # ARM configuration
 
-This feature needs an extensive amount of configuration to work correctly.
+Enable the ADC peripheral.
 
 ## halconf.h
 
@@ -158,7 +151,7 @@ If you wish to use a specific ADC (provided your chip has multiple ADCs supporte
 #define STM32_ADC_USE_ADC1 TRUE
 ```
 
-You may also need to configure the DMA stream settings:
+You may also need to configure the DMA settings:
 ```c
 #undef STM32_ADC_ADC1_DMA_STREAM
 #define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4) // DMA 2 Stream 4
@@ -167,6 +160,25 @@ You may also need to configure the DMA stream settings:
 ```
 
 You can find these values in the reference manual of your chip.
+
+
+# RP2040 configuration
+
+While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys max.
+You'd either have to find 32 channel multiplexers, or make a split keyboard, to get access to more keys than that.
+
+## halconf.h
+
+```c
+#define HAL_USE_ADC TRUE
+```
+
+## mcuconf.h
+
+```c
+#undef RP_ADC_USE_ADC1
+#define RP_ADC_USE_ADC1 TRUE
+```
 
 
 # General configuration
@@ -207,24 +219,22 @@ This section contains the details of how everything is connected to the microcon
 ```json
 "mux_pins": ["B12", "B13", "B14", "B15"]
 ```
-This is an array of the pins used to switch the multiplexer channels. The leftmost pin toggles the least significant channel select bit, also called S0. The channel select pins for all multiplexers should be wired up together.
+This is an array of the pins used to switch the multiplexer channels. The leftmost pin toggles the least significant channel select bit, usually called S0. The channel select pins for all multiplexers should be wired up together, so that all multiplexers change the channel together. Switching channels independently isn't supported.
 
 ```json
 "adc_pins": ["A0", "A1", "A2"]
 ```
-This is an array of the analog pins used by the chip. These will be set as analog inputs by the firmware, and the output of each multiplexer should be connected to one of these. In case you're handwiring, check the reference manual of your chip to make sure that these pins have an adc peripheral connected to them.
-
+This is an array of the analog pins used by the chip. The output of each multiplexer should be connected to one of these. In case you're handwiring, check the reference manual of your chip to make sure that these pins have an ADC peripheral connected to them.
 
 ```json
 "travel_distance": 4.0
 ```
-This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm, if it is wrong, then heights will be incorrectly converted.
-
+This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm. If it is wrong, then heights will be incorrectly converted. The travel distance of a switch can usually be found in its product description or datasheet.
 
 ```json
 "smoothing": 4
 ```
-Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but is less resistant to noise. This value is more important than the heights you set.
+Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late.
 
 
 ```json
@@ -237,7 +247,7 @@ You can have different deadzones for top and bottom by using top_deadzone and bo
 ```json
 "invert_adc: false
 ```
-This feature assumes that the value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
+The analog matrix logic assumes that the ADC value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
 
 ```json
 "layouts": {
@@ -253,7 +263,7 @@ This feature assumes that the value of a released switch is higher than the valu
 }
 ```
 
-The controller needs to know what adc pin and multiplexer channel combination corresponds to what key. This is done by adding a "mux" parameter to each key. This mux parameter has the adc pin as the first index, and the mux channel as the second index. Both of these are 0-indexed.
+The controller needs to know what ADC pin and multiplexer channel combination corresponds to what key. This is done by adding a "mux" parameter to each key. This mux parameter has the ADC pin as the first index, and the mux channel as the second index. Both of these are 0-indexed.
 Assume our hardware config looks like this:
 
 ```json
@@ -262,9 +272,9 @@ Assume our hardware config looks like this:
 ```
 This means that a key with the mux combination [1, 5] is read on pin A1, if pins B12 and B14 are activated, and pins B13 and B15 are deactivated. The output of this keys' sensor is wired to channel 5 of the multiplexer that is connected to pin A1 on the microcontroller.
 
-When choosing the layout, it is best to use the lowest multiplexer channel numbers first, as the feature scans the matrix by looping over every adc pin and multiplexer channel combination, starting from 0. Any unused combinations are skipped automatically, so having an uneven amount of keys connected to the multiplexers isn't a problem.
+When choosing the layout, it is best to use the lowest multiplexer channel numbers first, as the feature scans the matrix by looping over every ADC pin and multiplexer channel combination, starting from 0. Any unused combinations are skipped automatically, so having an uneven amount of keys connected to the multiplexers isn't a problem.
 
-Currently, it's only possible to connect the sensors to a multiplexer or to an adc pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix scanning is currently not supported, but is planned for the future.
+Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix scanning is currently not supported, but is planned for the future.
 
 ### Config
 
@@ -379,8 +389,8 @@ You can use up to 32 profiles, as long as they all follow the "profile_n" naming
 "layers": [0, 1, 2]
 ```
 
-As long as profile_switch_mode isn't set to "manual", this will activate the profile automatically when switching to one of these layers. If multiple profiles contain a layer, the profile with the lowest index will be activated. If you don't wish to switch to a specific layer automatically, you can ignore this setting, and use the AM_AP(profile) keycode to switch manually.
-
+As long as profile_switch_mode isn't set to "manual", this will activate this profile automatically when switching to one of these layers. If multiple profiles contain a layer, the profile with the lowest index will be activated. If you don't wish to switch to a specific profile automatically, you can ignore this setting, and use the AM_AP(profile) keycode to switch manually. <br> 
+The order of these keys is identical to the order in the layout, so index 0 sets the mode for the first key in the layout definition. This holds true for split keyboards as well. The same logic is applied to all key-specific arrays further down, like height and rapid trigger distance.
 
 ```json
 "key_modes": [
@@ -393,17 +403,17 @@ As long as profile_switch_mode isn't set to "manual", this will activate the pro
                     0, 0,        0
 ]
 ```
-::: tip
-All arrays can be formatted however you want, with as many spaces, tabs and newlines as you wish to use. This is helpful for arrays where each position controls a key, e.g. the key mode array and all height/distance arrays.
+::: tip  
+All arrays can be formatted however you want, with as many spaces, tabs and newlines as you wish to use. This is helpful for arrays where each position controls a key, e.g. the key mode array and all height/distance arrays.  
 :::
 
 The key mode controls the rapid trigger setting for each key:
-| Key mode                     | Description                                                                                                               |
-|------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| none / 0                     | No rapid trigger. Activation is handled via a simple height check against the trigger and release heights. Default value. |
-| rapid_trigger / 1            | Rapid trigger activates below the trigger height, and deactivates above the release height.                               |
-| continuous_rapid_trigger / 2 | Rapid trigger that activates below the trigger height, but only deactivates when the key is fully released.               |
-| constant_rapid_trigger / 3   | Rapid trigger is always active. Functionally the same as using key mode 1 or 2 with very low heights.                     | 
+| Key mode                 | Mode number | Description                                                                                                               |
+|--------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------|
+| none                     | 0           | No rapid trigger. Activation is handled via a simple height check against the trigger and release heights. Default value. |
+| rapid_trigger            | 1           | Rapid trigger activates below the trigger height, and deactivates above the release height.                               |
+| continuous_rapid_trigger | 2           | Rapid trigger that activates below the trigger height, but only deactivates when the key is fully released.               |
+| constant_rapid_trigger   | 3           | Rapid trigger is always active. Functionally the same as using key mode 1 or 2 with very low heights.                     | 
 
 If you want to use the same key mode for every key in this profile, you can just set only one value in the array:
 
@@ -423,7 +433,7 @@ This will use the constant rapid trigger mode as the default for all keys in tha
 ```json
 "trigger_height": [ 1.0, 1.5, 2.0, 0.3 ]
 ```
-This is an array of floats where every index corresponds to one key. These floats are scaled to integers according to the calibration values during initialization, and no scanning logic uses the actual floats, so don't worry about performance here. By default, the height is counted from the top, so a height of 1.0 means that pressing the key down by 1 millimeter will activate it. If you want to set the heights to be counted from the bottom, you can set "distance_from_bottom": true in the config section (not the profile section). The order of these keys is identical to the order in the layout, so index 0 sets the height for the first key in the layout definition. This holds true for split keyboards as well.
+This is an array of floats where every index corresponds to one key. These floats are scaled to integers according to the calibration values during initialization, and no scanning logic uses the actual floats, so don't worry about performance here. By default, the height is counted from the top, so a height of 1.0 means that pressing the key down by 1 millimeter will activate it. If you want to set the heights to be counted from the bottom, you can set "distance_from_bottom": true in the config section (not the profile section).
 If you wish to use the same height for all keys in the profile, you can just set one value:
 
 ```json
@@ -478,7 +488,7 @@ Accepted options are l/left/r/right. Using this flag means that only the configu
 The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
 ```c
 #ifdef SIDE_LEFT
-#Do something here
+//Do something here
 #endif
 ```
 This will run that code only if the -s left flag is set.
@@ -486,7 +496,8 @@ This will run that code only if the -s left flag is set.
 Another issue is that joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
 
 Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
-When changing "debug_scan_no_input", you need to flash both halves again.
+When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
+
 
 # Other features
 
@@ -494,8 +505,8 @@ When changing "debug_scan_no_input", you need to flash both halves again.
 
 There are several settings you can use to help you debug issues with the analog matrix. These print out the status to the console, so make sure debugging and the console feature is enabled, and that you have access to the console (QMK CLI or QMK Toolbox for example).
 
-::: warning
-On split keyboards, printing the scan values only works for the master half.
+::: warning  
+On split keyboards, printing the scan values only works for the master half.  
 :::
 
 ```json
@@ -511,16 +522,16 @@ On split keyboards, printing the scan values only works for the master half.
     }
 }
 ```
-"debug_mux_value" allows you to monitor a specific adc pin/mux channel combination. Setting this will print out the scan value of that key during each scan cycle.
-"debug_matrix_value" allows you to monitor a specific matrix position. Setting this will print out the scan value of that key during each scan cycle.
-"debug_scan_values" will print out the scan values for each switch during the matrix scan. Each value is prefixed by the mux combination.
-"debug_calibration" will print out the scan values for each switch during calibration only. Each value is prefixed by the mux combination.
+"debug_mux_value" allows you to monitor a specific ADC pin/mux channel combination. Setting this will print out the scan value of that key during each scan cycle. <br>
+"debug_matrix_value" allows you to monitor a specific matrix position. Setting this will print out the scan value of that key during each scan cycle. <br>
+"debug_scan_values" will print out the scan values for each switch during the matrix scan. Each value is prefixed by the mux combination. <br>
+"debug_calibration" will print out the scan values for each switch during calibration only. Each value is prefixed by the mux combination. <br>
 "debug_scan_no_input" will stop the keyboard from registering keypresses. Enabling this can be helpful to monitor the scan values without triggering random actions on your computer.
 
-::: warning
-Enabling any of the print options will cause a performance hit, even if the console isn't enabled on your end. If you suddenly have performance issues after debugging, try checking if you disabled all debug modes, and flash the firmware again.
+::: warning  
+Enabling any of the print options will cause a performance hit, even if the console isn't enabled on your end. If you suddenly have performance issues after debugging, try checking if you disabled all debug modes, and flash the firmware again.  
 If you have a split keyboard and the slave half suddenly stopped working, or updates slowly, make sure that all debug options are disabled, then flash the firmware again.
-On split keyboards, enabling debug_scan_no_input on one half will not disable inputs on the other half.
+On split keyboards, enabling debug_scan_no_input on one half will not disable inputs on the other half.  
 :::
 
 ## Priority keys
@@ -545,10 +556,10 @@ This feature is not very useful currently, as USB polling rates above 1k aren't 
 
 ## Analog Joystick
 
-::: warning
+::: warning  
 This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work.
 One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still try to add them to Steam to use Steam input.
-On split keyboards, assigning joystick axes to the slave half doesn't work. You can still use it for joystick buttons.
+On split keyboards, assigning joystick axes to the slave half doesn't work. You can still use it for joystick buttons.  
 :::
 
 The analog joystick feature can be enabled by simply configuring it in the keyboard.json. The buttons and axes follow the xbox naming convention by default, but the alias can be changed via the "layout" parameter.
@@ -624,8 +635,9 @@ I currently don't know if they work together.
 These options control the amount of axes and buttons that the descriptor will use. Trying to use a keycode for an axis that is outside of the range of the defined axis amount will crash the keyboard, while trying to use a button that is outside of that range will result in the button simply not working.
 Defaults to 6 axes and 16 buttons.
 
-::: warning
-The axis amount needs to be 1 higher than the actual amount of axes you're trying to use. If you plan on emulating a standard gamepad controller with two analog sticks and two triggers, this means that while you're only using 5 axes, the keyboard expects 6.
+::: warning  
+The axis amount needs to be 1 higher than the actual amount of axes you're trying to use. If you plan on emulating a standard gamepad controller with two analog sticks and two triggers, this means that while you're only using 5 axes, the keyboard expects 6.  
+Also, the joystick feature accepts a maximum of 6 axes, meaning that the RZ axis cannot be used at this moment.  
 :::
 
 ### Keycodes
@@ -650,7 +662,7 @@ The keycodes are all prefixed by JS_. You can use the layout parameter to change
 
 There are more buttons defined, up to JS_31. These can be used, but don't have an alias at the moment.
 
-Analogous to the buttons, the axis keycodes are prefixed by JS_. Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. This feature divides the axes up into two components, each being controlled by one keycode. The keycode name is comprised of:
+Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. This feature divides the axes up into two components, each being controlled by one keycode. The keycode name is comprised of:
 * The prefix JS_
 * L or R, for the Left or Right axis
 * N or P, for the negative or positive component
@@ -680,3 +692,17 @@ If you want an implementation example, you can look up ['my current keyboard.'](
 There you can see an actual, working implementation.
 
 If you have any questions, feel free to contact me at vermilion00.github@gmail.com
+
+TODO:
+* Make analog_matrix the main page, then have hardware and software config as two separate subpages
+* Do I need to specifically set ADC_1 and/or DMA info in mcuconf?
+* Show function calls
+* Add example code for functions
+* Draw a schematic for an example keyboard, and base my explanations on that
+* Test the power feature, then add it to the docs
+* Improve and test dynamic calibration, then add to docs
+* Make a split keyboard section summarizing all stuff
+* Add keycodes to relevant sections
+* Include information about endpoints etc, for MIDI and joystick features, in the mcu list
+* Add options to the config options doc and the data driven doc
+* Remove personal references and email before upstreaming

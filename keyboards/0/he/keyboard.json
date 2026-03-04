@@ -64,8 +64,9 @@
         "profiles": {
             "default_profile": 0,
             "profile_0": {
-                "trigger_height": [1.5],
-                "release_height": [1.25],
+                "rt_press_distance": [1.25],
+                "rt_release_distance": [1.25],
+                "rapid_trigger_type": "constant_rapid_trigger",
                 "layers": [0]
             },
             "profile_1": {

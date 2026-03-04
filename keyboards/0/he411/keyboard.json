@@ -34,11 +34,11 @@
             "nbootloader_key": [0, 1],
             "ncalibration_key": [0, 2],
             "scans_without_change": 6000,
-            "debug_scan_values": false,
+            "debug_scan_values": true,
             "debug_scan_no_input": false,
-            "no_eeprom": false,
-            "ntop_values": [ 628, 584, 663, 616 ],
-            "nbottom_values": [ 291, 282, 365, 283 ]
+            "no_eeprom": true,
+            "top_values": [ 628, 584, 663, 616 ],
+            "bottom_values": [ 291, 282, 365, 283 ]
         },
         "profiles": {
             "default_profile": 0,
