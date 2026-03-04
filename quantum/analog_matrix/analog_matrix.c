@@ -176,7 +176,7 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 //TODO: Remove this
 // #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
-uint8_t calibration_done = false;
+__attribute((unused)) uint8_t calibration_done = false;
 // slave_to_master_t slave_data;
 
 #if KEYBOARD_SIDE == UNKNOWN
@@ -221,17 +221,20 @@ void analog_matrix_init(void) {
         // Convert adc pins to adc mux combination
         adc_pin_mux[i] = pinToMux(adc_pins[i]);
     }
+
     #ifdef MUX_PINS
     for(uint8_t i = 0; i < MUX_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(mux_pins[i]);
         gpio_write_pin_low(mux_pins[i]);
     }
     #endif
+
     #if POWER_BEFORE_SCAN == TRUE
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
     }
+
     #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
     set_sensor_power_init_kb();
 
@@ -246,16 +249,13 @@ void analog_matrix_init(void) {
 
     get_switch_data();
 
-    //TODO: Remove this after tests
-    // calibrate_switches();
-    // TODO: Load key matrix struct with calibration and distance data from the EEPROM
-    // Get the min/max values of each switch from EEPROM
+    // Get the min/max values of each switch
     if(!get_calibration_data()) {
-    // If loading the calibration data fails, start calibration immediately
+    // If loading the calibration data fails, start calibration
         calibrate_switches();
     }
 
-    // Check keys like the calibration key or bootmagic key before scanning begins
+    // Check keys like the calibration or bootmagic key before scanning begins
     #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
     scan_init_keys();
     #endif
@@ -263,9 +263,9 @@ void analog_matrix_init(void) {
     // Translate the trigger height etc into the equivalent ADC value
     translate_mm_to_value();
 
-    #ifdef JOYSTICK_ENABLE
-    // Create the joystick mask
-    create_joystick_mask(highest_layer);
+    #if defined JOYSTICK_ENABLE || defined MIDI_ENABLE
+    // Create masks for special key modes
+    create_layer_masks(highest_layer);
     #endif
 
     // This *must* be called for correct keyboard behavior
@@ -523,6 +523,7 @@ bool get_calibration_data(void) {
     #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
     uint16_t top_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES;
     uint16_t bottom_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES;
+
     if(!is_keyboard_left()) {
         const uint16_t top_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES_R;
         const uint16_t bottom_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES_R;
@@ -532,9 +533,11 @@ bool get_calibration_data(void) {
     #else
 
     #   if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
-    const uint16_t top_values[] = AM_TOP_VALUES;
-    const uint16_t bottom_values[] = AM_BOTTOM_VALUES;
+    const uint16_t top_values[SWITCH_NUM] = AM_TOP_VALUES;
+    const uint16_t bottom_values[SWITCH_NUM] = AM_BOTTOM_VALUES;
     #   else
+    const uint16_t top_values[SWITCH_NUM];
+    const uint16_t bottom_values[SWITCH_NUM];
     return false;
     #   endif
     #endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
@@ -616,8 +619,10 @@ void calibrate_switches(void) {
     uint32_t scans_without_change = SCANS_WITHOUT_CHANGE;
     bool first_scan = true;
     //TODO: Calibration sync needs to be added
-    __attribute__((unused)) bool calibration_done = false;
+    // __attribute__((unused)) bool calibration_done = false;
+    #if AM_NO_EEPROM == true
     char side[7] = "";
+    #endif
 
     #ifdef SPLIT_KEYBOARD
     // if(is_keyboard_master()) {
@@ -680,7 +685,6 @@ void calibrate_switches(void) {
                         calibration_data[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         #endif
                         scans_without_change = 0;
-                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
@@ -691,14 +695,12 @@ void calibrate_switches(void) {
                         calibration_data[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
                         scans_without_change = 0;
-                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
 
                     } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < 50) {
                         scans_without_change = SCANS_WITHOUT_CHANGE;
-                        calibration_done = false;
                     }
 
                     #else // if INVERT_ADC == TRUE
@@ -708,7 +710,6 @@ void calibrate_switches(void) {
                         calibration_data[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         #endif
                         scans_without_change = SCANS_WITHOUT_CHANGE;
-                        calibration_done = false;
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
@@ -722,13 +723,11 @@ void calibrate_switches(void) {
                         #if DEBUG_CALIBRATION == true
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
-                        calibration_done = false;
 
                     // Check if new valid calibration values have been saved for this key
                     //TODO: Check more stuff here
                     } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 50) {
                         scans_without_change = SCANS_WITHOUT_CHANGE;
-                        calibration_done = false;
                     }
                     #endif // else INVERT_ADC == TRUE
                     // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
@@ -778,7 +777,6 @@ void calibrate_switches(void) {
 
             scans_without_change = 0;
             #ifdef SPLIT_KEYBOARD
-            calibration_done = true;
             // if(is_keyboard_master()) {
                 // uint8_t slave_switch_num;
                 // if(is_keyboard_left()) {

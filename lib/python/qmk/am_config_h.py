@@ -335,6 +335,7 @@ def get_port_def(json):
     raise Exception("Unknown processor!")
 
 
+#TODO: Check if want to allow different pins per half, remove if not
 #MARK: ADC pins
 def check_adc_pins(he_json, config_h_lines):
     hardware = he_json['hardware']
@@ -640,14 +641,14 @@ def validate_mux_to_matrix(mux_to_matrix):
 
 
 def valid_profile_name(profile):
-    if profile[:8] == 'profile_' and len(profile) == 9:
+    if profile[:8] == 'profile_' and profile[8:].isnumeric():
         return True
     else:
         return False
 
 #MARK: Validation
 def validate_analog_matrix_config(info_data):
-    """Validate the hall effect configuration."""
+    """Validate the analog matrix configuration."""
     he_json = info_data['analog_matrix']
     he_hardware = he_json['hardware']
     switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
@@ -734,7 +735,7 @@ def validate_height_config(he_json, invert_adc, from_bottom):
 
 #MARK: General config
 def generate_analog_matrix_config(info_data, config_h_lines):
-    """Generate the config.h lines for hall effect keyboards."""
+    """Generate the config.h lines for analog matrix keyboards."""
     validate_analog_matrix_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
@@ -742,6 +743,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     he_json = info_data['analog_matrix']
     he_hardware = info_data['analog_matrix']['hardware']
+
     #Hardware stuff
     # if info_data.get('debounce', 0) > 0:
     #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
@@ -787,7 +789,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'debug_matrix_value' in he_json['config']:
         debug_matrix_value(info_data, config_h_lines)
 
-    #Only get the heights from the config if no profiles are defined
+    # Only get the heights from the config if no profiles are defined
     if 'profiles' not in he_json:
         #Config stuff
         if 'trigger_height' in he_json['config']:
