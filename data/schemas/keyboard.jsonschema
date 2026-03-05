@@ -545,6 +545,7 @@
                             }
                         },
                         "priority_level": {"type": "integer"},
+                        "slave_low_priority": {"type": "boolean"},
                         "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
                         "bootloader_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
@@ -680,7 +681,8 @@
                                         "CONSTANT_RAPID_TRIGGER",
                                         "CONTINUOUS_RAPID_TRIGGER"
                                     ]
-                                }
+                                },
+                                "priority_profile": {"type": "boolean"}
                             }
                         }
                     }

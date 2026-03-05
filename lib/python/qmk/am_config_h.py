@@ -3,7 +3,7 @@ from milc import cli
 
 #TODO: Expand this list, need to make sure they follow the same calling structure as well
 #BSRR needs to have set priority, be 32 bits, with upper 16 bits being the reset bits
-BSRR_PROCESSORS = 'STM32F042', 'STM32F072', 'STM32F303', 'STM32F401', 'STM32F405', 'STM32F407', 'STM32F411', 'STM32F446', 'STM32G0B1', 'STM32G431', 'STM32G474', 'STM32H723', 'STM32H733', 'STM32L412', 'STM32L422', 'STM32L432', 'STM32L433', 'STM32L442', 'STM32L443', 'AT32F415'
+BSRR_PROCESSORS = 'RP2040', 'STM32F042', 'STM32F072', 'STM32F303', 'STM32F401', 'STM32F405', 'STM32F407', 'STM32F411', 'STM32F446', 'STM32G0B1', 'STM32G431', 'STM32G474', 'STM32H723', 'STM32H733', 'STM32L412', 'STM32L422', 'STM32L432', 'STM32L433', 'STM32L442', 'STM32L443', 'AT32F415'
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
 NO_KEY = [0, "X", "none", "None", "NONE"]
@@ -345,24 +345,35 @@ def check_adc_pins(he_json, config_h_lines):
 
 
 # MARK: Mux pins
-def check_mux_pins(he_json, config_h_lines):
+def check_mux_pins(json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
+    #TODO: Implement the optimization for RP2040
+    # Currently, no register access optimizations are avaliable for the RP2040
+    # if json['processor'] == 'RP2040':
+    #     return
+
+    he_json = json['analog_matrix']
     port_def = he_json['port_def']
     hardware = he_json['hardware']
 
-    if hardware.get('mux_pins', 0) == hardware.get('mux_pins_right', 1):
+    if json['processor'] == 'RP2040':
+        prefix = 2
+    else:
+        prefix = 1
+
+    if hardware.get('mux_pins', ['A0']) == hardware.get('mux_pins_right', ['A1']):
         config_h_lines.append(generate_define('EQUAL_MUX_PINS'))
 
     for postfix in ['', '_right']:
         if f'mux_pins{postfix}' in he_json['hardware']:
             mux_pins = he_json['hardware'][f'mux_pins{postfix}']
-            port = mux_pins[0][:1]
-            offset = int(mux_pins[0][1:])
+            port = mux_pins[0][:prefix]
+            offset = int(mux_pins[0][prefix:])
             init_offset = offset
 
             for pin in mux_pins:
-                if pin[:1] == port and int(pin[1:]) == offset:
+                if pin[:prefix] == port and int(pin[prefix:]) == offset:
                     offset += 1
                 else:
                     return
@@ -471,11 +482,11 @@ def transform_init_keys(info_data, config_h_lines):
 
 
 #MARK: Profile config
-def generate_profile_config(kb_info_json, config_h_lines):
+def generate_profile_config(info_data, config_h_lines):
     """Extract the profile configuration"""
-    he_profiles = kb_info_json['analog_matrix']['profiles']
+    he_profiles = info_data['analog_matrix']['profiles']
 
-    switch_num = kb_info_json['analog_matrix']['hardware']['switch_num'] + kb_info_json['analog_matrix']['hardware'].get('switch_num_right', 0)
+    switch_num = info_data['analog_matrix']['hardware']['switch_num'] + info_data['analog_matrix']['hardware'].get('switch_num_right', 0)
     trigger_heights = []
     release_heights = []
     press_distances = []
@@ -522,6 +533,11 @@ def generate_profile_config(kb_info_json, config_h_lines):
                 profile_config[profile_num].append(profile_layers)
             else:
                 profile_config[profile_num].append(0)
+
+            # Priority profile data
+            #TODO: Update this stuff for priority_muxes if needed
+            if 'priority_keys' in info_data['analog_matrix']['config'] or 'slave_low_priority' in info_data['analog_matrix']['config']:
+                profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
 
             #MARK: Key modes
             if 'rapid_trigger_type' in profile_data:
@@ -572,8 +588,8 @@ def generate_profile_config(kb_info_json, config_h_lines):
         default_profile = 0
 
     # Split up the height configs if necessary
-    if 'split' in kb_info_json and kb_info_json['split'].get('enabled', False):
-        g_to_l_index = kb_info_json['analog_matrix']['hardware']['global_to_local_index']
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        g_to_l_index = info_data['analog_matrix']['hardware']['global_to_local_index']
         profile_num = len(trigger_heights)
         split_trigger_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_release_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
@@ -760,7 +776,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'mux_pins' in he_hardware:
         mux_pin_num = len(he_hardware.get('mux_pins', ''))
         config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-        check_mux_pins(info_data['analog_matrix'], config_h_lines)
+        check_mux_pins(info_data, config_h_lines)
     else:
         #TODO: Is this necessary?
         config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
@@ -768,7 +784,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'power_pins' in he_hardware:
         power_pin_num = len(he_hardware['power_pins'])
         config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
-        config_h_lines.append(generate_define('POWER_BEFORE_SCAN', 'TRUE'))
+        config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
         check_power_pins(info_data['analog_matrix'], config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights

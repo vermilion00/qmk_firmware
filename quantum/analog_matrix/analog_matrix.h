@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gpio.h"
 #include "matrix.h"
 #include <stdint.h>
 #include "action_layer.h"
@@ -8,6 +9,8 @@
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
+
+//TODO: Clean this stuff up
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -30,10 +33,6 @@
 
 #ifndef KEYBOARD_SIDE
 #   define KEYBOARD_SIDE UNKNOWN
-#endif
-
-#ifndef AM_NO_EEPROM
-#   define AM_NO_EEPROM FALSE
 #endif
 
 // This is set up so that the normal definitions can be used, only need to assign if the side
@@ -138,6 +137,12 @@
 #define LAST_PROFILE 1
 #define MANUAL_PROFILE 2
 
+#if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
+#ifndef PRIORITY_LEVEL
+#define PRIORITY_LEVEL 5
+#endif
+#endif
+
 //TODO: Remove this before upload
 #ifdef LED_PIN
 #   ifndef LED_INVERTED
@@ -170,6 +175,9 @@ typedef enum _key_mode_t: uint8_t {
 //      Currently not very useful, might be nice to have if I allow associating a color with a profile
 typedef struct Profile {
     layer_state_t layers;
+    #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
+    bool priority_profile;
+    #endif
 } Profile;
 
 typedef struct analog_key_t {
@@ -236,7 +244,7 @@ typedef struct analog_key_t {
 #ifdef POWER_SELECT_DELAY
 #   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
 #endif
-#if DYNAMIC_CALIBRATION == TRUE
+#ifdef DYNAMIC_CALIBRATION
 // Absolute distance in adc counts
 #ifndef AM_DC_DELTA
 #   define AM_DC_DELTA 6
@@ -256,6 +264,7 @@ extern bool manual_profile_lock;
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
 
+extern const pin_t mux_pins[MUX_PIN_NUM];
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;

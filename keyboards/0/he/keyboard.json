@@ -22,12 +22,11 @@
         "extrakey": true,
         "mousekey": true,
         "console": true,
-        "joystick": true
+        "joystick": false
     },
 	"modules": ["getreuer/socd_cleaner", "drashna/pointing_device_accel"],
     "analog_matrix": {
         "hardware": {
-            "force_calibrate": false,
             "mux_pins": ["B12", "B13", "B14", "B15"],
             "adc_pins": ["A0", "A1", "A2"],
             "travel_distance": 4.0,
@@ -50,7 +49,7 @@
             "top_values_right": [ 585, 592, 628, 672, 596, 582, 575, 613, 600, 603, 613, 603, 603, 596, 621, 634, 610, 564, 640, 653, 602, 611, 615, 614, 603, 605, 600, 656, 600, 604 ],
             "bottom_values_right": [ 299, 321, 435, 469, 316, 293, 305, 320, 326, 298, 318, 299, 329, 300, 333, 310, 329, 282, 463, 460, 299, 317, 331, 336, 296, 292, 293, 463, 292, 286 ]
         },
-        "joystick": {
+        "!joystick": {
             "deadzone": 15,
             "layout": "XBOX",
             "resolution_methods": {
@@ -70,6 +69,7 @@
                 "layers": [0]
             },
             "profile_1": {
+                "priority_profile": true,
                 "key_modes": [
                     0, 0, 0, 0, 0, 0,              0, 0, 0, 0, 0, 0,
                     0, 0, 0, 3, 0, 0,              0, 0, 0, 0, 0, 0,
