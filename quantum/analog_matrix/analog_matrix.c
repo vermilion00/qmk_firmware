@@ -30,7 +30,7 @@
 #include "analog_midi.h"
 #endif
 //TODO: I think either this or nvm_eeconfig is unnecessary
-#if AM_NO_EEPROM == FALSE
+#ifndef AM_NO_EEPROM
 #include "eeconfig.h"
 analog_switch_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #endif
@@ -61,7 +61,7 @@ extern matrix_row_t raw_matrix[MATRIX_ROWS];
 extern uint8_t thisHand, thatHand;
 #endif
 
-#if DYNAMIC_CALIBRATION == TRUE
+#ifdef DYNAMIC_CALIBRATION
 // Check if the switch boundaries need updating, and update them if necessary.
 inline bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
@@ -176,7 +176,7 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 //TODO: Remove this
 // #define SPLIT_KEYBOARD
 #ifdef SPLIT_KEYBOARD
-__attribute((unused)) uint8_t calibration_done = false;
+// __attribute((unused)) uint8_t calibration_done = false;
 // slave_to_master_t slave_data;
 
 #if KEYBOARD_SIDE == UNKNOWN
@@ -192,11 +192,12 @@ uint8_t priority_muxes[PRIORITY_MUX_NUM][3] = PRIORITY_MUXES;
 uint8_t matrix_scan_priority(matrix_row_t current_matrix[]);
 #endif
 
-//TODO: Maybe allow assigning them on a per layer basis?
-#ifdef PRIORITY_INDICES
+#if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
 uint8_t scan_amt = 0;
+#ifdef PRIORITY_INDICES
 uint8_t priority_indices[MAX(SWITCH_NUM, SWITCH_NUM_R)] = PRIORITY_INDICES;
 SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
+#endif
 #endif
 
 //MARK: Init
@@ -229,13 +230,13 @@ void analog_matrix_init(void) {
     }
     #endif
 
-    #if POWER_BEFORE_SCAN == TRUE
+    #if defined POWER_BEFORE_SCAN
     for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
     }
 
-    #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+    #elif defined CUSTOM_POWER_BEFORE_SCAN
     set_sensor_power_init_kb();
 
     #elif defined MATRIX_POWER_PIN
@@ -263,9 +264,9 @@ void analog_matrix_init(void) {
     // Translate the trigger height etc into the equivalent ADC value
     translate_mm_to_value();
 
-    #if defined JOYSTICK_ENABLE || defined MIDI_ENABLE
-    // Create masks for special key modes
-    create_layer_masks(highest_layer);
+    //TODO: Consolidate these into one define
+    #if defined JOYSTICK_ENABLE || defined MIDI_ENABLE || defined PRIORITY_INDICES
+    change_layer_settings(highest_layer);
     #endif
 
     // This *must* be called for correct keyboard behavior
@@ -281,9 +282,9 @@ static void scan_init_keys(void) {
     delay_ns(20000);
 
     for(uint8_t idx = 0; idx < AM_INIT_KEY_NUM; idx++) {
-        #if POWER_BEFORE_SCAN == TRUE
+        #ifdef POWER_BEFORE_SCAN
         gpio_write_pin_high(power_pins[init_keys[idx][1]]);
-        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #elif defined CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_high_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
@@ -296,9 +297,9 @@ static void scan_init_keys(void) {
         delay_ns(7000);
         adc_value = adc_read(adc_pin_mux[init_keys[idx][0]]);
 
-        #if POWER_BEFORE_SCAN == TRUE
+        #ifdef POWER_BEFORE_SCAN
         gpio_write_pin_low(power_pins[init_keys[idx][1]]);
-        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #elif defined CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_low_kb(init_keys[idx][1]);
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
@@ -333,16 +334,16 @@ uint8_t analog_matrix_scan() {
     uint8_t index;
 
     #ifdef PRIORITY_MUXES
-    if(scan_amt < PRIORITY_LEVEL) {
+    if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
         scan_amt += 1;
         return matrix_scan_priority(current_matrix);
     } else { scan_amt = 0; }
     #endif
 
     for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
-        #if POWER_BEFORE_SCAN == TRUE
+        #if defined POWER_BEFORE_SCAN
         set_sensor_power(mux_channel);
-        #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #elif defined CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_high_kb(mux_channel);
         #endif
 
@@ -356,10 +357,10 @@ uint8_t analog_matrix_scan() {
             index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
             if(index > 0) {
-
                 index -= 1;
+
                 #ifdef PRIORITY_INDICES
-                if(scan_amt < PRIORITY_LEVEL) {
+                if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
                     if(!priority_indices[index]) { continue; }
                 }
                 #endif
@@ -370,7 +371,7 @@ uint8_t analog_matrix_scan() {
                 if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
                     dprintf("%u\n", adc_value);
                 }
-                #elif DEBUG_SCAN_VALUES == TRUE
+                #elif defined DEBUG_SCAN_VALUES
                 dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
                 #endif
                 #ifdef ADC_SCAN_DELAY
@@ -387,36 +388,36 @@ uint8_t analog_matrix_scan() {
                     // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
                     if(evaluate_value(index, adc_value)) {
                         matrix_has_changed = true;
-                        #if DEBUG_SCAN_NO_INPUT != TRUE
+                        #ifndef DEBUG_SCAN_NO_INPUT
                         matrix[key_config[index].row] ^= 1 << key_config[index].col;
                         #endif
                         // If dynamic calibration is enabled, check if the boundaries need updating
-                        #if DYNAMIC_CALIBRATION == TRUE
+                        #ifdef DYNAMIC_CALIBRATION
                         if(update_switch_bounds(index, adc_value)) {
                             // If the bounds have been updated, translate the heights and save the new bounds
                             translate_mm_to_value(index);
                             //TODO: Update this
-                            #if AM_NO_EEPROM == FALSE
+                            #ifndef AM_NO_EEPROM
                             save_calibration_data();
                             #endif
                         }
-                        #endif // DYNAMIC_CALIBRATION == TRUE
+                        #endif // ifdef DYNAMIC_CALIBRATION
                     }
                     key_config[index].scan_value = adc_value;
                 }
             }
-            #if DEBUG_SCAN_VALUES == TRUE
+            #ifdef DEBUG_SCAN_VALUES
             else {
                 dprintf("%u/%2u:    , ",adc_channel, mux_channel);
             }
             #endif
         }
-        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #ifdef CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_low_kb(mux_channel);
         #endif
     }
 
-    #if DEBUG_SCAN_VALUES == TRUE
+    #ifdef DEBUG_SCAN_VALUES
     dprint("\n");
     #endif
 
@@ -438,10 +439,14 @@ uint8_t analog_matrix_scan() {
 
     #else // if DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
-    #ifndef SLAVE_LOW_PRIORITY
+    #if !defined SLAVE_LOW_PRIORITY
     matrix_has_changed |= matrix_post_scan();
     #else // Only synchronise the matrices during the full scans if the slave is low priority (doesn't contain priority keys)
-    if(scan_amt == 0) {
+    if(profiles[active_profile].priority_profile) {
+        if(scan_amt == 0) {
+            matrix_has_changed |= matrix_post_scan();
+        }
+    } else {
         matrix_has_changed |= matrix_post_scan();
     }
     #endif // ifndef SLAVE_LOW_PRIORITY
@@ -462,7 +467,7 @@ void translate_mm_to_value(void) {
     for(uint8_t index = 0; index < switch_num; index++) {
         uint16_t bottom_value = key_config[index].bottom_value;
         uint16_t top_value = key_config[index].top_value;
-        #if INVERT_ADC == FALSE
+        #ifndef INVERT_ADC
         // ADC count per mm of travel
         uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
         #else
@@ -470,32 +475,32 @@ void translate_mm_to_value(void) {
         #endif
 
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            #if INVERT_ADC == FALSE
+            #ifndef INVERT_ADC
             #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-            #if DISTANCE_FROM_BOTTOM == FALSE
+            #ifndef DISTANCE_FROM_BOTTOM
             key_config[index].trigger_value[profile] = top_value - (travel_unit * trigger_height[profile][index]) - ADC_SMOOTHING;
             key_config[index].release_value[profile] = top_value - (travel_unit * release_height[profile][index]) + ADC_SMOOTHING;
 
-            #else // if DISTANCE_FROM_BOTTOM == FALSE
+            #else // ifndef DISTANCE_FROM_BOTTOM
             key_config[index].trigger_value[profile] = travel_unit * trigger_height[profile][index] + bottom_value - ADC_SMOOTHING;
             key_config[index].release_value[profile] = travel_unit * release_height[profile][index] + bottom_value + ADC_SMOOTHING;
-            #endif // else DISTANCE_FROM_BOTTOM == FALSE
+            #endif // ifndef DISTANCE_FROM_BOTTOM else
             #endif
 
             #else //Inverted ADC -> Lower switch means higher value
 
             #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
-            #if DISTANCE_FROM_BOTTOM == FALSE
+            #ifndef DISTANCE_FROM_BOTTOM
             //TODO: Is this correct
             key_config[index].trigger_value[profile] = top_value + (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING;
             key_config[index].release_value[profile] = top_value + (travel_unit * release_height[profile][index]) - ADC_SMOOTHING;
 
-            #else // if DISTANCE_FROM_BOTTOM == FALSE
+            #else // ifndef DISTANCE_FROM_BOTTOM
             key_config[index].trigger_value[profile] = bottom_value - (travel_unit * trigger_height[profile][index]) + ADC_SMOOTHING;
             key_config[index].release_value[profile] = bottom_value - (travel_unit * release_height[profile][index]) - ADC_SMOOTHING;
-            #endif // else DISTANCE_FROM_BOTTOM == FALSE
+            #endif // ifndef DISTANCE_FROM_BOTTOM else
             #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
-            #endif //else INVERT ADC == TRUE
+            #endif // ifndef INVERT_ADC else
 
             #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
             key_config[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
@@ -511,11 +516,11 @@ void translate_mm_to_value(void) {
 
 //MARK: Get calibration
 bool get_calibration_data(void) {
-    #if FORCE_CALIBRATE == TRUE
+    #ifdef FORCE_CALIBRATE
     return false;
     #endif
 
-#   if AM_NO_EEPROM == TRUE
+#   ifdef AM_NO_EEPROM
     #if !defined AM_TOP_VALUES || !defined AM_BOTTOM_VALUES
     return false;
     #endif
@@ -542,40 +547,40 @@ bool get_calibration_data(void) {
     #   endif
     #endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 
-    #if DYNAMIC_CALIBRATION == FALSE
-    #if INVERT_ADC == FALSE
+    #ifndef DYNAMIC_CALIBRATION
+    #ifndef INVERT_ADC
     for(uint8_t key = 0; key < switch_num; key++) {
         key_config[key].top_value = top_values[key] - ADC_TOP_DEADZONE;
         key_config[key].bottom_value = bottom_values[key] + ADC_BOTTOM_DEADZONE;
         key_config[key].pressed = false;
     }
-    #else // INVERT_ADC == FALSE
+    #else // ifndef INVERT_ADC
     for(uint8_t key = 0; key < switch_num; key++) {
         key_config[key].top_value = top_values[key] + ADC_TOP_DEADZONE;
         key_config[key].bottom_value = bottom_values[key] - ADC_BOTTOM_DEADZONE;
 
         key_config[key].pressed = false;
     }
-    #endif // else INVERT_ADC == FALSE
+    #endif // ifndef INVERT_ADC else
 
-    #else // DYNAMIC_CALIBRATION == FALSE
-    #if INVERT_ADC == FALSE
+    #else // ifndef DYNAMIC_CALIBRATION
+    #ifndef INVERT_ADC
     for(uint8_t key = 0; key < switch_num; key++) {
         // AM_DC_FACTOR should be defined as < 1
         key_config[key].top_value = AM_DC_FACTOR * top_values[key] - ADC_TOP_DEADZONE;
         key_config[key].bottom_value = (2 - AM_DC_FACTOR) * bottom_values[key] + ADC_BOTTOM_DEADZONE;
     }
-    #else // INVERT_ADC == TRUE
+    #else // ifndef INVERT_ADC
     for(uint8_t key = 0; key < switch_num; key++) {
         key_config[key].top_value = (2 - AM_DC_FACTOR) * top_values[key] + ADC_TOP_DEADZONE;
         key_config[key].bottom_value = AM_DC_FACTOR * bottom_values[key] - ADC_BOTTOM_DEADZONE;
     }
-    #endif // INVERT_ADC
-    #endif // DYNAMIC_CALIBRATION
+    #endif // ifndef INVERT_ADC else
+    #endif // ifndef DYNAMIC_CALIBRATION else
 
     return true;
 
-#   else //if AM_NO_EEPROM == TRUE
+#   else //ifdef AM_NO_EEPROM
 
     // Read the calibration data from EEPROM
     //TODO: I don't think i need the cast here
@@ -589,7 +594,7 @@ bool get_calibration_data(void) {
         // Check if the switch data makes sense, start calibration if not
         if(calibration_data[key].top_value < 10 || calibration_data[key].bottom_value < 10) return false;
         if(calibration_data[key].top_value > 1000 || calibration_data[key].bottom_value > 1000) return false;
-        #if INVERT_ADC == FALSE
+        #ifndef INVERT_ADC
         if(calibration_data[key].top_value - calibration_data[key].bottom_value < 50) return false;
         if(calibration_data[key].top_value <= calibration_data[key].bottom_value) return false;
         #else
@@ -606,7 +611,7 @@ bool get_calibration_data(void) {
     }
 
     return true;
-    #endif //else AM_NO_EEPROM == TRUE
+    #endif // ifdef AM_NO_EEPROM else
 }
 
 
@@ -620,7 +625,7 @@ void calibrate_switches(void) {
     bool first_scan = true;
     //TODO: Calibration sync needs to be added
     // __attribute__((unused)) bool calibration_done = false;
-    #if AM_NO_EEPROM == true
+    #ifdef AM_NO_EEPROM
     char side[7] = "";
     #endif
 
@@ -638,15 +643,15 @@ void calibrate_switches(void) {
     while(true) {
         LED_ON;
         for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
-            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
+            #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
             dprintf("Mux: %i\n", mux_channel);
             #endif
-            #if POWER_BEFORE_SCAN == TRUE
+            #ifdef POWER_BEFORE_SCAN
             set_sensor_power(mux_channel);
             #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
             #endif
-            #elif CUSTOM_POWER_BEFORE_SCAN == TRUE
+            #elif defined CUSTOM_POWER_BEFORE_SCAN
             set_sensor_power_high_kb(mux_channel);
             #endif
             set_mux_channel(mux_channel);
@@ -661,12 +666,12 @@ void calibrate_switches(void) {
                 if(matrix_index > 0){
                     matrix_index -= 1;
                     adc_value = adc_read(adc_pin_mux[adc_channel]);
-                    #if DEBUG_CALIBRATION == true || DEBUG_SCAN_VALUES == true
+                    #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
                     dprintf("%u/%2u: %i, ", adc_channel, mux_channel, adc_value);
                     #endif
 
                     if(first_scan) {
-                        #if INVERT_ADC == FALSE
+                        #ifndef INVERT_ADC
                         key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
 
@@ -678,24 +683,24 @@ void calibrate_switches(void) {
                         continue;
                     }
 
-                    #if INVERT_ADC == TRUE
+                    #ifdef INVERT_ADC
                     if(adc_value < key_config[matrix_index].top_value - ADC_TOP_DEADZONE){
                         key_config[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
-                        #if AM_NO_EEPROM == FALSE
+                        #ifndef AM_NO_EEPROM
                         calibration_data[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
                         #endif
                         scans_without_change = 0;
-                        #if DEBUG_CALIBRATION == true
+                        #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
                     } else if (adc_value > key_config[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
                         key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
-                        #if AM_NO_EEPROM == FALSE
+                        #ifndef AM_NO_EEPROM
                         calibration_data[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
                         scans_without_change = 0;
-                        #if DEBUG_CALIBRATION == true
+                        #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
 
@@ -703,24 +708,24 @@ void calibrate_switches(void) {
                         scans_without_change = SCANS_WITHOUT_CHANGE;
                     }
 
-                    #else // if INVERT_ADC == TRUE
+                    #else // ifdef INVERT_ADC
                     if(adc_value > key_config[matrix_index].top_value + ADC_TOP_DEADZONE){
                         key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
-                        #if AM_NO_EEPROM == FALSE
+                        #ifndef AM_NO_EEPROM
                         calibration_data[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
                         #endif
                         scans_without_change = SCANS_WITHOUT_CHANGE;
-                        #if DEBUG_CALIBRATION == true
+                        #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
                     } else if (adc_value < key_config[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
                         key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
-                        #if AM_NO_EEPROM == FALSE
+                        #ifndef AM_NO_EEPROM
                         calibration_data[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
                         #endif
                         scans_without_change = SCANS_WITHOUT_CHANGE;
-                        #if DEBUG_CALIBRATION == true
+                        #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
 
@@ -729,16 +734,16 @@ void calibrate_switches(void) {
                     } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 50) {
                         scans_without_change = SCANS_WITHOUT_CHANGE;
                     }
-                    #endif // else INVERT_ADC == TRUE
+                    #endif // ifdef INVERT_ADC else
                     // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
                     evaluate_value(matrix_index, adc_value);
                 }
             }
 
-            #if DEBUG_CALIBRATION == TRUE || DEBUG_SCAN_VALUES == TRUE
+            #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
             dprint("\n");
             #endif
-            #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+            #if defined CUSTOM_POWER_BEFORE_SCAN
             set_sensor_power_low_kb(mux_channel);
             #endif
         }
@@ -749,12 +754,12 @@ void calibrate_switches(void) {
         //TODO: I don't think the qmk tick is incremented here, but if I can do that I could use it to keep time precisely
         if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
             LED_OFF;
-            #if AM_NO_EEPROM == FALSE
+            #ifndef AM_NO_EEPROM
             //TODO: Save calibration data to eeprom
             // save_calibration();
             //TODO: Test this
             eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
-            #else //AM_NO_EEPROM == FALSE
+            #else // ifndef AM_NO_EEPROM
             // Print the calibration values of each switch so that they can be adjusted in the config
             printf("\"top_values%s\": [ %u", side, key_config[0].top_value);
             // Reset the pressed states on all switches
@@ -829,7 +834,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
     bool prev_pressed = key_config[index].pressed;
 
-#if INVERT_ADC == TRUE
+#ifdef INVERT_ADC
     switch(key_config[index].mode[active_profile]) {
         case none:
         #if defined USE_NONE
@@ -913,7 +918,7 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         return false;
     }
 
-#else //if INVERT_ADC == TRUE
+#else // ifdef INVERT_ADC
     switch(key_config[index].mode[active_profile]) {
         case none:
         #if defined USE_NONE
@@ -998,16 +1003,16 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
         default:
         return false;
     }
-#endif //if INVERT_ADC == TRUE else
+#endif // ifdef INVERT_ADC else
 
     return !(prev_pressed == key_config[index].pressed);
 }
 
 
 //MARK: Update bounds
-#if DYNAMIC_CALIBRATION == TRUE
+#ifdef DYNAMIC_CALIBRATION
 inline bool update_switch_bounds(uint8_t index, uint16_t value) {
-    #if INVERT_ADC == FALSE
+    #ifndef INVERT_ADC
     if(value > key_config[index].top_value + AM_DC_DELTA + ADC_TOP_DEADZONE){
         key_config[index].top_value = value - ADC_TOP_DEADZONE;
         return true;
@@ -1016,7 +1021,7 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
         return true;
     }
 
-    #else // if INVERT_ADC == FALSE
+    #else // ifndef INVERT_ADC
     if(value < key_config[index].top_value - AM_DC_DELTA - ADC_TOP_DEADZONE){
         key_config[index].top_value = value + ADC_TOP_DEADZONE;
         return true;
@@ -1024,7 +1029,7 @@ inline bool update_switch_bounds(uint8_t index, uint16_t value) {
         key_config[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
         return true;
     }
-    #endif /// else INVERT_ADC == FALSE
+    #endif // ifndef INVERT_ADC else
     return false;
 }
 #endif
@@ -1086,16 +1091,19 @@ void _force_bootloader(void) {
 
 //MARK: Power pins
 #ifdef POWER_PINS
-static inline void set_sensor_power(uint8_t index) {
+void set_sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
     #ifdef USE_BSRR
     #ifdef AT32F415
     // Set action takes priority
     CONTINUOUS_POWER_PORT->SCR.W = (((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
+    #elif defined QMK_MCU_RP2040
+    *((volatile uint64_t *)GPIO_OUT_SET) = (((uint64_t)(1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
     #else
     CONTINUOUS_POWER_PORT->BSRR.W = (((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
     #endif
     #else
+    //TODO: Does this actually work? Maybe I can use XOR to set and reset in one call?
     CONTINUOUS_POWER_PORT->ODR = (CONTINUOUS_POWER_PORT->ODR & ~(((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET)) | (1 << (index + POWER_PIN_OFFSET));
     #endif
     #else
@@ -1149,26 +1157,6 @@ void set_active_profile(uint8_t profile) {
 }
 #endif // ifndef SPLIT_KEYBOARD else
 
-//TODO: Move this to analog_joystick.c
-#ifdef JOYSTICK_ENABLE
-// Clear the matrix and switch state of all joystick keys
-// void reset_joystick_keys(void) {
-//     // Reset the pressed state of all joystick keys to avoid stuck keys
-//     for(uint8_t index = 0; index < switch_num; index++) {
-//         // Here I could also check if the joystick axis field is set
-//         const uint8_t row = key_config[index].row;
-//         const uint8_t col = key_config[index].col;
-
-//         if(joystick_mask[row] & 1 << col) {
-//             key_config[index].pressed = false;
-//         }
-//     }
-//     // Reset the matrix state of all joystick keys
-//     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-//         matrix[row] &= ~joystick_mask[row];
-//     }
-// }
-#endif
 
 // void reset_key_states(void) {
 //     for(uint8_t index = 0; index < switch_num; index++) {
@@ -1191,7 +1179,8 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
     #if defined MIDI_ENABLE
     if(midi_layer) { reset_midi_keys(); }
     #endif
-    create_layer_masks(highest_layer);
+
+    change_layer_settings(highest_layer);
 
     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
     if (!manual_profile_lock) {
@@ -1209,7 +1198,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         set_active_profile(AM_DEFAULT_PROFILE);
         #endif
     }
-    #endif
+    #endif // if PROFILE_SWITCH_MODE != MANUAL_PROFILE
 
     // Need to call the user function
     return layer_state_set_user(state);
@@ -1276,7 +1265,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
         uint8_t mux_channel = priority_muxes[index][1];
         uint8_t matrix_index = priority_muxes[index][2];
 
-        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #ifdef CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_high_kb(mux_channel);
         #endif
         if(mux_channel != last_channel) {
@@ -1305,12 +1294,12 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
 
         if(evaluate_value(matrix_index, adc_value)) {
             matrix_has_changed = true;
-            #if DEBUG_SCAN_NO_INPUT != TRUE
+            #ifndef DEBUG_SCAN_NO_INPUT
             current_matrix[key_config[matrix_index].row] ^= 1 << key_config[matrix_index].col;
             #endif
         }
 
-        #if CUSTOM_POWER_BEFORE_SCAN == TRUE
+        #ifdef CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_low_kb(mux_channel);
         #endif
     }

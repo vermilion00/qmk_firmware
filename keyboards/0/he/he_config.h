@@ -8,10 +8,10 @@
 3. EEPROMs
 4. LUT
 
--Allow toggling priority key mode, with options to enable it on certain profiles automatically
+-Add mux and power pin optimizations for RP2040
+    -mux stuff needs to be tested
 
--*Add manual profile switch mode, to keep profiles from switching automatically with layers
-    -Test this
+-Allow toggling priority key mode, with options to enable it on certain profiles automatically
 
 -Take a look at bootmagic to turn on RGB stuff when calibrating, and turn it off when finished?
 

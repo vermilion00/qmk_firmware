@@ -408,7 +408,7 @@ All arrays can be formatted however you want, with as many spaces, tabs and newl
 :::
 
 The key mode controls the rapid trigger setting for each key:
-| Key mode                 | Mode number | Description                                                                                                               |
+| Mode name                | key mode    | Description                                                                                                               |
 |--------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------|
 | none                     | 0           | No rapid trigger. Activation is handled via a simple height check against the trigger and release heights. Default value. |
 | rapid_trigger            | 1           | Rapid trigger activates below the trigger height, and deactivates above the release height.                               |
@@ -427,7 +427,7 @@ You can achieve the same thing by using the rapid_trigger_type parameter, e.g.:
 ```json
 "rapid_trigger_type": "constant_rapid_trigger"
 ```
-This will use the constant rapid trigger mode as the default for all keys in that profile. You can then use the key_modes array to override this, as any 0 will be overridden by the rapid_trigger_type instead. Defaults to "none".
+This will use the constant rapid trigger mode as the default for all keys in that profile. If used in conjunction with the key_modes array in a profile, it will overwrite all key modes outside of 0.
 
 
 ```json
@@ -481,7 +481,7 @@ While things like profiles are synced between halves, calibration state is NOT. 
 By default, QMK loads the same firmware into both halves and assigns the side during initialization. As an analog matrix requires a lot of additional information, this feature gives you the option to use the -s flag during flashing to reduce the firmware size by compiling the firmware specifically for one side.
 
 To flash the left half, you use
-"qmk flash -kb path/to/your/keyboard -s left"
+"qmk flash -kb path/to/your/keyboard -km keymap_name -s left"
 
 Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compiling time, as the firmware needs to be recompiled for each half. Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs.
 

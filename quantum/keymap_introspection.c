@@ -208,6 +208,7 @@ bool master;
 //TODO: Is the reason for the issues perhaps me trying to read the wrong keys when I'm checking the right half joystick axes on the main half? (In the process_joystick thingy)
 
 //MARK: joystick mask
+// Creates a mask of all joystick keycodes in the layer
 void create_joystick_mask(uint8_t current_layer) {
     master = is_keyboard_master();
     joystick_layer = false;
@@ -269,6 +270,7 @@ bool master;
 //TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?) Specifically mouse layer gets stuck
 
 //MARK: joystick mask
+// Creates a mask of all MIDI keycodes in the layer
 void create_midi_mask(uint8_t current_layer) {
     master = is_keyboard_master();
     midi_layer = false;
@@ -298,13 +300,22 @@ void create_midi_mask(uint8_t current_layer) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Masks
-void create_layer_masks(uint8_t current_layer) {
+
+// Creates layer masks for all enabled features
+void change_layer_settings(uint8_t current_layer) {
     #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
     create_joystick_mask(current_layer);
     #endif
+
     #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
     create_midi_mask(current_layer);
     #endif
+
+    #ifdef PRIORITY_INDICES
+    extern uint8_t scan_amt;
+    scan_amt = 0;
+    #endif
+
     //TODO: Add more mask functions here as necessary
 }
 
