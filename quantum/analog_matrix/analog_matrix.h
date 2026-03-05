@@ -233,7 +233,10 @@ typedef struct analog_key_t {
 #   define ADC_BOTTOM_DEADZONE ADC_DEADZONE
 #endif
 #ifndef SCANS_WITHOUT_CHANGE
-#   define SCANS_WITHOUT_CHANGE 20000
+#   define SCANS_WITHOUT_CHANGE 6000
+#endif
+#ifndef AM_STARTUP_DELAY
+#   define AM_STARTUP_DELAY 20000
 #endif
 #ifdef ADC_SCAN_DELAY
 #   define ADC_SCAN_CYCLES ADC_SCAN_DELAY
@@ -247,7 +250,11 @@ typedef struct analog_key_t {
 #ifdef DYNAMIC_CALIBRATION
 // Absolute distance in adc counts
 #ifndef AM_DC_DELTA
+#ifdef ADC_SMOOTHING
+#   define AM_DC_DELTA ADC_SMOOTHING
+#else
 #   define AM_DC_DELTA 6
+#endif
 #endif
 // Needs to be less than one
 #ifndef AM_DC_FACTOR
@@ -264,12 +271,19 @@ extern bool manual_profile_lock;
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
 
+//TODO: Why does it work without this using stm32, but not using rp2040?
 extern const pin_t mux_pins[MUX_PIN_NUM];
+
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
 extern uint8_t highest_layer;
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
+
+#ifdef SPLIT_KEYBOARD
+extern bool calibration_started;
+extern bool start_calibration;
+#endif
 
 /* Function defines */
 void analog_matrix_init(void);

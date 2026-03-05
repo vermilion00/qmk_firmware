@@ -18,6 +18,7 @@
     "ADC_PINS_R": {"info_key": "analog_matrix.hardware.adc_pins_right", "value_type": "array"},
     "MUX_PINS": {"info_key": "analog_matrix.hardware.mux_pins", "value_type": "array"},
     "MUX_PINS_R": {"info_key": "analog_matrix.hardware.mux_pins_right", "value_type": "array"},
+    "NO_MUX_OPTIMIZATION": {"info_key": "analog_matrix.hardware.no_mux_optimization", "value_type": "flag"},
     "MUX_CHANNELS": {"info_key": "analog_matrix.hardware.mux_channels", "value_type": "int"},
     "MUX_CHANNELS_R": {"info_key": "analog_matrix.hardware.mux_channels_right", "value_type": "int"},
     "POWER_PINS": {"info_key": "analog_matrix.hardware.power_pins", "value_type": "array"},
@@ -38,6 +39,7 @@
     "SWITCH_NUM": {"info_key": "analog_matrix.hardware.switch_num", "value_type": "int"},
     "SWITCH_NUM_R": {"info_key": "analog_matrix.hardware.switch_num_right", "value_type": "int"},
     "INVERT_ADC": {"info_key": "analog_matrix.hardware.invert_adc", "value_type": "flag"},
+    "AM_STARTUP_DELAY": {"info_key": "analog_matrix.hardware.startup_delay", "value_type": "int"},
 
     "ADC_SCAN_DELAY": {"info_key": "analog_matrix.config.adc_scan_delay", "value_type": "int"},
     "MUX_SELECT_DELAY": {"info_key": "analog_matrix.config.mux_select_delay", "value_type": "int"},

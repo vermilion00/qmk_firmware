@@ -133,13 +133,20 @@ typedef struct _split_slave_activity_sync_t {
 } split_slave_activity_sync_t;
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
-//TODO: Decide if I wanna use this. Prob not
-#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+#if defined(ANALOG_MATRIX_ENABLE)
+#if defined SPLIT_LAYER_SYNC
+typedef uint16_t am_data_t;
+#else
+typedef uint8_t am_data_t;
+#endif
+
+#if defined(JOYSTICK_ENABLE)
 typedef struct _joystick_slave_axis_sync_t {
     uint8_t checksum;
     uint8_t values[JOYSTICK_AXIS_COUNT * 2];
 } joystick_slave_axis_sync_t;
-#endif
+#endif // defined(JOYSTICK_ENABLE)
+#endif // defined(ANALOG_MATRIX_ENABLE)
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
 typedef struct _rpc_sync_info_t {
@@ -232,7 +239,7 @@ typedef struct _split_shared_memory_t {
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
 #if defined(ANALOG_MATRIX_ENABLE)
-    uint8_t am_data;
+    am_data_t am_data;
 #   if defined(JOYSTICK_ENABLE)
     joystick_slave_axis_sync_t axis_data;
 #   endif // defined(JOYSTICK_ENABLE)

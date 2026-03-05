@@ -44,6 +44,11 @@ RT_NAMES = {
     4: 'JOYSTICK'
 }
 
+# Will be populated with all features in lowercase and their status, taken from json{'features'}
+features = {}
+# Will be populated with all analog_matrix feature objects in lowercase
+objects = []
+
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
     value = f' {value}' if value is not None else ''
@@ -536,7 +541,7 @@ def generate_profile_config(info_data, config_h_lines):
 
             # Priority profile data
             #TODO: Update this stuff for priority_muxes if needed
-            if 'priority_keys' in info_data['analog_matrix']['config'] or 'slave_low_priority' in info_data['analog_matrix']['config']:
+            if 'priority_keys' in info_data['analog_matrix']['config'] or info_data['analog_matrix']['config'].get('slave_low_priority', False):
                 profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
 
             #MARK: Key modes
@@ -749,9 +754,22 @@ def validate_height_config(he_json, invert_adc, from_bottom):
     return valid
 
 
+def get_features(info_data):
+    for feature, enabled in info_data['features'].items():
+        features.update(((feature.lower(), enabled),))
+
+    for name, _ in info_data['analog_matrix'].items():
+        objects.append(name.lower())
+
+
 #MARK: General config
 def generate_analog_matrix_config(info_data, config_h_lines):
     """Generate the config.h lines for analog matrix keyboards."""
+    # Get all defined features and their status
+    #TODO: Check if the features from rules_mk have been combined at this point
+    if 'features' in info_data:
+        get_features(info_data)
+
     validate_analog_matrix_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
@@ -799,8 +817,15 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Transform priority key matrix positions to key indices
     get_priority_keys(info_data, config_h_lines)
 
-    if 'joystick' in info_data['analog_matrix']:
+    split_layer_sync = False
+    if 'joystick' in objects and features.get('joystick', True):
+        split_layer_sync = True
         generate_joystick_config(info_data, config_h_lines)
+
+    #TODO: Implement this
+    if 'midi' in objects and features.get('midi', True):
+        split_layer_sync = True
+        #generate_midi_config(info_data, config_h_lines)
 
     if 'debug_matrix_value' in he_json['config']:
         debug_matrix_value(info_data, config_h_lines)
@@ -828,6 +853,9 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Validate trigger_heights separately after setting, in case of a len 1 define
     invert_adc = he_hardware.get('invert_adc', False)
     from_bottom = he_json['config'].get('distance_from_bottom', False)
+
+    if 'split' in info_data and info_data['split'].get('enabled', False) and split_layer_sync == True:
+        config_h_lines.append(generate_define('SPLIT_LAYER_SYNC'))
 
     validate_height_config(he_json, invert_adc, from_bottom)
 

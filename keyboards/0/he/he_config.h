@@ -8,6 +8,10 @@
 3. EEPROMs
 4. LUT
 
+-Check /data/constants/keycodes, what is it for? Do I need to add my keycodes there somewhere?
+
+-Add profile_state_change function that triggers on profile changes, same as layer_state_change
+
 -Add mux and power pin optimizations for RP2040
     -mux stuff needs to be tested
 
@@ -19,6 +23,7 @@
 -What if one half needs more mux/adc pins than the other?
 
 -Allow setting stuff in config.h directly again
+    -To disable config checking, for analog_matrix: true in json->features+
 
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
@@ -31,15 +36,6 @@
         -This would mean that either the master or slave don't switch the mode in time? Prob the slave
         -Since the layer change is only synchronised after the matrix, the key pos are still activated from the joystick keys
             -This means I need to mask the slave joystick keys on the master side when switching layers
-
--How do the transactions work exactly?
-    -I thought running the master transaction called the slave transaction, but looking at matrix_post_scan,
-     the slave transaction is just called at the same time the master calls master transaction
-    -Can I call them whenever to just copy the data to the shared memory, and the master transaction just grabs that when called?
-    -Which probably means I can just place the registrations, and call the handlers myself instead of placing them in transactions_master etc,
-     since those get called every scan
-
--Sending 0 size transactions is possible
 
 -Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
     -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
@@ -66,8 +62,6 @@ MIDI:
 -Use a defined multiplier to change the scaling of the velocity, so a difference of 10 could mean 127 or 56 vel
 -Use a process_* function similar to the joystick to catch the values
 
--Split init happens after matrix init, so set a flag in calibration init key func and check that later
-
 -Currently, a 10 bit ADC resolution is hardcoded
 
 -Change -s flag to force recompilation of config.h instead of deleting build dir
@@ -76,9 +70,7 @@ MIDI:
     -Will that work when other files are also dependent on the flag?
 
 -If calibrating, sync calibration start/end and values every print
-    -Print data for each half independently
-    -Save finished bool per half, exit calibration if both halves are finished
--If no_eeprom, sync slave bounds to master for printing
+    -If no_eeprom, sync slave bounds to master for printing
 
 -Currently the _RIGHT stuff isn't being checked in mux and power functions
     -Either disallow setting different ones (preferred), or add support for it (messy)
@@ -96,12 +88,11 @@ MIDI:
     -Use switch mode >= 10
     -switch mode - 10 gives us the index in an array of dks structs, where up to 4 heights are mapped to 4 actions
 
--EEPROM stuff:
-    -Check if anything needs to be saved at the end of the flash (bootloader flag?)
-    -Add check to dynamic calibration to only update config when >n switches need updating
-    -Check for update need during housekeeping(?)
-
 -Add option to define normal buttons to immediately jump to calibration/bootloader/reset
+-->Technically, you could use normal buttons by wiring one pin to +V, the other to a mux channel and pull low with a resistor
+    -This should work perfectly if invert_adc isn't set
+    -If it is, wire one pin to GND and the other to a mux channel with a pull-up resistor
+
     -Or even mixed matrices, for encoders etc
     -Change layout mux validation to allow normal keys?
     -Make it a separate matrix scan triggered off of a define
@@ -120,13 +111,19 @@ MIDI:
     -Easy for normal keyboards, hard for split keyboards
     -Need to find a way to split one macro into two arrays
 
--Add MIDI mode with velocity controlled by the change in adc value
-    -Allow triggering past a certain height instead of only at the bottom
-    -Basically a copy of the joystick stuff I guess
-
 -Enable interleaved ADC mode for supported mcus
 
 -Make sure no conflicts happen with other features using the ADC
+
+-Go through all changed files and make sure that all new includes are actually necessary, and gate them if possible
+
+-Dynamic calibration:
+    -Set different modes (e.g. only update values during profile/layer change)
+    -Only set new values when enough keys need to be changed, to avoid writing to eeprom too often
+    -Have different intensities (how often should new values apply?)
+
+-For split calibration, make a while loop when finished that tries to sync slave calibration values to master if no_eeprom
+    -manual transaction function should be available at all times for keycode? Or just remove the keycode
 
 BUGS:
 -A high smoothing value causes keys to get stuck occasionally (40 to replicate)
@@ -139,7 +136,7 @@ BUGS:
 -The value for LPX is updated binarily (not the axis at key T)
     -Is it cuz that's the first index?
 
--Current code doesn't work with AVR, palSetLineMode etc isn't a thing (but can be fixed, low prio)
+-Current code doesn't work with AVR, palSetLineMode etc isn't a thing (but can be fixed, high effort low prio)
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
 -Pins are set to input by default -> QMK sets unused pins to output high (Why not low?)
