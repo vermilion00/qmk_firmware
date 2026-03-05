@@ -8,6 +8,7 @@
 // #include <sys/cdefs.h>
 // #include "_wait.h
 // #include "analog.h"
+#include "_wait.h"
 #include "bootloader.h"
 #include "debug.h"
 #include "info_config.h"
@@ -35,6 +36,11 @@
 analog_switch_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #endif
 
+//TODO: Testing, remove if unnecessary
+#ifdef SPLIT_KEYBOARD
+#include "transactions.h"
+#endif
+
 
 // Get the switch data configured in the json
 void get_switch_data(void);
@@ -59,6 +65,7 @@ extern matrix_row_t raw_matrix[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
 // row offsets for each hand
 extern uint8_t thisHand, thatHand;
+bool calibration_started = false;
 #endif
 
 #ifdef DYNAMIC_CALIBRATION
@@ -202,13 +209,8 @@ SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 
 //MARK: Init
 void analog_matrix_init(void) {
-    //TODO: Abstract this (Enables FPU)
+    //TODO: Abstract this (Enables FPU on F446)
     // SCB->CPACR |= ((3UL << 20U)|(3UL << 22U));  /* set CP10 and CP11 Full Access */
-
-    // eeconfig_read_keyboard((analog_switch_t*)&calibration_data);
-    // for(uint8_t key = 0; key < SWITCH_NUM; key++) {
-    //     printf("%u: Top: %u, Bottom: %u\n", key, calibration_data[key].top_value, calibration_data[key].bottom_value);
-    // }
 
     #ifdef SPLIT_KEYBOARD
     // Determine keyboard half
@@ -265,7 +267,8 @@ void analog_matrix_init(void) {
     translate_mm_to_value();
 
     //TODO: Consolidate these into one define
-    #if defined JOYSTICK_ENABLE || defined MIDI_ENABLE || defined PRIORITY_INDICES
+    #if defined SPLIT_LAYER_SYNC
+    // #if defined SPLIT_LAYER_SYNC || defined PRIORITY_INDICES
     change_layer_settings(highest_layer);
     #endif
 
@@ -275,11 +278,16 @@ void analog_matrix_init(void) {
 
 
 //MARK: Init keys
+//TODO: Is this not working on RP2040?
+//TODO: Why is this static?
 #if AM_INIT_KEY_NUM > 0
 static void scan_init_keys(void) {
     uint16_t adc_value;
+    // Dummy read, as first read is always way off
+    adc_value = adc_read(adc_pin_mux[init_keys[0][0]]);
     // Long delay needed for correct init key reading after being plugged in
-    delay_ns(20000);
+    //TODO: Exchange the long delays here with a wait_ms/wait_us
+    delay_ns(AM_STARTUP_DELAY);
 
     for(uint8_t idx = 0; idx < AM_INIT_KEY_NUM; idx++) {
         #ifdef POWER_BEFORE_SCAN
@@ -634,9 +642,25 @@ void calibrate_switches(void) {
     //     //TODO: Check if NULL size works
     //     transaction_rpc_send(AM_CALIBRATION_M2S_SYNC, 8, &first_scan);
     // }
-    if(!is_keyboard_left()) {
-        char right[] = "_right";
-        memcpy(&side, right, sizeof(right));
+
+    //TODO: If this instantly goes into a while loop, does this still get transmitted? Apparently not
+    calibration_started = true;
+    //TODO: Force transaction here before entering while loop, keep forcing it until it succeeds
+
+
+    if(is_keyboard_master()) {
+        if(!is_keyboard_left()) {
+            char right[] = "_right";
+            memcpy(&side, right, sizeof(right));
+        }
+
+        // Force a synchronisation so that the slave starts calibrating as well
+        bool done = false;
+        while (!done) {
+            // Start the transaction manually
+            done = am_data_manual_transaction();
+            if (!done) wait_ms(10);
+        }
     }
     #endif
 
@@ -753,7 +777,13 @@ void calibrate_switches(void) {
         //TODO: Change this to a more precise method
         //TODO: I don't think the qmk tick is incremented here, but if I can do that I could use it to keep time precisely
         if(scans_without_change/2 >= SCANS_WITHOUT_CHANGE){
+            // Calibration is done
             LED_OFF;
+            // Clear matrix to avoid stuck keys
+            //TODO: Is it a problem to put this here, should I put it outside?
+            void reset_matrix_keys(void);
+            reset_matrix_keys();
+
             #ifndef AM_NO_EEPROM
             //TODO: Save calibration data to eeprom
             // save_calibration();
@@ -782,37 +812,7 @@ void calibrate_switches(void) {
 
             scans_without_change = 0;
             #ifdef SPLIT_KEYBOARD
-            // if(is_keyboard_master()) {
-                // uint8_t slave_switch_num;
-                // if(is_keyboard_left()) {
-                //     slave_switch_num = SWITCH_NUM_R;
-                // } else {
-                //     slave_switch_num = SWITCH_NUM_L;
-                // }
-                // uint8_t slave_state = 2;
-                // if(transaction_rpc_recv(AM_CALIBRATION_STATE_SYNC, 8, &slave_state)) {
-                //     printf("Received state %u\n", slave_state);
-                // } else { print("Failed state sync\n"); }
-                // if(slave_state == true) {
-                //     #if AM_NO_EEPROM == TRUE
-                //     transaction_rpc_recv(AM_CALIBRATION_S2M_SYNC, sizeof(slave_data), &slave_data);
-                //     // Print the calibration values of each switch so that they can be adjusted in the config
-                //     printf("\"top_values%s\": [ %u", side, slave_data.top_values[0]);
-                //     //TODO: If only one key is used (per half), this will cause issues
-                //     for(uint8_t index = 1; index < slave_switch_num; index++){
-                //         printf(", %u", slave_data.top_values[index]);
-                //     }
-
-                //     printf(" ],\n\"bottom_values%s\": [ %u", side, slave_data.bottom_values[0]);
-                //     for(uint8_t index = 1; index < slave_switch_num; index++){
-                //         printf(", %u", slave_data.bottom_values[index]);
-                //     }
-                //     print(" ]\nYou can paste these lines into keyboard.json under hall_effect.config\n\n");
-                //     #endif //else NO_EEPROM == FALSE
-
-                //     break;
-                // }
-            // }
+            calibration_started = false;
             #endif
             break;
         }
@@ -1150,25 +1150,27 @@ void set_active_profile(uint8_t profile) { active_profile = profile; }
 void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
         active_profile = profile;
-        //TODO: Manually trigger profile transaction instead of having it checked every scan
-        // Send the new profile to the slave
-        // transaction_rpc_send(AM_PROFILE_SYNC, 8, &active_profile);
+
+        // Start the transaction manually
+        am_data_manual_transaction();
+
+        //TODO: Call profile setting change function here, and call manual transaction from there
     }
 }
 #endif // ifndef SPLIT_KEYBOARD else
 
 
-// void reset_key_states(void) {
-//     for(uint8_t index = 0; index < switch_num; index++) {
-//         key_config[index].pressed = false;
-//     }
-//     // memset(&matrix, 0, sizeof(matrix));
-//     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-//         matrix[row] = 0;
-//     }
-// }
+void reset_matrix_keys(void) {
+    for(uint8_t index = 0; index < switch_num; index++) {
+        key_config[index].pressed = false;
+    }
+    memset(&matrix, 0, sizeof(matrix));
+    // for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+    //     matrix[row] = 0;
+    // }
+}
 
-
+//TODO: Make an equivalent for profile changes
 //MARK: Layer state
 layer_state_t layer_state_set_kb(layer_state_t state) {
     highest_layer = get_highest_layer(state);
@@ -1178,6 +1180,9 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
     #endif
     #if defined MIDI_ENABLE
     if(midi_layer) { reset_midi_keys(); }
+    #endif
+    #if defined SPLIT_LAYER_SYNC
+    am_data_manual_transaction();
     #endif
 
     change_layer_settings(highest_layer);

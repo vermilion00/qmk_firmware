@@ -186,6 +186,7 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 #if defined(ANALOG_MATRIX_ENABLE)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Joystick
+
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 #include "analog_matrix.h"
 #include "analog_joystick.h"
@@ -258,18 +259,16 @@ void create_joystick_mask(uint8_t current_layer) {
 bool midi_layer = false;
 
 matrix_row_t midi_mask[MATRIX_ROWS];
-#ifdef SPLIT_KEYBOARD
+#if defined SPLIT_KEYBOARD
+//TODO: Will this cause a conflict if joystick is enabled as well, or is it limited to the function scope?
 extern uint8_t thisHand;
 #else
 const uint8_t thisHand = 0;
 #endif
 bool master;
 
-//TODO:
-// The switch states of some keys appears to get stuck after switching to the joystick layer/profile, if the joystick stuff is on the slave side
-//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?) Specifically mouse layer gets stuck
 
-//MARK: joystick mask
+//MARK: MIDI mask
 // Creates a mask of all MIDI keycodes in the layer
 void create_midi_mask(uint8_t current_layer) {
     master = is_keyboard_master();
@@ -286,7 +285,7 @@ void create_midi_mask(uint8_t current_layer) {
             if(IS_MIDI_NOTE(keycode)) {
                 midi_layer = true;
                 midi_mask[row] |= 1 << col;
-                printf("MIDI R:%u, C:%u\n", row, col);
+                // printf("MIDI R:%u, C:%u\n", row, col);
                 //TODO: Put whatever logic i'll use here
                 // key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
             } else {
@@ -311,15 +310,16 @@ void change_layer_settings(uint8_t current_layer) {
     create_midi_mask(current_layer);
     #endif
 
-    #ifdef PRIORITY_INDICES
-    extern uint8_t scan_amt;
-    scan_amt = 0;
-    #endif
+    //TODO: Don't really need this, overflow while unused isn't a problem
+    // #ifdef PRIORITY_INDICES
+    // extern uint8_t scan_amt;
+    // scan_amt = 0;
+    // #endif
 
     //TODO: Add more mask functions here as necessary
 }
 
-#endif //  defined(ANALOG_MATRIX_ENABLE)
+#endif // if defined(ANALOG_MATRIX_ENABLE)
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

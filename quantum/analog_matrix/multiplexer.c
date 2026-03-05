@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include "gpio.h"
 #include "analog_matrix.h"
-#include "hardware/regs/addressmap.h"
 #include "info_config.h"
 
 #define MUX_MASK ((1 << MUX_PIN_NUM) - 1)
@@ -16,7 +15,7 @@
 // STM32 needs GPIOx->ODR, AT32 needs GPIOx_ODT(?), AVR needs PORTx(?)
 #if defined MUX_PINS
 void set_mux_channel(uint8_t channel) {
-#if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT
+#if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT && !defined NO_MUX_OPTIMIZATION
 #if defined USE_BSRR
 #if defined AT32F415
     // Set action takes priority
@@ -25,6 +24,7 @@ void set_mux_channel(uint8_t channel) {
     //TODO: Check how this works. Is it similar to the BS and BR registers? Can I do this in one call like the BSRR?
     // GPIO_OUT_CLEAR = (MUX_MASK << MUX_PIN_OFFSET);
     // GPIO_OUT_SET = (channel << MUX_PIN_OFFSET);
+    //TODO: Maybe offset the GPIO_OUT_SET part instead of MUX_MASK with PIN_OFFSET, to avoid issues with size? Shouldn't be an issue with uint64
     *((volatile uint64_t *)GPIO_OUT_SET) = ((uint64_t)MUX_MASK << (MUX_PIN_OFFSET + 16)) | (channel << MUX_PIN_OFFSET);
 #else
     // Set action takes priority
@@ -34,7 +34,7 @@ void set_mux_channel(uint8_t channel) {
     CONTINUOUS_MUX_PORT->ODR = (CONTINUOUS_MUX_PORT->ODR & ~(MUX_MASK << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
 #endif // defined USE_BSRR
 
-#else // if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT
+#else // if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT && !defined NO_MUX_OPTIMIZATION
     switch(channel){
         case 0:
             gpio_write_pin_low(mux_pins[0]);

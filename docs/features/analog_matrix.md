@@ -15,9 +15,9 @@ This is a list of tested microcontrollers:
 | RP2040<sup>3</sup> | :heavy_check_mark: | :heavy_check_mark: |
 | Any AVR chip    | :x:                | :x:             |
 
-1: Persistent storage works only with an external chip   
-2: EEPROM/Flash is reset by flashing firmware, can be fixed by using a different bootloader (tinyuf2) or an external chip
-3: While the RP2040 works without issues, it only has four usable ADC channels per chip.
+1: Persistent storage works only with an external chip <br>
+2: EEPROM/Flash is reset by flashing firmware, can be fixed by using a different bootloader (tinyuf2) or an external chip <br>
+3: While the RP2040 works without issues, it only has four usable ADC channels per chip. <br>
 
 ## What works?
 
@@ -93,7 +93,7 @@ By default, the calibration values can be saved to some form of persistent stora
 
 The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2) or use an external storage chip.
 
-Requires a proper configuration of the EEPROM feature to work, visit the ['EEPROM'](../feature_eeprom) and ['EEPROM driver'](../drivers/eeprom) or ['Flash driver'](../drivers/flash) pages for more information.
+Requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom.md) and [EEPROM driver](../drivers/eeprom.md) or [Flash driver](../drivers/flash.md) pages for more information.
 
 ## Hardcode values
 
@@ -121,7 +121,7 @@ While less convenient than the other option, this is a workaround for chips that
 For split keyboards, the left and right half are separated:
 ```json
 "top_values": [632, 701, 682, 643],
-"bottom_values": [239, 290, 276, 254]
+"bottom_values": [239, 290, 276, 254],
 "top_values_right": [642, 688, 643, 687],
 "bottom_values_right": [242, 291, 286, 253]
 ```
@@ -144,7 +144,7 @@ Enable the ADC peripheral.
 
 ## mcuconf.h
 
-If you wish to use a specific ADC (provided your chip has multiple ADCs supported by ChibiOS), you can set that here:
+If you wish to use a specific ADC (provided the chosen chip has multiple ADCs supported by ChibiOS), you can set that here:
 
 ```c
 #undef STM32_ADC_USE_ADC1
@@ -245,7 +245,7 @@ You can have different deadzones for top and bottom by using top_deadzone and bo
 
 
 ```json
-"invert_adc: false
+"invert_adc": false
 ```
 The analog matrix logic assumes that the ADC value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
 
@@ -267,12 +267,15 @@ The controller needs to know what ADC pin and multiplexer channel combination co
 Assume our hardware config looks like this:
 
 ```json
-"adc_pins": ["A0", "A1", "A2"]
-"mux_pins": ["B12", "B13", "B14", "B15"]
+"adc_pins": ["A0", "A1", "A2"],
+"mux_pins": ["B12", "B13", "B14", "B15"],
+"no_mux_optimization": false
 ```
 This means that a key with the mux combination [1, 5] is read on pin A1, if pins B12 and B14 are activated, and pins B13 and B15 are deactivated. The output of this keys' sensor is wired to channel 5 of the multiplexer that is connected to pin A1 on the microcontroller.
 
 When choosing the layout, it is best to use the lowest multiplexer channel numbers first, as the feature scans the matrix by looping over every ADC pin and multiplexer channel combination, starting from 0. Any unused combinations are skipped automatically, so having an uneven amount of keys connected to the multiplexers isn't a problem.
+
+If possible, the multiplexer pins should be selected to all be on the same port, arranged consecutively in ascending order (e.g. B12, B13, B14, B15 or C10, C11, C12). <br> This allows the firmware to set the output via direct register access, making it more performant. In case this causes issues, you can also set the "no_mux_optimization" flag to true in the same object.
 
 Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix scanning is currently not supported, but is planned for the future.
 
@@ -310,6 +313,19 @@ For split keyboards, you can define a separate key for the right half by setting
 Similar to the above options, this key causes the keyboard to enter calibration mode when held during startup.
 For split keyboards, you can define a separate key for the right half by setting "calibration_key_right".
 Currently, only one half can be calibrated at a time. To calibrate the other half, use it as the host and start calibration on it.
+
+If the initialization keys aren't registered properly during startup, you can try increasing the startup delay:
+```json
+"startup_delay": 20000
+```
+This is a very short, arbitrary amount of time that the MCU waits before reading the initialization keys, as scanning them too early causes them to not be registered. Defaults to 20000.
+
+If matrix scanning doesn't work correctly, you can also try adding various delays to this section:
+```json
+"mux_select_delay": 500,
+"adc_scan_delay": 500
+```
+Like the startup delay, this is an extremely short amount of time. The mux select delay waits every time the multiplexer channel was changed, while the adc scan delay waits after every adc scan. The time value is dependent on the processing speed.
 
 
 ### Profiles
@@ -383,7 +399,7 @@ A profile object contains all information relevant to that profile, and looks ro
 }
 ```
 
-You can use up to 32 profiles, as long as they all follow the "profile_n" naming pattern, where n is an integer starting at 0 and incremented by one for each profile used. Every profile can have its own height, rapid trigger, and layer settings for different scenarios.
+You can use up to 32 profiles, as long as they all follow the "profile_n" naming pattern, where n is an integer starting at 0 and incremented by one for each profile used. Every profile can have its own height, rapid trigger, layer and priority settings for different scenarios.
 
 ```json
 "layers": [0, 1, 2]
@@ -529,7 +545,7 @@ On split keyboards, printing the scan values only works for the master half.
 "debug_scan_no_input" will stop the keyboard from registering keypresses. Enabling this can be helpful to monitor the scan values without triggering random actions on your computer.
 
 ::: warning  
-Enabling any of the print options will cause a performance hit, even if the console isn't enabled on your end. If you suddenly have performance issues after debugging, try checking if you disabled all debug modes, and flash the firmware again.  
+Enabling any of the print options will cause a performance hit, even if the console isn't enabled on your end. If you suddenly have performance issues after debugging, try checking if you disabled all debug modes, and flash the firmware again. <br>
 If you have a split keyboard and the slave half suddenly stopped working, or updates slowly, make sure that all debug options are disabled, then flash the firmware again.
 On split keyboards, enabling debug_scan_no_input on one half will not disable inputs on the other half.  
 :::
@@ -538,18 +554,49 @@ On split keyboards, enabling debug_scan_no_input on one half will not disable in
 
 You can force the firmware to scan some keys more often, thereby increasing the scan rate for situations in which only some keys are important. This is done by setting these options:
 
+
 ```json
 {
     "analog_matrix": {
         "config": {
             "priority_keys": [[0, 0], [0, 1], [1, 0], [2, 4]],
-            "priority_level": 5
+            "priority_level": 5,
+            "slave_low_priority": true
         }
     }
 }
 ```
-Each index in the priority_keys array corresponds to one important matrix position \[row/col\]. These are the keys that will be scanned more often. A higher priority level will cause unimportant keys to be scanned less often, specifically only once every priority_level scans, while the important keys are scanned every scan. 
-On split keyboards, not having any important keys on the slave half will increase the scan rate by a lot, as it means that the synchronisation between halves also only needs to happen every priority_level scans.
+
+To activate the feature, you also need to assign profiles as priority profiles. This is done by setting the priority_profile flag in the profile_* object:
+```json
+{
+    "analog_matrix": {
+        "profiles": {
+            "profile_0": {
+                "priority_profile": true
+            }
+        }
+    }
+}
+```
+The priority keys are only prioritized while a profile with this flag enabled is active, else all keys are scanned equally as often.
+
+```json
+"piority_keys": [[0, 0], [0, 1], [1, 0], [2, 4]]
+```
+Each index in the priority_keys array corresponds to one important matrix position \[row/col\]. These are the keys that will be scanned more often. 
+
+```json
+"piority_level": 5
+```
+A higher priority level will cause unimportant keys to be scanned less often, specifically only once every priority_level scans, while the important keys are scanned every scan. Defaults to 5.
+
+```json
+"slave_low_priority": true
+```
+On split keyboards, this causes the slave synchronisation to happen only when the full matrix is scanned. Can boost the scanrate by a lot.
+This is automatically defined when no priority keys appear on the slave matrix half.
+
 On my setup (split STM32F446 with 61 keys total, RGB underglow and slave half trackball) I usually get a scanrate of ~3850, but with 6 important keys that are all on the master half, and a priority level of 5, I get a scanrate of >13000.
 
 This feature is not very useful currently, as USB polling rates above 1k aren't supported, but this is work in progress.
@@ -557,8 +604,8 @@ This feature is not very useful currently, as USB polling rates above 1k aren't 
 ## Analog Joystick
 
 ::: warning  
-This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work.
-One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still try to add them to Steam to use Steam input.
+This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work. <br>
+One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still try to add them to Steam to use Steam input. <br>
 On split keyboards, assigning joystick axes to the slave half doesn't work. You can still use it for joystick buttons.  
 :::
 
@@ -621,27 +668,27 @@ Using this option will set the method for all axes. If you wish to set different
     "ry": "positive_dominant"
 }
 ```
-The "resolution_method" parameter only applies to axes that aren't specifically defined in the "resolution_methods" object. To specify the axes, you can use the following names: x; y; trigger/z; rx; ry; rz.
+The "resolution_method" parameter only applies to axes that aren't specifically defined in the "resolution_methods" object. To specify the axes, you can use the following names: x, y, trigger/z, rx, ry, rz.
 
-::: warning
+::: warning  
 The trigger buttons are two components of the z axis, with LB/L2 corresponding to the negative component of the Z axis and RB/R2 corresponding to the positive component.
-I currently don't know if they work together.
+I currently don't know if they work together.  
 :::
 
 ```json
-"axes": 6
+"axes": 6,
 "buttons": 16
 ```
 These options control the amount of axes and buttons that the descriptor will use. Trying to use a keycode for an axis that is outside of the range of the defined axis amount will crash the keyboard, while trying to use a button that is outside of that range will result in the button simply not working.
 Defaults to 6 axes and 16 buttons.
 
 ::: warning  
-The axis amount needs to be 1 higher than the actual amount of axes you're trying to use. If you plan on emulating a standard gamepad controller with two analog sticks and two triggers, this means that while you're only using 5 axes, the keyboard expects 6.  
+The axis amount needs to be 1 higher than the actual amount of axes you're trying to use. If you plan on emulating a standard gamepad controller with two analog sticks and two triggers, this means that while you're only using 5 axes, the keyboard expects 6. <br>
 Also, the joystick feature accepts a maximum of 6 axes, meaning that the RZ axis cannot be used at this moment.  
 :::
 
 ### Keycodes
-The keycodes are all prefixed by JS_. You can use the layout parameter to change the button names to your preferred system (xbox naming convention by default).
+The keycodes are all prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.
 
 | Button    | XBox    | Playstation   | Nintendo |
 |-----------|---------|---------------|----------|
@@ -680,15 +727,65 @@ Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. T
 | JS_RNX         | :o:        | :o:         | :o:      |
 | JS_RPY         | :o:        | :o:         | :o:      |
 | JS_RNY         | :o:        | :o:         | :o:      |
-| JS_RPZ<sup>1</sup>    | :o:        | :o:         | :o:      |
-| JS_RNZ<sup>1</sup>    | :o:        | :o:         | :o:      |
+| JS_RPZ<sup>1</sup> | :o:    | :o:         | :o:      |
+| JS_RNZ<sup>1</sup> | :o:    | :o:         | :o:      |
 
 1: The right Z axis does not corrently work, due to a bug with the firmware, where one more axis than necessary needs to be defined, while the joystick feature limits the amount of joystick axes to 6.
 
 
+# Debugging guide
+
+#### Keyboard doesn't work after flashing
+
+1. If you have a bootloader or bootmagic key configured, this key might be being triggered during startup, causing the keyboard to boot into the bootloader instead. You can go into the Device settings of your computer to check for bootloaders. Try disabling the bootloader/bootmagic keys to see if they're the cause.
+
+2. Another reason could be a conflict with another feature using the ADC. This feature very likely doesn't support this, but it hasn't been tested.
+
+3. The ADC channel or multiplexer pins could be assigned to another function as well, causing issues.
+
+4. Calibration mode might be triggered at startup, see next section.
+
+#### Keyboard starts calibration by itself
+
+1. If this happens every time the keyboard starts up, this likely means that either the calibration_key is registering a press during startup, or the calibration values aren't available. Try removing the calibration_key parameter, if bound. If that doesn't help:
+If the no_eeprom flag is set, the keyboard expects to find these parameters:
+```json
+"analog_matrix": {
+    "config": {
+        "no_eeprom": true,
+        "top_values": [632, 701, 682, 643],
+        "bottom_values": [239, 290, 276, 254]
+    }
+}
+```
+The length of the array needs to be equal to the amount of switches in your layout. On split keyboards, each half has its own array:
+```json
+"top_values": [632, 701, 682, 643],
+"bottom_values": [239, 290, 276, 254],
+"top_values_right": [642, 688, 643, 687],
+"bottom_values_right": [242, 291, 286, 253]
+```
+Check that the array names are correct, and that the flag is set properly.
+
+If the no_eeprom flag isn't set (values are saved to storage), check if your chip has at least one of these:
+* An external EEPROM/Flash chip, correctly wired up and configured
+* Support for embedded flash emulation
+
+Chips without flash emulation support will not save their values to storage, meaning that they are lost when the keyboard loses power.
+
+2. If this only happens after flashing firmware, you're likely using a chip with the stm32-dfu bootloader, which always erases the whole flash.  
+To circumvent this, you can use an external storage chip, or change your bootloader (if available, tinyuf2 is a good option).  
+Another reason this could happen is that you're using the bootmagic function to go into the bootloader. The bootmagic function resets the EEPROM, so if your calibration values are saved there, they'll be lost. Use the bootloader_key instead.
+
+#### Split keyboard half doesn't work
+
+If your master half has lost connection to the slave half after flashing, the likely cause is a mismatch in the enabled features. If one of the features needs to send data to the other half, it needs to be enabled and configured on both halves. Flashing the slave half with the same firmware usually fixes this.
+This includes adding another profile, joystick, MIDI, and priority keys (depending on the configuration).
+
+
 # Additional Resources
 
-If you want an implementation example, you can look up ['my current keyboard.'](https://www.github.com/vermilion00/qmk_firmware/tree/kb/keyboards/0/he)
+If you want an implementation example, you can look up [my current keyboard.](https://www.github.com/vermilion00/qmk_firmware/tree/kb/keyboards/0/he)
 There you can see an actual, working implementation.
 
 If you have any questions, feel free to contact me at vermilion00.github@gmail.com
@@ -701,8 +798,6 @@ TODO:
 * Draw a schematic for an example keyboard, and base my explanations on that
 * Test the power feature, then add it to the docs
 * Improve and test dynamic calibration, then add to docs
-* Make a split keyboard section summarizing all stuff
-* Add keycodes to relevant sections
 * Include information about endpoints etc, for MIDI and joystick features, in the mcu list
 * Add options to the config options doc and the data driven doc
 * Remove personal references and email before upstreaming

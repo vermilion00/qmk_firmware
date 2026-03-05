@@ -920,62 +920,192 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 
 #endif // defined(OS_DETECTION_ENABLE) && defined(SPLIT_DETECTED_OS_ENABLE)
 
-//MARK: AM Profile and Layer
-////////////////////////////////////////////////////
-// Analog Matrix profile (and layer) synchronisation
 
-//TODO: This would currently cause it to sync every scan, when syncing on specific keycodes would be enough. Can I trigger the sync via keycode?
-#if defined(ANALOG_MATRIX_ENABLE)
 
-//TODO: Find a way to trigger this from layer_state_set/keycode, not every matrix scan
-static bool am_data_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+
+//MARK: Manual trans
+//TODO: Before this, I was working on forcing a transaction before starting calibration for calibration sync
+//TODO: Test if custom transaction functions work
+/*
+1. Current test: Figuring out if I can just call this manually and still sync stuff, by having the slave check automatically
+2. Check if I need to add this to slave transactions and registration
+    -Registration is necessary, without it the automatic transactions on the slave won't work.
+    -Not checked for fully manual transactions, but those likely won't be a thing
+3. Figure out how to avoid taking master matrix etc without making a wholly separate transaction def
+    -I can just bodge those like below, or
+    -I could make an entirely new function that doesn't need those
+        -If I make more stuff transactions like this then it seems like a good plan
+*/
+
+#ifdef ANALOG_MATRIX_ENABLE
+//TODO: Perhaps split this up into separate transactions for layer, profile etc?
+static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
     static uint32_t last_update = 0;
+    static bool prev_calibration = false;
     bool changed = false;
-    uint8_t data = active_profile;
+
+    // Data layout: unused | calibration start | profile | layer
+    // uint16_t  0b  00000          1             11111    11111
+    // Without layer sync:
+    // uint8_t   0b    00  |        1          |  11111
+    am_data_t data = active_profile;
 
     if (active_profile != last_profile) {
         last_profile = active_profile;
         changed = true;
     }
 
-    #ifdef JOYSTICK_ENABLE
+    //TODO: Enable this when done testing
+    // No use sending this info when the data isn't saved, since the slave can't print out values to console
+    // TODO: Remove the guard when sending info to master is possible
+    // #ifndef AM_NO_EEPROM
+    if (calibration_started != prev_calibration) {
+        prev_calibration = calibration_started;
+        //TODO: Double check that calibration_started becomes a 1 when true
+        data |= calibration_started << 5;
+        changed = true;
+    }
+    // #endif
+
+    //TODO: Exchange this with a define that is set when any feature with layer sync is enabled, so I don't have to keep expanding all these
+    #if defined SPLIT_LAYER_SYNC
     static uint8_t last_layer = 0;
     if (highest_layer != last_layer) {
         last_layer = highest_layer;
         // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
-        data |= highest_layer << 4;
+        data = data << 5 | highest_layer;
         changed = true;
     }
     #endif
 
     if (!changed) return true;
 
-    return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(uint8_t));
+    return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
 }
+
+bool manual_transaction_handler(const char *prefix, bool (*handler)(void)) {
+    int num_retries = is_transport_connected() ? 10 : 1;
+    for (int iter = 1; iter <= num_retries; ++iter) {
+        if (iter > 1) {
+            for (int i = 0; i < iter * iter; ++i) {
+                wait_us(10);
+            }
+        }
+        bool this_okay = true;
+        this_okay      = handler();
+        if (this_okay) return true;
+    }
+    dprintf("Failed to execute %s\n", prefix);
+    return false;
+}
+
+// #define MANUAL_TRANSACTION_HANDLER(prefix) manual_transaction_handler(#prefix, &prefix##_manual_handler)
+// This is an alternative to send manual transactions without defining new functions, but they still take matrices
+// #define MANUAL_TRANSACTION_HANDLER(prefix) transaction_handler_master(master_matrix, slave_matrix, #prefix, &prefix##_handlers_master)
+
+// Calling the manual_transaction_handler directly only works if I put every handler function I want to call in the header
+bool am_data_manual_transaction(void) {
+    return manual_transaction_handler("am_data", am_data_manual_handler);
+}
+
+#endif
+
+
+//MARK: AM Profile
+////////////////////////////////////////////////////
+// Analog Matrix profile (and layer) synchronisation
+
+#if defined(ANALOG_MATRIX_ENABLE)
+// bool prev_calibration = false;
+
+// static bool am_data_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+//     static uint8_t last_profile = DEFAULT_PROFILE;
+//     static uint32_t last_update = 0;
+//     static bool prev_calibration = false;
+//     bool changed = false;
+//     // Data layout: unused | calibration start | profile | layer
+//     // uint16_t  0b  00000          1             11111    11111
+//     // Without layer sync:
+//     // uint8_t   0b    00  |        1          |  11111
+
+//     am_data_t data = active_profile;
+
+//     if (active_profile != last_profile) {
+//         last_profile = active_profile;
+//         changed = true;
+//     }
+
+//     if (calibration_started != prev_calibration) {
+//         prev_calibration = calibration_started;
+//         //TODO: Double check that calibration_started becomes a 1 when true
+//         data |= calibration_started << 5;
+//         changed = true;
+//     }
+
+//     //TODO: Exchange this with a define that is set when any feature with layer sync is enabled, so I don't have to keep expanding all these
+//     #if defined SPLIT_LAYER_SYNC
+//     static uint8_t last_layer = 0;
+//     if (highest_layer != last_layer) {
+//         last_layer = highest_layer;
+//         // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
+//         data = data << 5 | highest_layer;
+//         changed = true;
+//     }
+//     #endif
+
+//     if (!changed) return true;
+
+//     return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
+// }
 
 static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     split_shared_memory_lock();
-    #ifdef JOYSTICK_ENABLE
-    //TODO: Make sure this is correct
-    static uint8_t last_layer = 0;
-    // If joystick is enabled, the first for bits contain the profile, while the last 4 contain the highest active layer
-    highest_layer = split_shmem->am_data >> 4;
-    #endif
-    active_profile = split_shmem->am_data & 0b00001111;
+
+    // Data layout: unused | calibration start | profile | layer
+    // uint16_t  0b  00000          1             11111    11111
+    // Without layer sync:
+    // uint8_t   0b    00  |        1          |  11111
+    am_data_t data = split_shmem->am_data;
     split_shared_memory_unlock();
 
+    #ifdef SPLIT_LAYER_SYNC
+    //TODO: Make sure this is correct
+    static uint8_t last_layer = 0;
+    //TODO: Check if this mask actually works properly
+    highest_layer = data & (am_data_t)0b00011111;
+    data >>= 5;
+    #endif
+
+    active_profile = data & 0b00011111;
+
+    //TODO: Remove these
+    // #ifndef AM_NO_EEPROM
+    static bool prev_calibration = false;
+    //TODO: Do I need to mask the first bit here, does it pull in other stuff or nah? Will need to mask if I use the unused bits for smth
+    bool start_calibration = data >> 5;
+
+    if(start_calibration != prev_calibration) {
+        prev_calibration = start_calibration;
+        if(start_calibration) {
+            calibrate_switches();
+            //TODO: Reset something here?
+        }
+    }
+    // #endif
+
     // Create a joystick mask for the slave
-    #ifdef JOYSTICK_ENABLE
+    #ifdef SPLIT_LAYER_SYNC
     if(last_layer != highest_layer) {
         last_layer = highest_layer;
-        create_joystick_mask(highest_layer);
+        change_layer_settings(highest_layer);
     }
     #endif
 }
 
 //TODO: Add calibration sync handlers
 
+// #   define MANUAL_AM_DATA MANUAL_TRANSACTION_HANDLER(am_data)
 #   define TRANSACTIONS_AM_DATA_MASTER() TRANSACTION_HANDLER_MASTER(am_data)
 #   define TRANSACTIONS_AM_DATA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_data)
 #   define TRANSACTIONS_AM_DATA_REGISTRATIONS [PUT_AM_DATA] = trans_initiator2target_initializer(am_data),
@@ -1101,9 +1231,7 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_DETECTED_OS_MASTER();
     //TODO: I'm assuming I can use the registrations here, but then run these transactions myself instead of here
     //      I think this just calls all these transactions, which I can do myself
-    //Problem: These aren't in header files, putting them in headers causes issues with the static function definition
-    //      I could put the funcs in a header and use a global var to keep track of retries,
-    TRANSACTIONS_AM_DATA_MASTER();
+    // TRANSACTIONS_AM_DATA_MASTER();
     TRANSACTIONS_JOYSTICK_MASTER();
     return true;
 }
