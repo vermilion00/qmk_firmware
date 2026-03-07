@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gpio.h"
+// #include "gpio.h"
 #include "matrix.h"
 #include <stdint.h>
 #include "action_layer.h"
@@ -11,6 +11,7 @@
 #include "util.h"
 
 //TODO: Clean this stuff up
+// #define USE_CONTINUOUS_RAPID_TRIGGER
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -20,6 +21,12 @@
 #define RIGHT 0
 #define LEFT 1
 #define UNKNOWN 2
+
+// Define if keymap config is used
+#if (!defined TRIGGER_HEIGHT && (defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER)) || \
+    (!defined RT_PRESS_DISTANCE && (defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER))
+#   define KEYMAP_CONFIG
+#endif
 
 // Override KEYBOARD_SIDE if -s flag is used
 #if defined SIDE_LEFT
@@ -35,12 +42,21 @@
 #   define KEYBOARD_SIDE UNKNOWN
 #endif
 
-// This is set up so that the normal definitions can be used, only need to assign if the side
-// is set at init
+// This is set up so that the normal definitions can be used, only need to assign if the side is set at init
 #if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
+#if !defined KEYMAP_CONFIG
+#define CONFIG_MUTABLE const
+#else
+#define CONFIG_MUTABLE
+#endif
 #define SPLIT_MUTABLE const
 
 #elif KEYBOARD_SIDE == RIGHT
+#if !defined KEYMAP_CONFIG
+#define CONFIG_MUTABLE const
+#else
+#define CONFIG_MUTABLE
+#endif
 #define SPLIT_MUTABLE const
 
 #undef ADC_PINS
@@ -60,8 +76,6 @@
 #define MATRIX_POWER_PIN MATRIX_POWER_PIN_R
 #endif
 
-// Save the left switch num for the calibration sync
-#define SWITCH_NUM_L SWITCH_NUM
 #undef SWITCH_NUM
 #define SWITCH_NUM SWITCH_NUM_R
 #undef MUX_TO_NUM
@@ -82,6 +96,7 @@
 #define AM_INIT_FUNCTIONS AM_INIT_FUNCTIONS_R
 #endif
 
+#ifndef KEYMAP_CONFIG
 #undef TRIGGER_HEIGHT
 #define TRIGGER_HEIGHT TRIGGER_HEIGHT_R
 #undef RELEASE_HEIGHT
@@ -90,9 +105,10 @@
 #define RT_PRESS_DISTANCE RT_PRESS_DISTANCE_R
 #undef RT_RELEASE_DISTANCE
 #define RT_RELEASE_DISTANCE RT_RELEASE_DISTANCE_R
-
 #undef KEY_MODES
 #define KEY_MODES KEY_MODES_R
+#endif
+
 #ifdef AM_TOP_VALUES_R
 #undef AM_TOP_VALUES
 #define AM_TOP_VALUES AM_TOP_VALUES_R
@@ -124,13 +140,11 @@
 
 #else // SPLIT_KEYBOARD defined but side is unknown at init
 #define SPLIT_MUTABLE
+#define CONFIG_MUTABLE
 #endif
 
 #ifndef SWITCH_NUM_R
 #   define SWITCH_NUM_R 0
-#endif
-#ifndef SWITCH_NUM_L
-#   define SWITCH_NUM_L 0
 #endif
 
 #define DEFAULT_PROFILE 0
@@ -272,14 +286,27 @@ extern bool manual_profile_lock;
 #endif // if AM_PROFILE_NUM > 1
 
 //TODO: Why does it work without this using stm32, but not using rp2040?
-extern const pin_t mux_pins[MUX_PIN_NUM];
+extern SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM];
 
+volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
 extern uint8_t highest_layer;
-volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 
+//TODO: Gate these properly
+extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
+extern const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
+extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+
+//TODO: Do I need these? I don't think start calibration is used
 #ifdef SPLIT_KEYBOARD
 extern bool calibration_started;
 extern bool start_calibration;
@@ -323,3 +350,39 @@ volatile void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel)
 //     kBA, kBB, XXX, XXX, XXX, XXX  \
 // };
 #endif */
+/*
+#define TEST_LAYOUT(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) { \
+    { k0A, k0B, k0C, k0D, k0E, k0F }, \
+    { k1A, k1B, k1C, k1D, k1E, k1F }, \
+    { k2A, k2B, k2C, k2D, k2E, k2F }, \
+    { k3A, k3B, k3C, k3D, k3E, k3F }, \
+    { XXX, XXX, k4C, k4D, k4E, k4F }, \
+    { XXX, XXX, XXX, k5D, k5E, k5F }, \
+    { k6A, k6B, k6C, k6D, k6E, k6F }, \
+    { k7A, k7B, k7C, k7D, k7E, k7F }, \
+    { k8A, k8B, k8C, k8D, k8E, k8F }, \
+    { k9A, k9B, k9C, k9D, k9E, k9F }, \
+    { kAA, kAB, kAC, kAD, XXX, XXX }, \
+    { kBA, kBB, XXX, XXX, XXX, XXX } \
+}
+*/
+
+/*
+What about copying the keymap principle, then memcpy them into their respective arrays?
+    -If I put this in keymap.c, can I use the array in analog_matrix.c?
+    -How do I make sure only one is used?
+        -I can check if height defines are available in info_config, if not, assign this
+    -Need to generate another macro where all keys are in a single array, and no fillers (XXX) are used
+    -The params are in the same order as the LAYOUT macro
+Assuming I go with the keymap plan, I have two options: either I put all keys into a single line, use that array for the left side, and copy the right half to another array at init
+Or I put the halfs into separate arrays here and copy both over
+Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
+*/
+
+//TODO: Similar to the LAYOUT macro, write a script to define this macro
+// // If TRIGGER_HEIGHT isn't defined, the contents of the array will be copied over into the *_height arrays at init (similar to dynamic side assignment)
+/*
+ #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
+               {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
+*/
+

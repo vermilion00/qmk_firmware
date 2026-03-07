@@ -568,30 +568,10 @@
                         "dynamic_calibration_delta":  {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "dynamic_calibration_factor":  {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "no_eeprom": {"type": "boolean"},
-                        "top_values": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            }
-                        },
-                        "bottom_values": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            }
-                        },
-                        "top_values_right": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            }
-                        },
-                        "bottom_values_right": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            }
-                        }
+                        "top_values": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "bottom_values": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "top_values_right": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "bottom_values_right": {"$ref": "./definitions.jsonschema#/uint_array"}
                     }
                 },
                 "joystick": {

@@ -45,23 +45,20 @@ Working features are:
 
 * GUI interface
     * VIAL support is in the early stages of development, with a high priority.
-* Split keyboards
-    * Starting calibration on one half doesn't start it on the other, only the master can be calibrated<sup>1</sup>
 * Joystick axes on the slave half
 * Dynamic calibration (update bounds during use, coming soon though)
-* Controlling the sensor power via gpio pins<sup>2</sup>
+* Controlling the sensor power via gpio pins<sup>1</sup>
 * High USB polling rates
     * Currently low priority WIP
 * Assigning a color to a profile
     * You can instead assign a color to a layer and let the profile switch automatically when that layer is active
 * Mixed matrices, i.e. analog keys and mechanical keys together
-    * This means that the encoder push action doesn't work atm.
+    * Can be faked, but not actually implemented
+    * This means that the encoder push action also needs a workaround to function
 * Custom matrix (lite) implementations
 * DKS (multiple actions assigned to one key, triggering depending on the distance)
 
-1: You can work around this by calibrating the master, unplugging it, plugging the slave half in (thereby making it the master half), then calibrating it like normal. Furthermore, if no calibration data is available, both halves will automatically start calibrating.
-
-2: Might work, but hasn't been tested
+1: Might work, but hasn't been tested
 
 ## Current TO-DO list
 
@@ -74,7 +71,6 @@ Roughly in descending order of priority:
 * Custom matrix implementation support
 * Joystick axes on slave half
 * Velocity-sensitive MIDI keys
-* Proper split calibration
 * Controlling sensor power via GPIO
 * Assigning a color to a profile
 
@@ -91,7 +87,7 @@ By default, the calibration values can be saved to some form of persistent stora
 * Use a chip with eeprom emulation support in QMK,
 * Use and configure an external flash/eeprom storage chip
 
-The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2) or use an external storage chip.
+The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2), or an external storage chip.
 
 Requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom.md) and [EEPROM driver](../drivers/eeprom.md) or [Flash driver](../drivers/flash.md) pages for more information.
 
@@ -492,14 +488,13 @@ Profile-related keycodes:
 # Split keyboards
 
 The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind.
-While things like profiles are synced between halves, calibration state is NOT. This means that starting calibration on one half will not start it on the other. To calibrate the other half, you need to plug it in and calibrate it just like your main half. Calibration state sync is work in progress.
 
 By default, QMK loads the same firmware into both halves and assigns the side during initialization. As an analog matrix requires a lot of additional information, this feature gives you the option to use the -s flag during flashing to reduce the firmware size by compiling the firmware specifically for one side.
 
 To flash the left half, you use
 "qmk flash -kb path/to/your/keyboard -km keymap_name -s left"
 
-Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compiling time, as the firmware needs to be recompiled for each half. Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs.
+Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compiling time, as the firmware needs to be recompiled for each half. Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs. To speed up compilation time, you can use the -j flag to compile multiple files in parallel (e.g. -j 10).
 
 The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
 ```c
@@ -509,7 +504,7 @@ The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forc
 ```
 This will run that code only if the -s left flag is set.
 
-Another issue is that joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
+Joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
 
 Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
 When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
@@ -733,6 +728,22 @@ Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. T
 1: The right Z axis does not corrently work, due to a bug with the firmware, where one more axis than necessary needs to be defined, while the joystick feature limits the amount of joystick axes to 6.
 
 
+## Mixed matrix
+::: warning  
+While this should work, it hasn't actually been tested yet.  
+:::  
+While a mixed matrix isn't actually supported yet, it's possible to fake it. If you're not using the invert_adc option:
+1. One leg of the mechanical switch should be connected to +3.3V/+5V via a pull-up resistor, and to an input pin on a multiplexer (or directly to an ADC pin, if you're not using multiplexers)
+2. The other leg should be connected to ground
+    2. The resistance value doesn't need to be exact, ~100k should be fine
+3. Calibrate and configure like a regular switch
+    3. Keep in mind that rapid trigger won't work on that switch for obvious reasons
+        3. You might be able to configure it, but it hasn't been tested. If any issues arise, switching to a fixed trigger height for mechanical keys should work
+If the invert_adc option is used, instead of connecting the multiplexer input to the leg connected to the positive voltage source, connect it to the ground leg.
+
+While this isn't very useful for most situations, it can be used to be able to use the encoder click action until actual mixed matrix support is implemented.
+
+
 # Debugging guide
 
 #### Keyboard doesn't work after flashing
@@ -777,6 +788,22 @@ Chips without flash emulation support will not save their values to storage, mea
 To circumvent this, you can use an external storage chip, or change your bootloader (if available, tinyuf2 is a good option).  
 Another reason this could happen is that you're using the bootmagic function to go into the bootloader. The bootmagic function resets the EEPROM, so if your calibration values are saved there, they'll be lost. Use the bootloader_key instead.
 
+If your keyboard has a visible simple LED somewhere, you can use it to get visual feedback about the calibration state. The LED will be on while calibration is in progress, and turn off once it's finished and the new values have been saved. You can enable this like so:
+
+config.h
+```c
+#define LED_PIN B2 // This is the pin that the LED is connected to. It has to be a simple LED connected to a gpio pin.
+```
+If the LED works by pulling the connected GPIO pin low, you can add this define to invert the logic:
+```c
+#define LED_INVERTED
+```
+This will pull the line low instead of high when the LED should turn on. If your LED still doesn't work, then it's likely not a simple LED.
+::: warning  
+Using this while something is connected to the same line as the LED can cause problems.  
+:::
+
+
 #### Split keyboard half doesn't work
 
 If your master half has lost connection to the slave half after flashing, the likely cause is a mismatch in the enabled features. If one of the features needs to send data to the other half, it needs to be enabled and configured on both halves. Flashing the slave half with the same firmware usually fixes this.
@@ -792,7 +819,7 @@ If you have any questions, feel free to contact me at vermilion00.github@gmail.c
 
 TODO:
 * Make analog_matrix the main page, then have hardware and software config as two separate subpages
-* Do I need to specifically set ADC_1 and/or DMA info in mcuconf?
+* Do I need to specifically set ADC_1 and/or DMA info in mcuconf? Probably only when the default one isn't used
 * Show function calls
 * Add example code for functions
 * Draw a schematic for an example keyboard, and base my explanations on that
