@@ -939,9 +939,10 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 
 #ifdef ANALOG_MATRIX_ENABLE
 //TODO: Perhaps split this up into separate transactions for layer, profile etc?
+//TODO: Instead of checking if 3 different things have changed, change them and then check if it needs to be sent over?
 static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
-    static uint32_t last_update = 0;
+    // static uint32_t last_update = 0;
     static bool prev_calibration = false;
     bool changed = false;
 
@@ -981,7 +982,8 @@ static bool am_data_manual_handler(void) {
 
     if (!changed) return true;
 
-    return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
+    // return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
+    return transport_write(PUT_AM_DATA, &data, sizeof(am_data_t));
 }
 
 bool manual_transaction_handler(const char *prefix, bool (*handler)(void)) {
@@ -1000,14 +1002,26 @@ bool manual_transaction_handler(const char *prefix, bool (*handler)(void)) {
     return false;
 }
 
-// #define MANUAL_TRANSACTION_HANDLER(prefix) manual_transaction_handler(#prefix, &prefix##_manual_handler)
+#define MANUAL_TRANSACTION_HANDLER(prefix) manual_transaction_handler(#prefix, &prefix##_manual_handler)
 // This is an alternative to send manual transactions without defining new functions, but they still take matrices
 // #define MANUAL_TRANSACTION_HANDLER(prefix) transaction_handler_master(master_matrix, slave_matrix, #prefix, &prefix##_handlers_master)
 
 // Calling the manual_transaction_handler directly only works if I put every handler function I want to call in the header
 bool am_data_manual_transaction(void) {
     return manual_transaction_handler("am_data", am_data_manual_handler);
+    //TODO: No point in using this define, since I still need the helper function to include it from other files
+    // return MANUAL_TRANSACTION_HANDLER(am_data);
 }
+
+//TODO: Finish the function to send slave calibration data to master for printing
+#ifdef AM_NO_EEPROM
+// bool cal_data_manual_handler(void) {
+//     return true;
+// }
+// bool cal_data_manual_transaction(void) {
+//     return manual_transaction_handler("cal_data", cal_data_manual_handler);
+// }
+#endif
 
 #endif
 

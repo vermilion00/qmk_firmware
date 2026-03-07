@@ -37,7 +37,9 @@
     "NUM_TO_MATRIX": {"info_key": "analog_matrix.hardware.num_to_matrix", "value_type": "array.array"},
     "NUM_TO_MATRIX_R": {"info_key": "analog_matrix.hardware.num_to_matrix_right", "value_type": "array.array"},
     "SWITCH_NUM": {"info_key": "analog_matrix.hardware.switch_num", "value_type": "int"},
+    "SWITCH_NUM_L": {"info_key": "analog_matrix.hardware.switch_num_l", "value_type": "int"},
     "SWITCH_NUM_R": {"info_key": "analog_matrix.hardware.switch_num_right", "value_type": "int"},
+    "TOTAL_SWITCH_NUM": {"info_key": "analog_matrix.hardware.total_switch_num", "value_type": "int"},
     "INVERT_ADC": {"info_key": "analog_matrix.hardware.invert_adc", "value_type": "flag"},
     "AM_STARTUP_DELAY": {"info_key": "analog_matrix.hardware.startup_delay", "value_type": "int"},
 

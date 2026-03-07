@@ -213,7 +213,9 @@ def _transform_layout_split(info_data):
     info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
     info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
     info_data['analog_matrix']['hardware']['switch_num'] = len(num_to_matrix_l)
+    info_data['analog_matrix']['hardware']['switch_num_l'] = len(num_to_matrix_l)
     info_data['analog_matrix']['hardware']['switch_num_right'] = len(num_to_matrix_r)
+    info_data['analog_matrix']['hardware']['total_switch_num'] = len(num_to_matrix_l) + len(num_to_matrix_r)
     info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
     info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
 
@@ -490,8 +492,7 @@ def transform_init_keys(info_data, config_h_lines):
 def generate_profile_config(info_data, config_h_lines):
     """Extract the profile configuration"""
     he_profiles = info_data['analog_matrix']['profiles']
-
-    switch_num = info_data['analog_matrix']['hardware']['switch_num'] + info_data['analog_matrix']['hardware'].get('switch_num_right', 0)
+    switch_num = info_data['analog_matrix']['hardware']['total_switch_num']
     trigger_heights = []
     release_heights = []
     press_distances = []
@@ -592,6 +593,7 @@ def generate_profile_config(info_data, config_h_lines):
         print(f"Default profile {default_profile} is outside of the possible range of profiles, since only {profile_num} are defined. Defaulting to profile 0. Keep in mind that profiles are 0-indexed.")
         default_profile = 0
 
+    #TODO: This stuff can definitely be simplified
     # Split up the height configs if necessary
     if 'split' in info_data and info_data['split'].get('enabled', False):
         g_to_l_index = info_data['analog_matrix']['hardware']['global_to_local_index']
@@ -616,31 +618,43 @@ def generate_profile_config(info_data, config_h_lines):
                     split_release_distances[1][profile].append(release_distances[profile][idx])
                     split_key_modes[1][profile].append(key_modes[profile][idx])
 
-        config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(split_trigger_heights[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('TRIGGER_HEIGHT_R', f'{str(split_trigger_heights[1]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(split_release_heights[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RELEASE_HEIGHT_R', f'{str(split_release_heights[1]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(split_press_distances[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_PRESS_DISTANCE_R', f'{str(split_press_distances[1]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(split_release_distances[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE_R', f'{str(split_release_distances[1]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('KEY_MODES', f'{str(split_key_modes[0]).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('KEY_MODES_R', f'{str(split_key_modes[1]).replace('[', '{').replace(']', '}')}'))
+        # Only define these if they're actually configured in the json
+        if [idx for side in split_trigger_heights for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(split_trigger_heights[0]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('TRIGGER_HEIGHT_R', f'{str(split_trigger_heights[1]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(split_release_heights[0]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RELEASE_HEIGHT_R', f'{str(split_release_heights[1]).replace('[', '{').replace(']', '}')}'))
 
+        if [idx for side in split_press_distances for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(split_press_distances[0]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RT_PRESS_DISTANCE_R', f'{str(split_press_distances[1]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(split_release_distances[0]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RT_RELEASE_DISTANCE_R', f'{str(split_release_distances[1]).replace('[', '{').replace(']', '}')}'))
+
+        if [idx for side in split_key_modes for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('KEY_MODES', f'{str(split_key_modes[0]).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('KEY_MODES_R', f'{str(split_key_modes[1]).replace('[', '{').replace(']', '}')}'))
+
+    # Not a split keyboard
     else:
-        config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
+        if [idx for side in trigger_heights for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
+
+        if [idx for side in press_distances for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
+            config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
+
+        if [idx for side in key_modes for profile in side for idx in profile].count(0) != switch_num * profile_num:
+            config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Add the profile config to info_config.h
     config_h_lines.append(generate_define('AM_PROFILE_NUM', profile_num))
     config_h_lines.append(generate_define('AM_DEFAULT_PROFILE', default_profile))
     config_h_lines.append(generate_define('AM_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
 
-    for type in set(used_modes):
-        config_h_lines.append(generate_define(f'USE_{type}'))
+    for mode in set(used_modes):
+        config_h_lines.append(generate_define(f'USE_{mode}'))
 
 
 #MARK: Mux_to_matrix
@@ -672,7 +686,7 @@ def validate_analog_matrix_config(info_data):
     """Validate the analog matrix configuration."""
     he_json = info_data['analog_matrix']
     he_hardware = he_json['hardware']
-    switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
+    switch_num = info_data['analog_matrix']['hardware']['total_switch_num']
     if 'profiles' in he_json:
         he_profiles = he_json['profiles']
 
@@ -806,7 +820,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         check_power_pins(info_data['analog_matrix'], config_h_lines)
 
     # This is the total switch num to be used with the trigger_heights
-    switch_num = he_hardware.get('switch_num', 0) + he_hardware.get('switch_num_right', 0)
+    switch_num = he_hardware.get('total_switch_num')
 
     # Get the reverse transform arrays
     info_data = get_matrix_to_mux(info_data, config_h_lines)

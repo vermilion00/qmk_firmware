@@ -1,4 +1,5 @@
 #include QMK_KEYBOARD_H
+#include "info_config.h"
 #include "joystick_aliases.h"
 #include "keymap_us.h"
 #include "action.h"
@@ -11,8 +12,8 @@
 #include "quantum_keycodes.h"
 #include "pointing_device.h"
 
-#define MOUSE_LAYER_TIME 400
-#define DRAGSCROLL_TIME 200
+#define MOUSE_LAYER_TIME 200
+#define DRAGSCROLL_TIME 250
 // #define constrain_hid(amt) ((amt) < -127 ? -127 : ((amt) > 127 ? 127 : (amt)))
 
 #define _CLMK 0
@@ -40,7 +41,7 @@ static bool mouse_lock = false;
 static bool mslk = false;
 static bool caret_mode = false;
 static bool scrolling_mode = false;
-static uint16_t mouse_timer = 0;
+static uint32_t mouse_timer = 0;
 static int8_t tempx = 0;
 static int8_t tempy = 0;
 static bool scroll_prev = false;
@@ -161,7 +162,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_BSPC, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			          CK_MSOF, MS_BTN1, MS_BTN2, MS_BTN3, KC_MPLY, KC_QUOT,
      KC_LGUI, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF, CK_MSOF,                 			          CK_MSOF, MS_BTN4, MS_BTN5, KC_F5,   CK_MSOF, KC_BSLS,
                                CK_MSOF, CK_MSOF,											              	                            KC_PLUS, KC_EQL,
-										                 _______, CK_MSOF, MO(MO_LALT),	    MO(_FN),  KC_LSFT, _______,
+										                 _______, CK_MSOF, MO(_LALT),	    MO(_FN),  KC_LSFT, _______,
 												                      CK_MSOF, KC_LSFT,			KC_ENT
   ),
 
@@ -171,7 +172,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
      TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                _______, KC_TAB,  													                                    KC_MPRV, KC_MNXT,
-										         LCTAB, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
+										                 LCTAB,   KC_SPC,  MO(_LALT),	    _______,  KC_LSFT, QK_BOOT,
 												         KC_LCTL, KC_LALT,	   		            KC_LALT
   ),
 
@@ -205,6 +206,79 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // 												                      KC_LCTL, _______,	   		KC_LALT
 //   ),
 };
+
+
+#define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
+              {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
+
+// const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
+//   [0] = MATRIX(
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                 		 	      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,              	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//                  2.5, 2.5,  											              2.5, 2.5,
+//                              2.5, 2.5, 2.5,                      2.5, 2.5, 2.5,
+//                                    2.5, 2.5,                      2.5
+//   ),
+
+//   [1] = MATRIX(
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                 		 	      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,              	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//                  2.5, 2.5,  											              2.5, 2.5,
+//                              2.5, 2.5, 2.5,                      2.5, 2.5, 2.5,
+//                                    2.5, 2.5,                      2.5
+//   ),
+// };
+
+// const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
+//   [0] = MATRIX(
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                 		 	      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,              	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//                  2.5, 2.5,  											              2.5, 2.5,
+//                              2.5, 2.5, 2.5,                      2.5, 2.5, 2.5,
+//                                    2.5, 2.5,                      2.5
+//   ),
+
+//   [1] = MATRIX(
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,                 		 	      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,              	   			      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,             	   			      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+//                  0.5, 0.5,  											              0.5, 0.5,
+//                              0.5, 0.5, 0.5,                      0.5, 0.5, 0.5,
+//                                    0.5, 0.5,                      0.5
+//   ),
+// };
+
+// const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
+//   [0] = MATRIX(
+//      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,
+//                  3, 3,  											              3, 3,
+//                              3, 3, 3,                      3, 3, 3,
+//                                    3, 3,                      3
+//   ),
+
+//   [1] = MATRIX(
+//      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
+//      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,
+//                  3, 3,  											              3, 3,
+//                              3, 3, 3,                      3, 3, 3,
+//                                    3, 3,                      3
+//   ),
+// };
+
+
+
 
 socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
@@ -245,7 +319,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 		case MS_BTN1:
 			if(record->event.pressed){
-				mouse_timer = timer_read();
+				mouse_timer = timer_read32();
 				scrolling_mode = false;
 				caret_mode = false;
 				mouse_lock = true;
@@ -258,11 +332,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 		case CK_MSOF:
 			if(record->event.pressed){
+				tap_code(KC_TRNS);
 				layer_off(_MOUSE);
-				scrolling_mode = false;
+                scrolling_mode = false;
 				caret_mode = false;
 				mouse_lock = false;
-				tap_code(KC_TRNS);
 			}
 			return true;
 
@@ -292,9 +366,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 		case ALT_TAB:
 			if (record->event.pressed) {
-					register_code(KC_LALT);
-					tap_code(KC_TAB);
-					alt_tab = true;
+                register_code(KC_LALT);
+                tap_code(KC_TAB);
+                alt_tab = true;
 			} else {
 				unregister_code(KC_LALT);
 				alt_tab = false;
@@ -376,13 +450,12 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
     if(game_layer) return mouse_report;
 
     if(mouse_report.x != 0 || mouse_report.y != 0){
-        if(!layer_state_is(_GMCL)){
-            if(!layer_state_is(_MOUSE)){
-                layer_on(_MOUSE);
-            }
-            mouse_timer = timer_read();
+        if(!layer_state_is(_MOUSE)){
+            layer_on(_MOUSE);
         }
-    }else if((timer_elapsed(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
+        mouse_timer = timer_read32();
+
+    }else if((timer_elapsed32(mouse_timer) > MOUSE_LAYER_TIME) && layer_state_is(_MOUSE) && !mouse_lock){
         layer_off(_MOUSE);
     }
 

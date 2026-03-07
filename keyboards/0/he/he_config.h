@@ -8,6 +8,9 @@
 3. EEPROMs
 4. LUT
 
+// Does this work here? Could be a better way of using the trigger height as the default for the release height
+// #pragma comment(linker, "/alternatename: _test=_testDefault")
+
 -Check /data/constants/keycodes, what is it for? Do I need to add my keycodes there somewhere?
 
 -Add profile_state_change function that triggers on profile changes, same as layer_state_change
@@ -121,9 +124,32 @@ MIDI:
     -Set different modes (e.g. only update values during profile/layer change)
     -Only set new values when enough keys need to be changed, to avoid writing to eeprom too often
     -Have different intensities (how often should new values apply?)
+    -Calibration threshold should be multiplicative, like 5% off or so
 
 -For split calibration, make a while loop when finished that tries to sync slave calibration values to master if no_eeprom
     -manual transaction function should be available at all times for keycode? Or just remove the keycode
+
+
+Height assignment through layout macro:
+What about copying the keymap principle, then memcpy them into their respective arrays?
+    -If I put this in keymap.c, can I use the array in analog_matrix.c?
+    -How do I make sure only one is used?
+        -I can check if height defines are available in info_config, if not, assign this
+    -Need to generate another macro where all keys are in a single array, and no fillers (XXX) are used
+    -The params are in the same order as the LAYOUT macro
+Assuming I go with the keymap plan, I have two options: either I put all keys into a single line, use that array for the left side, and copy the right half to another array at init
+Or I put the halfs into separate arrays here and copy both over
+Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
+Need to put in the USE_* defines somehow though
+
+I don't need the _r side arrays, since I'm copying at init anyways.
+I shouldn't even need the fillers, I should be able to define TRIGGER_HEIGHT as {} and then copy into the normal definition, as long as it's not const
+Instead of making a separate gate for every height, it would be cleaner to assume that either all or none of the configs are defined through the keymap, and set a define
+that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
+
+-Add an option for an offset applied to release height, if it isn't defined
+    -As in release height becomes trigger height + offset instead of just trigger height
+
 
 BUGS:
 -A high smoothing value causes keys to get stuck occasionally (40 to replicate)

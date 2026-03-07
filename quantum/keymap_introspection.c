@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
+#include "analog_matrix/analog_matrix.h"
 #include "gpio.h"
 #include "info_config.h"
 #include "keyboard.h"
@@ -184,11 +185,147 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 #endif // defined(KEY_OVERRIDE_ENABLE)
 
 #if defined(ANALOG_MATRIX_ENABLE)
+#include "analog_matrix.h"
+
+//TODO: I can likely simplify several cases here, some duplicate code
+//TODO: Instead of checking for keymap definitions on everything, just force defining everything in one place
+//MARK: Split side
+// Assigns the split side and copies arrays
+void assign_config(bool side) {
+#ifdef SPLIT_KEYBOARD
+    #if KEYBOARD_SIDE == UNKNOWN
+    if(side == RIGHT) {
+        memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
+        memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
+
+        #ifndef EQUAL_ADC_PINS
+        memcpy(&adc_pins, &adc_pins_r, sizeof(adc_pins_r));
+        #endif
+        #if defined MUX_PINS && !defined EQUAL_MUX_PINS
+        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+        #endif
+        #if defined POWER_PINS && !defined EQUAL_POWER_PINS
+        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+        #endif
+
+        #if AM_INIT_KEY_NUM > 0
+        memcpy(&init_keys, &init_keys_r, sizeof(init_keys_r));
+        memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
+        #endif
+
+        //TODO: Test this
+        #ifdef PRIORITY_INDEXES
+        memcpy(&priority_indexes, &priority_indexes_r, sizeof(priority_indexes));
+        priority_index_num = priority_index_num_r;
+        #endif
+
+
+        #if defined KEY_MODES
+        memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
+        #else
+        //TODO: Test if this offset works, maybe it's SWITCH_NUM_L - 1
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            memcpy(&key_modes[profile], &key_mode_config[profile][SWITCH_NUM_L], SWITCH_NUM_R);
+        }
+        #endif
+
+        #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+        #ifdef TRIGGER_HEIGHT
+        memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
+        memcpy(&release_height, &release_height_r, sizeof(release_height_r));
+        #else
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            memcpy(&trigger_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
+            // If release height hasn't been defined, it will be 0 here, so in that case we copy trigger_height instead
+            if(release_height_config[profile][0] == 0) { memcpy(&release_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            else { memcpy(&release_height[profile], &release_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+        }
+        #endif
+        #endif
+        #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+        #if defined RT_PRESS_DISTANCE
+        memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
+        memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
+        #else
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
+            if(rt_release_distance_config[profile][0] == 0) { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            else { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+        }
+        #endif
+        #endif
+    }
+    #elif KEYBOARD_SIDE == RIGHT
+    if(side == RIGHT) {
+        // Need to copy the values for each profile
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            #ifndef KEY_MODES
+            memcpy(&key_modes[profile], &key_modes_config[profile][SWITCH_NUM_L], SWITCH_NUM_R);
+            #endif
+            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #ifndef TRIGGER_HEIGHT
+            memcpy(&trigger_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
+            if(release_height_config[profile][0] == 0) { memcpy(&release_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            else { memcpy(&release_height[profile], &release_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            #endif
+            #endif
+            #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+            #ifndef RT_PRESS_DISTANCE
+            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
+            if(rt_release_distance_config[profile][0] == 0) { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            else { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
+            #endif
+            #endif
+        }
+    }
+    #elif KEYBOARD_SIDE == LEFT
+    if(side == LEFT) {
+        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+            #ifndef KEY_MODES
+            memcpy(&key_modes[profile], &key_modes_config[profile], SWITCH_NUM_L);
+            #endif
+            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #ifndef TRIGGER_HEIGHT
+            memcpy(&trigger_height[profile], &trigger_height_config[profile], SWITCH_NUM_L * sizeof(float));
+            memcpy(&release_height[profile], &release_height_config[profile], SWITCH_NUM_L * sizeof(float));
+            #endif
+            #endif
+            #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+            #ifndef RT_PRESS_DISTANCE
+            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile], SWITCH_NUM_L * sizeof(float));
+            memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile], SWITCH_NUM_L * sizeof(float));
+            #endif
+            #endif
+        }
+    }
+    #endif // if KEYBOARD_SIDE == UNKNOWN else
+#else // ifdef SPLIT_KEYBOARD
+    // Only the keymap config needs to be assigned
+    #ifndef KEY_MODES
+    memcpy(&key_modes, &key_modes_config, SWITCH_NUM * AM_PROFILE_NUM);
+    #endif
+    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+    #ifndef TRIGGER_HEIGHT
+    memcpy(&trigger_height, &trigger_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
+    memcpy(&release_height, &release_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
+    #endif
+    #endif
+    #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+    #ifndef RT_PRESS_DISTANCE
+    memcpy(&rt_press_distance, &rt_press_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
+    memcpy(&rt_release_distance, &rt_release_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
+    #endif
+    #endif
+#endif // ifdef SPLIT_KEYBOARD else
+}
+
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Joystick
 
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
-#include "analog_matrix.h"
+// #include "analog_matrix.h"
 #include "analog_joystick.h"
 bool joystick_layer = false;
 
@@ -254,7 +391,7 @@ void create_joystick_mask(uint8_t current_layer) {
 // Analog Matrix MIDI
 
 #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
-#include "analog_matrix.h"
+// #include "analog_matrix.h"
 #include "analog_midi.h"
 bool midi_layer = false;
 

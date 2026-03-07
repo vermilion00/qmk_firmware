@@ -239,5 +239,12 @@
             "Cancel",
             "CANCEL"
         ]
+    },
+    "uint_array": {
+        "type": "array",
+        "items": {
+            "type": "integer",
+            "minimum": 0
+        }
     }
 }
