@@ -25,40 +25,34 @@
     "analog_matrix": {
         "hardware": {
             "force_calibrate": false,
-            "adc_pins": ["A0", "A1", "A2", "A3"],
+            "adc_pins": ["A0", "A1", "A2", "A3", "B0"],
             "travel_distance": 4.0,
             "smoothing": 4,
             "deadzone": 15
         },
         "config": {
-            "nbootloader_key": [0, 1],
-            "ncalibration_key": [0, 2],
+            "calibration_key": [0, 0],
             "scans_without_change": 6000,
-            "debug_scan_values": true,
+            "debug_scan_values": false,
             "debug_scan_no_input": false,
-            "no_eeprom": true,
-            "top_values": [ 628, 584, 663, 616 ],
-            "bottom_values": [ 291, 282, 365, 283 ]
+            "no_eeprom": false,
+            "!top_values": [ 628, 584, 663, 616, 600 ],
+            "!bottom_values": [ 291, 282, 365, 283, 250 ]
         },
         "profiles": {
             "default_profile": 0,
             "profile_0": {
+                "key_modes": [0],
                 "trigger_height": [1.5],
                 "release_height": [1.25],
                 "layers": [0]
             },
             "profile_1": {
+                "key_modes": [0],
                 "trigger_height": [1.0],
                 "release_height": [0.75],
                 "layers": [1, 2]
             }
-        }
-    },
-    "neeprom": {
-        "wear_leveling": {
-            "driver": "embedded_flash",
-            "logical_size": 6144,
-            "backing_size": 12288
         }
     },
     "layouts": {
@@ -67,7 +61,8 @@
                 {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
                 {"matrix": [0, 1], "x": 1, "y": 0, "mux": [1, 0]},
                 {"matrix": [0, 2], "x": 2, "y": 0, "mux": [2, 0]},
-                {"matrix": [0, 3], "x": 3, "y": 0, "mux": [3, 0]}
+                {"matrix": [0, 3], "x": 3, "y": 0, "mux": [3, 0]},
+                {"matrix": [0, 4], "x": 3, "y": 0, "mux": [4, 0]}
             ]
         }
     }

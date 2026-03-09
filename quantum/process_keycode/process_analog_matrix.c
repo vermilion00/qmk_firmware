@@ -1,9 +1,11 @@
 #include <stdint.h>
 #include "action.h"
+#include "info_config.h"
 #include "joystick.h"
 #include "keycodes.h"
 #include "keymap_introspection.h"
 #include "print.h"
+#include "debug.h"
 #include "analog_matrix.h"
 #include "matrix.h"
 #include "process_analog_matrix.h"
@@ -11,6 +13,7 @@
 #   include "analog_joystick.h"
 #endif
 
+//MARK: AM Process
 bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
     switch(keycode) {
         case AM_CALIBRATE:
@@ -24,7 +27,8 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
 
         case AM_PRINT_CALIBRATION:
             if(record->event.pressed) {
-                print_calibration_data();
+                // print_calibration_data();
+                _sync_cal();
             }
             return false;
 
@@ -43,8 +47,13 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         case ANALOG_MATRIX_PROFILE_RANGE:
-        //TODO: Test this
             if (record->event.pressed) {
+                // Sanity check that the profile exists
+                if((keycode & 0x1F) >= AM_PROFILE_NUM) {
+                    dprintf("Profile %u doesn't exist! Remember that profiles are 0-indexed.", active_profile);
+                    return false;
+                }
+
                 // Turn on manual profile lock if switching to a new profile, turn it off when switching to the currently active profile
                 if((keycode & 0x1F) == active_profile) {
                     manual_profile_lock = false;
@@ -56,18 +65,6 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
 
             }
             return false;
-
-        // #ifdef JOYSTICK_ENABLE
-        // case JOYSTICK_AXIS_RANGE:
-        //     const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
-        //     // Subtract the first axis keycode to get the axis index
-        //     #ifndef USE_JOYSTICK
-        //     update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
-        //     #else
-        //     update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
-        //     #endif
-        //     return false;
-        // #endif
     }
     return true;
 }
@@ -78,10 +75,10 @@ extern uint8_t thisHand;
 const uint8_t thisHand = 0;
 #endif
 
-//MARK: Action
+//MARK: Joystick
 #ifdef JOYSTICK_ENABLE
 bool process_analog_joystick(uint16_t keycode) {
-    //TODO: Check if it's faster to check for them
+    //TODO: Check if it's faster to check for the keycodes
     if(!joystick_state.dirty || !joystick_layer) return true;
 
     switch (keycode) {

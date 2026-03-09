@@ -1,8 +1,5 @@
-// Place your settings in this file to overwrite default and user settings.
 {
-    // Unofficially, QMK uses spaces for indentation
-    "editor.insertSpaces": true,
-    // Configure glob patterns for excluding files and folders.
+	"clangd.arguments": [ "--header-insertion=never" ],
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,

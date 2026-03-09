@@ -15,82 +15,17 @@
   */
 #pragma once
 
-// #include "info_config.h"
+// #define ADJUSTMENT_FUNCTION
+
+// #define USE_CONSTANT_RAPID_TRIGGER
+// #define USE_TRIGGER_HEIGHT
+// #define USE_NONE
+// #define USE_RT_DISTANCE
+
 /*
 #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
               {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
 */
-// const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
-//   [0] = MATRIX(
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                 		 	      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,              	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,             	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//                  1.25, 1.25,  											              1.25, 1.25,
-//                              1.25, 1.25, 1.25,                      1.25, 1.25, 1.25,
-//                                    1.25, 1.25,                      1.25
-//   ),
-
-//   [1] = MATRIX(
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                 		 	      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,              	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,             	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//                  1.25, 1.25,  											              1.25, 1.25,
-//                              1.25, 1.25, 1.25,                      1.25, 1.25, 1.25,
-//                                    1.25, 1.25,                      1.25
-//   )
-// };
-
-// const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
-//   [0] = MATRIX(
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                 		 	      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,              	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,             	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//                  1.25, 1.25,  											              1.25, 1.25,
-//                              1.25, 1.25, 1.25,                      1.25, 1.25, 1.25,
-//                                    1.25, 1.25,                      1.25
-//   ),
-
-//   [1] = MATRIX(
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,                 		 	      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,              	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,             	   			      1.25, 1.25, 1.25, 1.25, 1.25, 1.25,
-//                  1.25, 1.25,  											              1.25, 1.25,
-//                              1.25, 1.25, 1.25,                      1.25, 1.25, 1.25,
-//                                    1.25, 1.25,                      1.25
-//   )
-// };
-
-// const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
-//   [0] = MATRIX(
-//      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,
-//                  3, 3,  											              3, 3,
-//                              3, 3, 3,                      3, 3, 3,
-//                                    3, 3,                      3
-//   ),
-
-//   [1] = MATRIX(
-//      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,
-//                  3, 3,  											              3, 3,
-//                              3, 3, 3,                      3, 3, 3,
-//                                    3, 3,                      3
-//   )
-// };
-
-// Using -s right in the build command defines SIDE_RIGHT and runs make clean
-// #ifndef SIDE_RIGHT
-// #   define WAIT_FOR_USB
-// #   define USB_POLLING_INTERVAL_MS 1
-// #endif
 
 #define DEBUG_MATRIX_SCAN_RATE
 
@@ -133,7 +68,7 @@
 #define RGBLIGHT_DISABLE_KEYCODES
 #define SPLIT_LAYER_STATE_ENABLE
 
-// /* SPI config for eeprom and pmw3360 sensor */
+// /* SPI config for pmw3360 sensor */
 #define SPI_DRIVER                           SPID1
 #define SPI_SCK_PIN                          B3
 #define SPI_SCK_PAL_MODE                     5

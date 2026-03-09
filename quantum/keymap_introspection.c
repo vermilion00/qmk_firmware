@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
-#include "analog_matrix/analog_matrix.h"
 #include "gpio.h"
 #include "info_config.h"
 #include "keyboard.h"
@@ -187,6 +186,23 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 #if defined(ANALOG_MATRIX_ENABLE)
 #include "analog_matrix.h"
 
+extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
+#ifndef KEY_MODES
+extern const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+#endif
+#if !defined TRIGGER_HEIGHT && (defined USE_NONE)
+extern const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
+extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM];
+#endif
+#if !defined RT_PRESS_DISTANCE && (defined USE_CONSTANT_RAPID_TRIGGER)
+extern CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+#endif
+
 //TODO: I can likely simplify several cases here, some duplicate code
 //TODO: Instead of checking for keymap definitions on everything, just force defining everything in one place
 //MARK: Split side
@@ -195,6 +211,8 @@ void assign_config(bool side) {
 #ifdef SPLIT_KEYBOARD
     #if KEYBOARD_SIDE == UNKNOWN
     if(side == RIGHT) {
+        switch_num = SWITCH_NUM_R;
+
         memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
         memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
 
@@ -229,7 +247,7 @@ void assign_config(bool side) {
         }
         #endif
 
-        #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+        #if defined USE_TRIGGER_HEIGHT
         #ifdef TRIGGER_HEIGHT
         memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
         memcpy(&release_height, &release_height_r, sizeof(release_height_r));
@@ -242,7 +260,7 @@ void assign_config(bool side) {
         }
         #endif
         #endif
-        #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+        #if defined USE_RT_DISTANCE
         #if defined RT_PRESS_DISTANCE
         memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
         memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
@@ -262,14 +280,14 @@ void assign_config(bool side) {
             #ifndef KEY_MODES
             memcpy(&key_modes[profile], &key_modes_config[profile][SWITCH_NUM_L], SWITCH_NUM_R);
             #endif
-            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #if defined USE_TRIGGER_HEIGHT
             #ifndef TRIGGER_HEIGHT
             memcpy(&trigger_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
             if(release_height_config[profile][0] == 0) { memcpy(&release_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
             else { memcpy(&release_height[profile], &release_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
             #endif
             #endif
-            #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+            #if defined USE_RT_DISTANCE
             #ifndef RT_PRESS_DISTANCE
             memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
             if(rt_release_distance_config[profile][0] == 0) { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
@@ -284,13 +302,13 @@ void assign_config(bool side) {
             #ifndef KEY_MODES
             memcpy(&key_modes[profile], &key_modes_config[profile], SWITCH_NUM_L);
             #endif
-            #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+            #if defined USE_TRIGGER_HEIGHT
             #ifndef TRIGGER_HEIGHT
             memcpy(&trigger_height[profile], &trigger_height_config[profile], SWITCH_NUM_L * sizeof(float));
             memcpy(&release_height[profile], &release_height_config[profile], SWITCH_NUM_L * sizeof(float));
             #endif
             #endif
-            #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+            #if defined USE_RT_DISTANCE
             #ifndef RT_PRESS_DISTANCE
             memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile], SWITCH_NUM_L * sizeof(float));
             memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile], SWITCH_NUM_L * sizeof(float));
@@ -304,13 +322,13 @@ void assign_config(bool side) {
     #ifndef KEY_MODES
     memcpy(&key_modes, &key_modes_config, SWITCH_NUM * AM_PROFILE_NUM);
     #endif
-    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER
+    #if defined USE_TRIGGER_HEIGHT
     #ifndef TRIGGER_HEIGHT
     memcpy(&trigger_height, &trigger_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
     memcpy(&release_height, &release_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
     #endif
     #endif
-    #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
+    #if defined USE_RT_DISTANCE
     #ifndef RT_PRESS_DISTANCE
     memcpy(&rt_press_distance, &rt_press_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
     memcpy(&rt_release_distance, &rt_release_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
