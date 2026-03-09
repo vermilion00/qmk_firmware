@@ -1,22 +1,22 @@
 # Analog Matrix
 
-While the analog matrix feature is functional, it still needs a lot of testing and has only been confirmed to be working on the STM32F411 and STM32F446, though every STM32F4 or higher chip should work (in theory).
+While the analog matrix feature is functional, it still needs a lot of testing and, while every STM32F4 and higher chip should work (in theory), only the ones in the table below have been tested. <br>
 It is designed to read the output of hall effect sensors connected to multiplexers or the chip directly, with each combination of analog pin and multiplexer channel corresponding to exactly zero or one sensors, meaning it's not an actual matrix hardware-wise.
 This feature hasn't been tested together with other features that require the usage of an ADC, but they likely won't work together.
 
-To activate this feature, simply configure the analog_matrix object in your info.json, it will set the required make rules automatically.
+To activate this feature, simply configure the analog_matrix object in your info.json, it will set the relevant make rules automatically.
 
 This is a list of tested microcontrollers:
 
 | Microcontroller |       Working      |      EEPROM     |
 |-----------------|--------------------|-----------------|
 | STM32F446       | :heavy_check_mark: | :x:<sup>1</sup> |
-| STM32F411       | :heavy_check_mark: | :x:<sup>2</sup> |
+| STM32F411       | :heavy_check_mark: | :heavy_check_mark:<sup>2</sup> |
 | RP2040<sup>3</sup> | :heavy_check_mark: | :heavy_check_mark: |
 | Any AVR chip    | :x:                | :x:             |
 
 1: Persistent storage works only with an external chip <br>
-2: EEPROM/Flash is reset by flashing firmware, can be fixed by using a different bootloader (tinyuf2) or an external chip <br>
+2: EEPROM/Flash is reset when flashing firmware, can be fixed by using a different bootloader (e.g. tinyuf2) or an external chip <br>
 3: While the RP2040 works without issues, it only has four usable ADC channels per chip. <br>
 
 ## What works?
@@ -63,11 +63,11 @@ Working features are:
 ## Current TO-DO list
 
 Roughly in descending order of priority:
+* Dynamic calibration
+* Mixed matrices
 * GUI Interface (VIAL)
 * Higher USB polling rates
-* Dynamic calibration
 * DKS
-* Mixed matrices
 * Custom matrix implementation support
 * Joystick axes on slave half
 * Velocity-sensitive MIDI keys
@@ -77,19 +77,23 @@ Roughly in descending order of priority:
 
 # Calibration
 
-If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a calibration key and hold that during startup (more info in the config section.) If the keyboard doesn't yet have any calibration values saved, it should automatically enter calibration mode.
+If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a calibration key and hold that during startup (more info in the config section.) If the keyboard doesn't yet have any calibration values saved, it will automatically enter calibration mode.
 
-When calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. How these values are saved depends on the configuration:
+While calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. How these values are saved depends on the configuration:
 
 ## Persistent Storage
 
 By default, the calibration values can be saved to some form of persistent storage, and recalled during startup. This requires you to either:
-* Use a chip with eeprom emulation support in QMK,
+* Use a chip with eeprom emulation support in QMK, or
 * Use and configure an external flash/eeprom storage chip
 
-The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2), or an external storage chip.
+::: warning  
+The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2), or an external storage chip.  
+:::
 
-Requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom.md) and [EEPROM driver](../drivers/eeprom.md) or [Flash driver](../drivers/flash.md) pages for more information.
+This requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom.md) and [EEPROM driver](../drivers/eeprom.md) or [Flash driver](../drivers/flash.md) pages for more information.
+
+When using an external storage chip, don't forget to configure the used communication peripheral (I2C or SPI) as well.
 
 ## Hardcode values
 
@@ -125,12 +129,12 @@ For split keyboards, the left and right half are separated:
 
 # AVR configuration
 
-This feature doesn't work on AVR chips. Support may be added in the future, but ARM is preferred due to firmware size limitations.
+This feature doesn't work on AVR chips. Support may be added in the future, but ARM will be preferred generally anyway, due to firmware size limitations and better specs.
 
 
 # ARM configuration
 
-Enable the ADC peripheral.
+Enable the ADC peripheral:
 
 ## halconf.h
 
@@ -147,8 +151,9 @@ If you wish to use a specific ADC (provided the chosen chip has multiple ADCs su
 #define STM32_ADC_USE_ADC1 TRUE
 ```
 
-You may also need to configure the DMA settings:
+You may also need to configure the DMA settings, particularily when using an ADC other than the default. 
 ```c
+// In mcuconf.h:
 #undef STM32_ADC_ADC1_DMA_STREAM
 #define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4) // DMA 2 Stream 4
 #define STM32_ADC_ADC1_DMA_PRIORITY         2
@@ -161,7 +166,7 @@ You can find these values in the reference manual of your chip.
 # RP2040 configuration
 
 While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys max.
-You'd either have to find 32 channel multiplexers, or make a split keyboard, to get access to more keys than that.
+You'd either have to use 32 channel multiplexers, or make a split keyboard, to get access to more keys than that.
 
 ## halconf.h
 
@@ -181,11 +186,11 @@ You'd either have to find 32 channel multiplexers, or make a split keyboard, to 
 
 ## info.json/keyboard.json
 
-This is where the bulk of the configuration lives. Since a GUI is still work in progress, the heights, rapid trigger settings, profiles etc are all configured here.
+This is where the bulk of the configuration lives. Since a GUI is still work in progress, the heights, rapid trigger settings, profiles and additional features are all configured here.
 
 ### Hardware
 
-This section contains the details of how everything is connected to the microcontroller. Split keyboards need to use the same pins for both halves currently.
+This section contains the details of how everything is connected to the microcontroller. Split keyboards need to use the same pins for both halves currently, or various optimizations won't work.
 
 ```json
 {
@@ -270,14 +275,15 @@ Assume our hardware config looks like this:
 This means that a key with the mux combination [1, 5] is read on pin A1, if pins B12 and B14 are activated, and pins B13 and B15 are deactivated. The output of this keys' sensor is wired to channel 5 of the multiplexer that is connected to pin A1 on the microcontroller.
 
 When choosing the layout, it is best to use the lowest multiplexer channel numbers first, as the feature scans the matrix by looping over every ADC pin and multiplexer channel combination, starting from 0. Any unused combinations are skipped automatically, so having an uneven amount of keys connected to the multiplexers isn't a problem.
+It is best to distribute the channels evenly across the multiplexers. If you use e.g. 64 keys distributed among 6 multiplexers, the optimal arrangement would be using channels 0 through 10 on four multiplexers, and channels 0 through 9 on the remaining two. This way, the firmware recognizes that the highest channel number in use is channel 10, and skip reading the remaining 5 (assuming 16 channel multiplexers are used).
 
-If possible, the multiplexer pins should be selected to all be on the same port, arranged consecutively in ascending order (e.g. B12, B13, B14, B15 or C10, C11, C12). <br> This allows the firmware to set the output via direct register access, making it more performant. In case this causes issues, you can also set the "no_mux_optimization" flag to true in the same object.
+If possible, the multiplexer channel select pins should be selected to all be on the same port, arranged consecutively in ascending order (e.g. B12, B13, B14, B15 or C10, C11, C12). <br> This allows the firmware to set the output via direct register access, making it more performant. In case this causes issues, you can also set the "no_mux_optimization" flag to true in the same object to skip this optimization. If the pins aren't arranged in this fashion, the optimization is skipped automatically.
 
-Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix scanning is currently not supported, but is planned for the future.
+Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix (lite) scanning is currently not supported, but is planned for the future.
 
 ### Config
 
-This section contains information about specific sub-features and profile settings.
+This section contains information about specific subfeatures and profile settings.
 
 ```json
 {
@@ -327,7 +333,7 @@ Like the startup delay, this is an extremely short amount of time. The mux selec
 ### Profiles
 
 This section contains all information about trigger heights, rapid trigger, etc. The json is currently the only way to configure them, as VIAL integration is still a ways off. 
-To switch between profiles, you can use the layer parameter to automatically switch the profile based on the active layer, or you can use the AM_AP("profile") keycode by placing it in your keymap and replacing "profile" with the profile you want to switch to. Keep in mind that profiles are 0-indexed, and that manually switching the profile disables automatic profile switching (if configured), which can be reactivated by pressing that same key again, or using the AM_LOCK keycode.
+To switch between profiles, you can use the layer parameter to automatically switch the profile based on the active layer, or you can use the AM_AP("profile") keycode by placing it in your keymap and replacing "profile" with the profile you want to switch to. Keep in mind that profiles are 0-indexed, and that manually switching the profile disables automatic profile switching (if configured), which can then be reactivated by pressing that same key again, or using the AM_LOCK keycode.
 
 ```json
 {
@@ -365,11 +371,11 @@ To switch between profiles, you can use the layer parameter to automatically swi
 ```
 The analog matrix feature allows you to assign a profile to a layer. This means that when a layer is switched, it will also activate the lowest index profile that is assigned to the highest active layer. If no profile is assigned, then this parameter decides which layer should be activated:
 
-|     Switch Mode   |        Description                                                                            |
-|-------------------|-----------------------------------------------------------------------------------------------|
-| "default"         | Activates the profile set by "default_profile". If this parameter isn't set, it defaults to 0.|
-| "last"            | Keeps the currently active profile.                                                           |
-| "manual"          | Ignores layer assignment. If this mode is used, you need to use the AM_AP(profile) keycode.   |
+|     Switch Mode   |        Description                                                                                             |
+|-------------------|----------------------------------------------------------------------------------------------------------------|
+| "default"         | Activates the profile set by "default_profile". If this parameter isn't set, it defaults to 0.                 |
+| "last"            | Keeps the currently active profile.                                                                            |
+| "manual"          | Ignores layer assignment. If this mode is used, you need to use the AM_AP(profile) keycode to switch profiles. |
 
 You can use profile switch keycodes at any point, even with the switch mode set to "default" or "last". This will lock automatic profile switching. To unlock it again, you can either use the AM_LOCK keycode to toggle the lock state, or use the same AM_AP(profile) keycode again to unlock auto profile switching.
 
@@ -401,7 +407,11 @@ You can use up to 32 profiles, as long as they all follow the "profile_n" naming
 "layers": [0, 1, 2]
 ```
 
-As long as profile_switch_mode isn't set to "manual", this will activate this profile automatically when switching to one of these layers. If multiple profiles contain a layer, the profile with the lowest index will be activated. If you don't wish to switch to a specific profile automatically, you can ignore this setting, and use the AM_AP(profile) keycode to switch manually. <br> 
+As long as profile_switch_mode isn't set to "manual", this profile will be automatically activated when switching to one of these layers. If multiple profiles contain a layer, the profile with the lowest index will be activated. If you don't wish to switch to a specific profile automatically, you can ignore this setting, and use the AM_AP(profile) keycode to switch manually.
+
+
+#### Height configuration
+
 The order of these keys is identical to the order in the layout, so index 0 sets the mode for the first key in the layout definition. This holds true for split keyboards as well. The same logic is applied to all key-specific arrays further down, like height and rapid trigger distance.
 
 ```json
@@ -452,7 +462,7 @@ If you wish to use the same height for all keys in the profile, you can just set
 "trigger_height": [ 1.0 ]
 ```
 ::: warning
-Keep in mind that the output of the sensor isn't directly proportional to the travel distance of the switch, and that it depends on a lot of factors like the switch used, the sensor used, the thickness of the PCB, etc. This means that the distance values are likely not going to be accurate, so go by feel instead of measurements when configuring your profiles. 
+Keep in mind that the output of the sensor isn't directly proportional to the travel distance of the switch, and that it depends on a lot of factors, e.g. the switch used, the sensor used, the thickness of the PCB, etc. This means that the distance values are likely not going to be accurate, so go by feel instead of measurements when configuring your profiles.
 :::
 
 Only necessary when the profile uses a key mode other than "constant_rapid_trigger" (3) on at least one of the keys.
@@ -485,6 +495,17 @@ Profile-related keycodes:
 | AM_CALIBRATE          | AM_CLBR        | Starts calibration of the keyboard. On split keyboards, only starts calibration of the master half. |
 
 
+# Functions
+
+| Function             | Description                                                                                    |
+|----------------------|                                                                                                |
+| void set_active_profile(uint8_t profile) | Activates the profile passed as the parameter. |
+| uint8_t get_active_profile(void) | Returns the currently active profile. |
+| void toggle_profile_lock(void) | Toggles automatic profile switching on and off. |
+| void set_profile_lock(bool value) | Sets the automatic profile switching state to the passed parameter. |
+| void calibrate_switches(void) | Starts calibration immediately. |
+
+
 # Split keyboards
 
 The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind.
@@ -498,7 +519,7 @@ Accepted options are l/left/r/right. Using this flag means that only the configu
 
 The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
 ```c
-#ifdef SIDE_LEFT
+#ifdef SIDE_LEFT // To check for the right half, use SIDE_RIGHT
 //Do something here
 #endif
 ```
@@ -729,18 +750,16 @@ Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. T
 
 
 ## Mixed matrix
-::: warning  
-While this should work, it hasn't actually been tested yet.  
-:::  
-While a mixed matrix isn't actually supported yet, it's possible to fake it. If you're not using the invert_adc option:
+
+While an actual mixed matrix isn't supported yet, it's possible to fake it by using pull-up/down resistors. <br>
+If you're not using the invert_adc option:
 1. One leg of the mechanical switch should be connected to +3.3V/+5V via a pull-up resistor, and to an input pin on a multiplexer (or directly to an ADC pin, if you're not using multiplexers)
 2. The other leg should be connected to ground
-    2. The resistance value doesn't need to be exact, ~100k should be fine
+    * The resistance value doesn't need to be exact, ~50-100k is fine
 3. Calibrate and configure like a regular switch
-    3. Keep in mind that rapid trigger won't work on that switch for obvious reasons
-        3. You might be able to configure it, but it hasn't been tested. If any issues arise, switching to a fixed trigger height for mechanical keys should work
-If the invert_adc option is used, instead of connecting the multiplexer input to the leg connected to the positive voltage source, connect it to the ground leg.
+    * Keep in mind that rapid trigger won't work on that switch for obvious reasons
 
+If the invert_adc option is used, instead of connecting the multiplexer input to the leg connected to the positive voltage source, connect it to the ground leg. <br>
 While this isn't very useful for most situations, it can be used to be able to use the encoder click action until actual mixed matrix support is implemented.
 
 

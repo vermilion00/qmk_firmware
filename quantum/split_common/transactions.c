@@ -18,10 +18,12 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "_wait.h"
 #include "action_layer.h"
 #include "crc.h"
 #include "debug.h"
 #include "info_config.h"
+#include "keyboard.h"
 #include "keymap_introspection.h"
 #include "matrix.h"
 #include "host.h"
@@ -920,29 +922,31 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 
 #endif // defined(OS_DETECTION_ENABLE) && defined(SPLIT_DETECTED_OS_ENABLE)
 
-
-
+////////////////////////////////////////////////////
+// Analog Matrix
 
 //MARK: Manual trans
-//TODO: Before this, I was working on forcing a transaction before starting calibration for calibration sync
-//TODO: Test if custom transaction functions work
-/*
-1. Current test: Figuring out if I can just call this manually and still sync stuff, by having the slave check automatically
-2. Check if I need to add this to slave transactions and registration
-    -Registration is necessary, without it the automatic transactions on the slave won't work.
-    -Not checked for fully manual transactions, but those likely won't be a thing
-3. Figure out how to avoid taking master matrix etc without making a wholly separate transaction def
-    -I can just bodge those like below, or
-    -I could make an entirely new function that doesn't need those
-        -If I make more stuff transactions like this then it seems like a good plan
-*/
-
 #ifdef ANALOG_MATRIX_ENABLE
+
+bool manual_transaction_handler(bool (*handler)(void)) {
+    int num_retries = is_transport_connected() ? 10 : 1;
+    for (int iter = 1; iter <= num_retries; ++iter) {
+        if (iter > 1) {
+            for (int i = 0; i < iter * iter; ++i) {
+                wait_us(10);
+            }
+        }
+        if(handler()) return true;
+    }
+    return false;
+}
+
 //TODO: Perhaps split this up into separate transactions for layer, profile etc?
 //TODO: Instead of checking if 3 different things have changed, change them and then check if it needs to be sent over?
+//MARK: AM Data
+//TODO: Test just sending the profile here, applying it directly to active_profile, and not calling the slave_handler at all
 static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
-    // static uint32_t last_update = 0;
     static bool prev_calibration = false;
     bool changed = false;
 
@@ -957,19 +961,13 @@ static bool am_data_manual_handler(void) {
         changed = true;
     }
 
-    //TODO: Enable this when done testing
-    // No use sending this info when the data isn't saved, since the slave can't print out values to console
-    // TODO: Remove the guard when sending info to master is possible
-    // #ifndef AM_NO_EEPROM
     if (calibration_started != prev_calibration) {
         prev_calibration = calibration_started;
-        //TODO: Double check that calibration_started becomes a 1 when true
         data |= calibration_started << 5;
+        //TODO: Am I using changed?
         changed = true;
     }
-    // #endif
 
-    //TODO: Exchange this with a define that is set when any feature with layer sync is enabled, so I don't have to keep expanding all these
     #if defined SPLIT_LAYER_SYNC
     static uint8_t last_layer = 0;
     if (highest_layer != last_layer) {
@@ -982,48 +980,86 @@ static bool am_data_manual_handler(void) {
 
     if (!changed) return true;
 
+    split_shmem->am_data = data;
+    // uint32_t last_update = 0;
     // return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
-    return transport_write(PUT_AM_DATA, &data, sizeof(am_data_t));
+    return transport_write(PUT_AM_DATA, &split_shmem->am_data, sizeof(am_data_t));
 }
-
-bool manual_transaction_handler(const char *prefix, bool (*handler)(void)) {
-    int num_retries = is_transport_connected() ? 10 : 1;
-    for (int iter = 1; iter <= num_retries; ++iter) {
-        if (iter > 1) {
-            for (int i = 0; i < iter * iter; ++i) {
-                wait_us(10);
-            }
-        }
-        bool this_okay = true;
-        this_okay      = handler();
-        if (this_okay) return true;
-    }
-    dprintf("Failed to execute %s\n", prefix);
-    return false;
-}
-
-#define MANUAL_TRANSACTION_HANDLER(prefix) manual_transaction_handler(#prefix, &prefix##_manual_handler)
-// This is an alternative to send manual transactions without defining new functions, but they still take matrices
-// #define MANUAL_TRANSACTION_HANDLER(prefix) transaction_handler_master(master_matrix, slave_matrix, #prefix, &prefix##_handlers_master)
 
 // Calling the manual_transaction_handler directly only works if I put every handler function I want to call in the header
 bool am_data_manual_transaction(void) {
-    return manual_transaction_handler("am_data", am_data_manual_handler);
-    //TODO: No point in using this define, since I still need the helper function to include it from other files
-    // return MANUAL_TRANSACTION_HANDLER(am_data);
+    return manual_transaction_handler(am_data_manual_handler);
 }
 
 //TODO: Finish the function to send slave calibration data to master for printing
 #ifdef AM_NO_EEPROM
-// bool cal_data_manual_handler(void) {
-//     return true;
-// }
-// bool cal_data_manual_transaction(void) {
-//     return manual_transaction_handler("cal_data", cal_data_manual_handler);
-// }
-#endif
+//MARK: Cal Master
+//Called by the master when calibration finishes
+bool calibration_data_master_manual_handler(void) {
+    cal_data_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = {0, 0}};
 
-#endif
+    if(!transport_read(GET_CAL_DATA, &split_shmem->cal_data, sizeof(split_shmem->cal_data))) return false;
+
+    if(memcmp(&test_data, &split_shmem->cal_data, sizeof(test_data)) == 0) return false;
+
+    // Print the slave calibration values here
+    char side[7] = "";
+    // Inverted logic, since we're printing the slave data
+    if(is_keyboard_left()) {
+        char right[7] = "_right";
+        memcpy(&side, &right, sizeof(right));
+    }
+
+    printf("\"top_values%s\":    [ %u", side, split_shmem->cal_data[0].top_value);
+    for(uint8_t index = 1; index < switch_num_slave; index++){
+        printf(", %u", split_shmem->cal_data[index].top_value);
+    }
+
+    printf(" ],\n\"bottom_values%s\": [ %u", side, split_shmem->cal_data[0].bottom_value);
+    for(uint8_t index = 1; index < switch_num_slave; index++){
+        printf(", %u", split_shmem->cal_data[index].bottom_value);
+    }
+    print(" ],\n");
+
+    return true;
+}
+
+
+//MARK: Cal Slave
+// Called by the slave when calibration finishes
+bool calibration_data_slave_manual_handler(void) {
+    split_shared_memory_lock();
+    for(uint8_t key = 0; key < switch_num; key++) {
+        split_shmem->cal_data[key].top_value = key_config[key].top_value + ADC_TOP_DEADZONE;
+        split_shmem->cal_data[key].bottom_value = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+    }
+    split_shared_memory_unlock();
+
+    return true;
+}
+
+
+//MARK: Sync calibration
+void sync_calibration_values(void) {
+    // Only the master needs to retry, as the slave just copies the data to a buffer when finished
+    if(is_keyboard_master()) {
+        while(!manual_transaction_handler(calibration_data_master_manual_handler)) {
+            wait_ms(100);
+            // dprint("Trying to get calibration values from slave\n");
+        }
+    } else { manual_transaction_handler(calibration_data_slave_manual_handler); }
+}
+
+//TODO: Consolidate all analog matrix fallback defines into one place
+#define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS \
+        [GET_CAL_DATA] = trans_target2initiator_initializer(cal_data),
+
+#else // ifdef AM_NO_EEPROM
+#   define TRANSACTONS_AM_CALIBRATION_REGISTRATIONS
+#endif // ifdef AM_NO_EEPROM else
+#else // ifdef ANALOG_MATRIX_ENABLE
+#   define TRANSACTONS_AM_CALIBRATION_REGISTRATIONS
+#endif // ifdef ANALOG_MATRIX_ENABLE else
 
 
 //MARK: AM Profile
@@ -1031,49 +1067,8 @@ bool am_data_manual_transaction(void) {
 // Analog Matrix profile (and layer) synchronisation
 
 #if defined(ANALOG_MATRIX_ENABLE)
-// bool prev_calibration = false;
 
-// static bool am_data_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-//     static uint8_t last_profile = DEFAULT_PROFILE;
-//     static uint32_t last_update = 0;
-//     static bool prev_calibration = false;
-//     bool changed = false;
-//     // Data layout: unused | calibration start | profile | layer
-//     // uint16_t  0b  00000          1             11111    11111
-//     // Without layer sync:
-//     // uint8_t   0b    00  |        1          |  11111
-
-//     am_data_t data = active_profile;
-
-//     if (active_profile != last_profile) {
-//         last_profile = active_profile;
-//         changed = true;
-//     }
-
-//     if (calibration_started != prev_calibration) {
-//         prev_calibration = calibration_started;
-//         //TODO: Double check that calibration_started becomes a 1 when true
-//         data |= calibration_started << 5;
-//         changed = true;
-//     }
-
-//     //TODO: Exchange this with a define that is set when any feature with layer sync is enabled, so I don't have to keep expanding all these
-//     #if defined SPLIT_LAYER_SYNC
-//     static uint8_t last_layer = 0;
-//     if (highest_layer != last_layer) {
-//         last_layer = highest_layer;
-//         // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
-//         data = data << 5 | highest_layer;
-//         changed = true;
-//     }
-//     #endif
-
-//     if (!changed) return true;
-
-//     return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
-// }
-
-static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+__attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     split_shared_memory_lock();
 
     // Data layout: unused | calibration start | profile | layer
@@ -1093,20 +1088,22 @@ static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sl
 
     active_profile = data & 0b00011111;
 
-    //TODO: Remove these
-    // #ifndef AM_NO_EEPROM
     static bool prev_calibration = false;
     //TODO: Do I need to mask the first bit here, does it pull in other stuff or nah? Will need to mask if I use the unused bits for smth
-    bool start_calibration = data >> 5;
+    bool calibration_started = data >> 5;
 
-    if(start_calibration != prev_calibration) {
-        prev_calibration = start_calibration;
-        if(start_calibration) {
+    if(calibration_started != prev_calibration) {
+        prev_calibration = calibration_started;
+        if(calibration_started) {
+            // Remove the old calibration data from the buffer, else the master will get the old values
+            split_shared_memory_lock();
+            memset(&split_shmem->cal_data, 0, sizeof(split_shmem->cal_data));
+            split_shared_memory_unlock();
+
             calibrate_switches();
             //TODO: Reset something here?
         }
     }
-    // #endif
 
     // Create a joystick mask for the slave
     #ifdef SPLIT_LAYER_SYNC
@@ -1117,10 +1114,7 @@ static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sl
     #endif
 }
 
-//TODO: Add calibration sync handlers
-
-// #   define MANUAL_AM_DATA MANUAL_TRANSACTION_HANDLER(am_data)
-#   define TRANSACTIONS_AM_DATA_MASTER() TRANSACTION_HANDLER_MASTER(am_data)
+#   define TRANSACTIONS_AM_DATA_MASTER()
 #   define TRANSACTIONS_AM_DATA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_data)
 #   define TRANSACTIONS_AM_DATA_REGISTRATIONS [PUT_AM_DATA] = trans_initiator2target_initializer(am_data),
 
@@ -1211,6 +1205,8 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_ACTIVITY_REGISTRATIONS
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
     TRANSACTIONS_AM_DATA_REGISTRATIONS
+    // TRANSACTIONS_TEST_REGISTRATIONS
+    TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
     TRANSACTIONS_JOYSTICK_REGISTRATIONS
 // clang-format on
 
@@ -1243,9 +1239,6 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
-    //TODO: I'm assuming I can use the registrations here, but then run these transactions myself instead of here
-    //      I think this just calls all these transactions, which I can do myself
-    // TRANSACTIONS_AM_DATA_MASTER();
     TRANSACTIONS_JOYSTICK_MASTER();
     return true;
 }

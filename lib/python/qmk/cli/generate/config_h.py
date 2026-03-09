@@ -13,7 +13,7 @@ from qmk.commands import dump_lines, parse_configurator_json
 from qmk.path import normpath, FileType
 from qmk.constants import GPL2_HEADER_C_LIKE, GENERATED_HEADER_C_LIKE
 
-from qmk.am_config_h import generate_analog_matrix_config, generate_profile_config
+from qmk.analog_matrix import generate_analog_matrix_config, generate_profile_config
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename

@@ -13,7 +13,7 @@
 #include "pointing_device.h"
 
 #define MOUSE_LAYER_TIME 200
-#define DRAGSCROLL_TIME 250
+#define DRAGSCROLL_TIME 160
 // #define constrain_hid(amt) ((amt) < -127 ? -127 : ((amt) > 127 ? 127 : (amt)))
 
 #define _CLMK 0
@@ -211,11 +211,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
               {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
 
+//TODO: Find a way to extract info from here (Number of defined profiles etc) and allow declaring stuff like layers here? Prob too much of a hassle
+//      Extract key modes as well, to define USE_*
+// #define USE_CONSTANT_RAPID_TRIGGER
 // const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
 //   [0] = MATRIX(
-//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      0.3, 0.3, 0.3, 0.3, 0.3, 0.3,                   			      0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
 //      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                 		 	      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
-//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,              	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      0.3, 0.3, 0.3, 0.3, 0.3, 0.3,              	   			      0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
 //      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
 //                  2.5, 2.5,  											              2.5, 2.5,
 //                              2.5, 2.5, 2.5,                      2.5, 2.5, 2.5,
@@ -236,9 +239,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = {
 //   [0] = MATRIX(
 //      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
-//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,                 		 	      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,                 		 	      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
 //      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,              	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
-//      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+//      0.5, 0.5, 0.5, 0.5, 0.5, 0.5,             	   			      2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
 //                  2.5, 2.5,  											              2.5, 2.5,
 //                              2.5, 2.5, 2.5,                      2.5, 2.5, 2.5,
 //                                    2.5, 2.5,                      2.5
@@ -259,15 +262,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //   [0] = MATRIX(
 //      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
 //      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
-//      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,
-//                  3, 3,  											              3, 3,
-//                              3, 3, 3,                      3, 3, 3,
-//                                    3, 3,                      3
+//      0, 0, 0, 0, 0, 0,              	   			      0, 0, 0, 0, 0, 0,
+//      0, 0, 0, 0, 0, 0,             	   			      0, 0, 0, 0, 0, 0,
+//                  0, 0,  											              0, 0,
+//                              0, 0, 0,                      0, 0, 0,
+//                                    0, 0,                      0
 //   ),
 
 //   [1] = MATRIX(
-//      3, 3, 3, 3, 3, 3,                   			      3, 3, 3, 3, 3, 3,
+//      0, 0, 0, 0, 0, 0,                   			      3, 3, 3, 3, 3, 3,
 //      3, 3, 3, 3, 3, 3,                 		 	      3, 3, 3, 3, 3, 3,
 //      3, 3, 3, 3, 3, 3,              	   			      3, 3, 3, 3, 3, 3,
 //      3, 3, 3, 3, 3, 3,             	   			      3, 3, 3, 3, 3, 3,

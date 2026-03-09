@@ -9,9 +9,7 @@
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
-
-//TODO: Clean this stuff up
-// #define USE_CONTINUOUS_RAPID_TRIGGER
+// #include "math.h"
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -23,9 +21,11 @@
 #define UNKNOWN 2
 
 // Define if keymap config is used
-#if (!defined TRIGGER_HEIGHT && (defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER)) || \
-    (!defined RT_PRESS_DISTANCE && (defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER))
+#if (!defined TRIGGER_HEIGHT && (defined USE_TRIGGER_HEIGHT)) || \
+    (!defined RT_PRESS_DISTANCE && (defined USE_RT_DISTANCE))
+#ifndef KEYMAP_CONFIG
 #   define KEYMAP_CONFIG
+#endif
 #endif
 
 // Override KEYBOARD_SIDE if -s flag is used
@@ -118,9 +118,9 @@
 #define AM_BOTTOM_VALUES AM_BOTTOM_VALUES_R
 #endif
 
-#ifdef DEBUG_MUX_VALUE_R
-#undef DEBUG_MUX_VALUE
-#define DEBUG_MUX_VALUE DEBUG_MUX_VALUE_R
+#ifdef DEBUG_MUX_POSITION_R
+#undef DEBUG_MUX_POSITION
+#define DEBUG_MUX_POSITION DEBUG_MUX_POSITION_R
 #endif
 
 //TODO: Remove one of the following when I've decided
@@ -141,10 +141,6 @@
 #else // SPLIT_KEYBOARD defined but side is unknown at init
 #define SPLIT_MUTABLE
 #define CONFIG_MUTABLE
-#endif
-
-#ifndef SWITCH_NUM_R
-#   define SWITCH_NUM_R 0
 #endif
 
 #define DEFAULT_PROFILE 0
@@ -185,8 +181,6 @@ typedef enum _key_mode_t: uint8_t {
     joystick = 4
 } key_mode_t;
 
-//TODO: Decide what I'll do with this
-//      Currently not very useful, might be nice to have if I allow associating a color with a profile
 typedef struct Profile {
     layer_state_t layers;
     #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
@@ -201,7 +195,7 @@ typedef struct analog_key_t {
     #if defined USE_CONTINUOUS_RAPID_TRIGGER
     uint8_t rt_active;
     #endif
-    #if defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || (defined JOYSTICK_ENABLE && defined USE_JOYSTICK)
+    #if defined USE_TRIGGER_HEIGHT || (defined JOYSTICK_ENABLE && defined USE_JOYSTICK)
     // The switch is counted as pressed below this value
     uint16_t trigger_value[AM_PROFILE_NUM];
     // The switch is counted as released above this value
@@ -216,8 +210,8 @@ typedef struct analog_key_t {
     #if defined MIDI_ENABLE && !defined USE_MIDI
     uint8_t midi_velocity;
     #endif
-    #if defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER
-    // The switch is counted as pressed, when the rapid trigger crosses this threshold
+    #if defined USE_RT_DISTANCE
+    // The switch is counted as pressed when the rapid trigger crosses this threshold
     // As the switch is traveling downward, this value is constantly updated, so the release distance is simply checked against this value to determine if the switch should be released
     uint16_t rt_threshold;
     // The distance that the switch is required to travel downwards before it's registered as pressed
@@ -240,6 +234,12 @@ typedef struct analog_key_t {
 #define ADC_RESOLUTION 10
 #define MAX_ADC_VALUE 1023
 
+#ifndef ADC_DEADZONE
+#   define ADC_DEADZONE 25
+#endif
+#ifndef ADC_SMOOTHING
+#   define ADC_SMOOTHING 5
+#endif
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
 #endif
@@ -270,11 +270,14 @@ typedef struct analog_key_t {
 #   define AM_DC_DELTA 6
 #endif
 #endif
-// Needs to be less than one
+// Percentage of the range that will be moved up/down
 #ifndef AM_DC_FACTOR
-#   define AM_DC_FACTOR 0.8
+#   define AM_DC_FACTOR 0.2
 #endif
+#ifndef RECALIBRATED_SWITCHES
+#   define RECALIBRATED_SWITCHES 5
 #endif
+#endif // ifdef DYNAMIC_CALIBRATION
 
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
@@ -294,31 +297,32 @@ extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
 extern uint8_t highest_layer;
 
-//TODO: Gate these properly
-extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
-extern const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
-extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM];
-extern CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
-extern CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
-extern const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-
-//TODO: Do I need these? I don't think start calibration is used
-#ifdef SPLIT_KEYBOARD
-extern bool calibration_started;
-extern bool start_calibration;
+#ifdef ADJUSTMENT_FUNCTION
+__attribute__((weak)) uint16_t adjust(uint16_t value);
+#else
+#   define adjust(value) value
 #endif
 
-/* Function defines */
+#ifdef SPLIT_KEYBOARD
+extern bool calibration_started;
+extern uint8_t switch_num_slave;
+#endif
+
+/* Global Functions */
 void analog_matrix_init(void);
 uint8_t analog_matrix_scan(void);
+// Activates the profile passed as the parameter (only on the master half on split keyboards)
 void set_active_profile(uint8_t profile);
+// Returns the active profile
 uint8_t get_active_profile(void);
-void lock_profile(void);
+// Toggles the state of the automatic profile switching
+void toggle_profile_lock(void);
+// Sets the profile lock state to the passed value
+void set_profile_lock(bool value);
+// Immediately starts calibration
 void calibrate_switches(void);
+//TODO: Remove
+void _sync_cal(void);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);
@@ -329,58 +333,7 @@ volatile void set_sensor_power_low_user(uint8_t mux_channel);
 volatile void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel);
 volatile void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel);
 
-//TODO: Implement a way to add this to default_keyboard.h if the heights aren't in the json
-//This ain't gonna work since all profiles are currently in one 2D array, split by half
-// #if !defined TRIGGER_HEIGHT || !defined TRIGGER_HEIGHT_R
-/* #define TRIGGER_HEIGHT_LAYOUT(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
-// const float trigger_height[] = {  \
-//     k0A, k0B, k0C, k0D, k0E, k0F, \
-//     k1A, k1B, k1C, k1D, k1E, k1F, \
-//     k2A, k2B, k2C, k2D, k2E, k2F, \
-//     k3A, k3B, k3C, k3D, k3E, k3F, \
-//     XXX, XXX, k4C, k4D, k4E, k4F, \
-//     XXX, XXX, XXX, k5D, k5E, k5F  \
-// }; \
-// const float trigger_height[] = {  \
-//     k6A, k6B, k6C, k6D, k6E, k6F, \
-//     k7A, k7B, k7C, k7D, k7E, k7F, \
-//     k8A, k8B, k8C, k8D, k8E, k8F, \
-//     k9A, k9B, k9C, k9D, k9E, k9F, \
-//     kAA, kAB, kAC, kAD, XXX, XXX, \
-//     kBA, kBB, XXX, XXX, XXX, XXX  \
-// };
-#endif */
-/*
-#define TEST_LAYOUT(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) { \
-    { k0A, k0B, k0C, k0D, k0E, k0F }, \
-    { k1A, k1B, k1C, k1D, k1E, k1F }, \
-    { k2A, k2B, k2C, k2D, k2E, k2F }, \
-    { k3A, k3B, k3C, k3D, k3E, k3F }, \
-    { XXX, XXX, k4C, k4D, k4E, k4F }, \
-    { XXX, XXX, XXX, k5D, k5E, k5F }, \
-    { k6A, k6B, k6C, k6D, k6E, k6F }, \
-    { k7A, k7B, k7C, k7D, k7E, k7F }, \
-    { k8A, k8B, k8C, k8D, k8E, k8F }, \
-    { k9A, k9B, k9C, k9D, k9E, k9F }, \
-    { kAA, kAB, kAC, kAD, XXX, XXX }, \
-    { kBA, kBB, XXX, XXX, XXX, XXX } \
-}
-*/
-
-/*
-What about copying the keymap principle, then memcpy them into their respective arrays?
-    -If I put this in keymap.c, can I use the array in analog_matrix.c?
-    -How do I make sure only one is used?
-        -I can check if height defines are available in info_config, if not, assign this
-    -Need to generate another macro where all keys are in a single array, and no fillers (XXX) are used
-    -The params are in the same order as the LAYOUT macro
-Assuming I go with the keymap plan, I have two options: either I put all keys into a single line, use that array for the left side, and copy the right half to another array at init
-Or I put the halfs into separate arrays here and copy both over
-Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
-*/
-
 //TODO: Similar to the LAYOUT macro, write a script to define this macro
-// // If TRIGGER_HEIGHT isn't defined, the contents of the array will be copied over into the *_height arrays at init (similar to dynamic side assignment)
 /*
  #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
                {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
