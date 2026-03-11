@@ -27,13 +27,13 @@
             "force_calibrate": false,
             "adc_pins": ["A0", "A1", "A2", "A3", "B0"],
             "travel_distance": 4.0,
-            "smoothing": 4,
-            "deadzone": 15
+            "smoothing": 20,
+            "deadzone": 60
         },
         "config": {
             "calibration_key": [0, 0],
             "scans_without_change": 6000,
-            "debug_scan_values": false,
+            "debug_scan_values": true,
             "debug_scan_no_input": false,
             "no_eeprom": false,
             "!top_values": [ 628, 584, 663, 616, 600 ],

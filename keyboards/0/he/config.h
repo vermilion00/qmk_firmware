@@ -29,6 +29,8 @@
 
 #define DEBUG_MATRIX_SCAN_RATE
 
+// #define ADC_RESOLUTION 12
+
 #define LED_PIN B2
 
 //TODO: Add a voltage divider to check vbus using a gpio pin, this means SPLIT_USB_DETECT isn't required

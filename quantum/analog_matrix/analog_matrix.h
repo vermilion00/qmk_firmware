@@ -227,18 +227,18 @@ typedef struct analog_key_t {
 } analog_key_t;
 
 /* Configuration defaults */
-#ifdef ADC_RESOLUTION
-#   warning "ADC_RESOLUTION will be forced to 10 bits for the analog matrix!"
+#if defined ADC_RESOLUTION && ADC_RESOLUTION < 12
+#   warning "ADC_RESOLUTION will be forced to 12 bits for the analog matrix!"
 #undef ADC_RESOLUTION
+#define ADC_RESOLUTION 12
 #endif
-#define ADC_RESOLUTION 10
-#define MAX_ADC_VALUE 1023
+#define MAX_ADC_VALUE 4095
 
 #ifndef ADC_DEADZONE
-#   define ADC_DEADZONE 25
+#   define ADC_DEADZONE 120
 #endif
 #ifndef ADC_SMOOTHING
-#   define ADC_SMOOTHING 5
+#   define ADC_SMOOTHING 24
 #endif
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
@@ -267,12 +267,12 @@ typedef struct analog_key_t {
 #ifdef ADC_SMOOTHING
 #   define AM_DC_DELTA ADC_SMOOTHING
 #else
-#   define AM_DC_DELTA 6
+#   define AM_DC_DELTA 24
 #endif
 #endif
 // Percentage of the range that will be moved up/down
 #ifndef AM_DC_FACTOR
-#   define AM_DC_FACTOR 0.2
+#   define AM_DC_FACTOR 0.15
 #endif
 #ifndef RECALIBRATED_SWITCHES
 #   define RECALIBRATED_SWITCHES 5
@@ -320,9 +320,11 @@ void toggle_profile_lock(void);
 // Sets the profile lock state to the passed value
 void set_profile_lock(bool value);
 // Immediately starts calibration
-void calibrate_switches(void);
+void calibrate_switches(bool init);
 //TODO: Remove
 void _sync_cal(void);
+
+typedef void (* init_func_t)(bool init);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

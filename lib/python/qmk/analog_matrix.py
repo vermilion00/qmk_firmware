@@ -22,7 +22,7 @@ INIT_KEYS = {
 
 # _RIGHT keys automatically translate to their left variant
 INIT_FUNCTIONS = {
-    'BOOTLOADER_KEY': 'bootloader_jump',
+    'BOOTLOADER_KEY': '_bootloader_jump',
     'BOOTMAGIC_KEY': '_bootmagic',
     'CALIBRATION_KEY': 'calibrate_switches'
 }
@@ -804,6 +804,10 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'features' in info_data:
         get_features(info_data)
 
+    #TODO: The define in analog_matrix.h is too late, but find a cleaner way to force 12 bit res
+    config_h_lines.append('''\n// Force ADC_RESOLUTION to 12 bits\n#undef ADC_RESOLUTION\n#define ADC_RESOLUTION 12''')
+
+    #TODO: When keymap config is implemented, adjust validations
     validate_analog_matrix_config(info_data)
 
     if 'split' in info_data and info_data['split'].get('enabled', False):
@@ -812,6 +816,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     he_json = info_data['analog_matrix']
     he_hardware = info_data['analog_matrix']['hardware']
 
+    #TODO: Add this back when debouncing works
     #Hardware stuff
     # if info_data.get('debounce', 0) > 0:
     #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
