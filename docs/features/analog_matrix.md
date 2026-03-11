@@ -529,6 +529,7 @@ Joystick axes currently don't work on the slave half. The slave half will need t
 
 Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
 When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
+If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
 
 
 # Other features

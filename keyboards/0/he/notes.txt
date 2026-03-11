@@ -15,8 +15,26 @@ Adjustment function:
             -So at the start and end no value is subtracted, towards the middle to highest amount is subtracted
             -Then use that to scale heights at init (and maybe rt during new height setting?)
 
--I should try to add support for the ADC_NUM_CHANNELS define, that sets the amount of channels scanned per operation.
 
+ADC optimizations:
+-I should try to add support for the ADC_NUM_CHANNELS define, that sets the amount of channels scanned per operation.
+    -It is set in the analog.c driver, so maybe there's something there already?
+    -While a variable is configured, there's an ifdef erroring a value other than 1 channel
+-When multiple channel support is done, I should use the multi conversion mode to read all adc pins on a single mux channel, then use the buffer full callback isr to switch mux channels
+    -Keep checking the buffer after conversion start, if one value is available then we can grab it and start evaluation on it
+    -Should reset the buffer to zero in the callback isr
+    -Starting the conversion manually would make it easier to manage
+
+
+Split calibration:
+-When calibrating through the init key, the slave isn't connected, meaning the master never prints the data
+ and just waits endlessly.
+    -If the slave normally counts as connected during calibration then I can check for that
+    -If not, I need something else
+
+
+-Check for cause of occasional slave half lag
+    -Since it only happens occasionally, it's likely a forced synchronisation of something briefly blocking the line
 
 
 -Check /data/constants/keycodes, what is it for? Do I need to add my keycodes there somewhere?
@@ -34,7 +52,7 @@ Adjustment function:
 -What if one half needs more mux/adc pins than the other?
 
 -Allow setting stuff in config.h directly again
-    -To disable config checking, for analog_matrix: true in json->features+
+    -To disable config checking, for analog_matrix: true in json->features
 
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
@@ -119,8 +137,6 @@ MIDI:
     -Also get config from heights file in keyboard folder
     -If no heights file is available, use profile info to generate one
     -If x and y are set correctly for the keyboard, add tabs and spaces for a correct visual representation
-    -Easy for normal keyboards, hard for split keyboards
-    -Need to find a way to split one macro into two arrays
 
 -Enable interleaved ADC mode for supported mcus
 
@@ -129,21 +145,20 @@ MIDI:
 -Go through all changed files and make sure that all new includes are actually necessary, and gate them if possible
 
 -Dynamic calibration:
-    -Set different modes (e.g. only update values during profile/layer change)
-    -Only set new values when enough keys need to be changed, to avoid writing to eeprom too often
-    -Have different intensities (how often should new values apply?)
     -Current simple implementation has issues with rarely used keys in EEPROM
         -Need to check against original calibration values when deciding to update, instead of current
         -Or keep track of whether a switch has been updated due to a change or the DC, and only apply DC if last update was a change
-    -Keep track of which switches actually need updating, and update during a profile change?
+    -Keep track of which switches actually need updating, and update during a profile change? Currently saving all of them
     -Don't run runtime DC on specific profiles (inverse of priority indices) if I'm not updating on profile change
+-Currently has an issue were the factor causes the trigger heights to be set incorrectly, since the initial ones also need to be offset by the adjustment value.
+    -Save it to the switch config?
+    -Actually I don't think this is the case
 
 Height assignment through layout macro:
 -Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
 -Need to put in the USE_* defines somehow
 -MATRIX macro needs to be extracted
 
-I don't need the _r side arrays, since I'm copying at init anyways.
 I shouldn't even need the fillers, I should be able to define TRIGGER_HEIGHT as {} and then copy into the normal definition, as long as it's not const
 Instead of making a separate gate for every height, it would be cleaner to assume that either all or none of the configs are defined through the keymap, and set a define
 that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
@@ -157,8 +172,12 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 -Predefine some adjustment functions with several strength levels, with the option to use a custom one
 
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
+    -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
 
 BUGS:
+-Something made it spam keys after flashing (maybe boot too)
+    -Maybe the filter? Seemed to happen after I lowered the >> to 4, and fixed after I disabled it
+
 -A high smoothing value causes keys to get stuck occasionally (40 to replicate)
 -The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
 -The joystick layer registers weird keys occasionally, like ctrl when I've unbound it from that position

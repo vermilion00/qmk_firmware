@@ -18,7 +18,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
     switch(keycode) {
         case AM_CALIBRATE:
             if(record->event.pressed) {
-                calibrate_switches();
+                calibrate_switches(false);
                 for(uint8_t index = 0; index < switch_num; index++) {
                     key_config[index].pressed = false;
                 }

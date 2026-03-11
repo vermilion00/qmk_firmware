@@ -945,6 +945,7 @@ bool manual_transaction_handler(bool (*handler)(void)) {
 //TODO: Instead of checking if 3 different things have changed, change them and then check if it needs to be sent over?
 //MARK: AM Data
 //TODO: Test just sending the profile here, applying it directly to active_profile, and not calling the slave_handler at all
+//      Since the memory needs to initialized, i'll probably need to use a profile_change() function that gets the new profile from split_shmem and updates a global var
 static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
     static bool prev_calibration = false;
@@ -981,8 +982,6 @@ static bool am_data_manual_handler(void) {
     if (!changed) return true;
 
     split_shmem->am_data = data;
-    // uint32_t last_update = 0;
-    // return send_if_data_mismatch(PUT_AM_DATA, &last_update, &data, &split_shmem->am_data, sizeof(am_data_t));
     return transport_write(PUT_AM_DATA, &split_shmem->am_data, sizeof(am_data_t));
 }
 
@@ -991,7 +990,6 @@ bool am_data_manual_transaction(void) {
     return manual_transaction_handler(am_data_manual_handler);
 }
 
-//TODO: Finish the function to send slave calibration data to master for printing
 #ifdef AM_NO_EEPROM
 //MARK: Cal Master
 //Called by the master when calibration finishes
@@ -1040,12 +1038,13 @@ bool calibration_data_slave_manual_handler(void) {
 
 
 //MARK: Sync calibration
-void sync_calibration_values(void) {
+void sync_calibration_values(bool init) {
     // Only the master needs to retry, as the slave just copies the data to a buffer when finished
     if(is_keyboard_master()) {
-        while(!manual_transaction_handler(calibration_data_master_manual_handler)) {
+        //TODO: is_transport_connected doesn't work
+        while(!manual_transaction_handler(calibration_data_master_manual_handler)
+            && !init) {
             wait_ms(100);
-            // dprint("Trying to get calibration values from slave\n");
         }
     } else { manual_transaction_handler(calibration_data_slave_manual_handler); }
 }
@@ -1055,10 +1054,10 @@ void sync_calibration_values(void) {
         [GET_CAL_DATA] = trans_target2initiator_initializer(cal_data),
 
 #else // ifdef AM_NO_EEPROM
-#   define TRANSACTONS_AM_CALIBRATION_REGISTRATIONS
+#   define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
 #endif // ifdef AM_NO_EEPROM else
 #else // ifdef ANALOG_MATRIX_ENABLE
-#   define TRANSACTONS_AM_CALIBRATION_REGISTRATIONS
+#   define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
 #endif // ifdef ANALOG_MATRIX_ENABLE else
 
 
@@ -1095,12 +1094,14 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     if(calibration_started != prev_calibration) {
         prev_calibration = calibration_started;
         if(calibration_started) {
+            #ifdef AM_NO_EEPROM
             // Remove the old calibration data from the buffer, else the master will get the old values
             split_shared_memory_lock();
             memset(&split_shmem->cal_data, 0, sizeof(split_shmem->cal_data));
             split_shared_memory_unlock();
+            #endif
 
-            calibrate_switches();
+            calibrate_switches(false);
             //TODO: Reset something here?
         }
     }
@@ -1205,7 +1206,6 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_ACTIVITY_REGISTRATIONS
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
     TRANSACTIONS_AM_DATA_REGISTRATIONS
-    // TRANSACTIONS_TEST_REGISTRATIONS
     TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
     TRANSACTIONS_JOYSTICK_REGISTRATIONS
 // clang-format on
@@ -1263,7 +1263,6 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_HAPTIC_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
-    //TODO: Still call the slave stuff every scan, if they're not called by the master transaction
     TRANSACTIONS_AM_DATA_SLAVE();
     TRANSACTIONS_JOYSTICK_SLAVE();
 }
