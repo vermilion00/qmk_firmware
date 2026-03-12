@@ -27,7 +27,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
 
         case AM_PRINT_CALIBRATION:
             if(record->event.pressed) {
-                // print_calibration_data();
+                print_calibration_data();
                 _sync_cal();
             }
             return false;

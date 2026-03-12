@@ -17,25 +17,33 @@ Adjustment function:
 
 
 ADC optimizations:
+-Is the current implementation actually just blocking?
 -I should try to add support for the ADC_NUM_CHANNELS define, that sets the amount of channels scanned per operation.
     -It is set in the analog.c driver, so maybe there's something there already?
     -While a variable is configured, there's an ifdef erroring a value other than 1 channel
 -When multiple channel support is done, I should use the multi conversion mode to read all adc pins on a single mux channel, then use the buffer full callback isr to switch mux channels
     -Keep checking the buffer after conversion start, if one value is available then we can grab it and start evaluation on it
-    -Should reset the buffer to zero in the callback isr
+    -Reset the buffer to zero in the callback isr
     -Starting the conversion manually would make it easier to manage
 
+Current Issues:
+-Dynamic side assignment needs more declarations after moving to keymap_introspection
+-Calibration doesn't seem to give very accurate values, they appear to be further apart than during actual matrix scanning
+    -Requires more testing tho
+    -Deadzones help with that but not consistently
+    -Find out why that is, I'm assuming it's because the calibration doesn't have the QMK overhead, so it needs to do more than just a single dummy eval
+        -Slow it down more to match speeds
+-Dynamic calibration using the factor with eeprom saving means that the reduced value will be saved
+    -Need to save the update state to the switch and only update the value if it was caused by runtime DC
 
 Split calibration:
--When calibrating through the init key, the slave isn't connected, meaning the master never prints the data
- and just waits endlessly.
-    -If the slave normally counts as connected during calibration then I can check for that
-    -If not, I need something else
-
+-Put init key checking into some kind of post_init function, since current one happens before slave is connected
 
 -Check for cause of occasional slave half lag
     -Since it only happens occasionally, it's likely a forced synchronisation of something briefly blocking the line
 
+-Is it worth it to change mux optimizations to allow different pins per half for dynamic side assignment?
+    -Currently possible when using -s flag
 
 -Check /data/constants/keycodes, what is it for? Do I need to add my keycodes there somewhere?
 
@@ -57,14 +65,6 @@ Split calibration:
 -Why is the slave joystick not updating?
     -Do the slave joystick matrix positions show as updated?
     -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
-
--The random keypresses don't seem to be caused by the matrix state being changed?
-    -Is the evaluate function returning true for row 0 keys? (Including row 6 on the slave half) - Not the case, it's the joystick keys being active on a non-joystick layer
-    -Is the joystick mask fucking up, causing them to be always triggered?
-    -It's not actually the numbers being pressed but the keypad keys on the function layer? That seems like the likeliest thing - Yes
-        -This would mean that either the master or slave don't switch the mode in time? Prob the slave
-        -Since the layer change is only synchronised after the matrix, the key pos are still activated from the joystick keys
-            -This means I need to mask the slave joystick keys on the master side when switching layers
 
 -Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
     -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
@@ -91,15 +91,12 @@ MIDI:
 -Use a defined multiplier to change the scaling of the velocity, so a difference of 10 could mean 127 or 56 vel
 -Use a process_* function similar to the joystick to catch the values
 
--Currently, a 10 bit ADC resolution is hardcoded
+-Currently, a 12 bit ADC resolution is hardcoded
 
 -Change -s flag to force recompilation of config.h instead of deleting build dir
     -Or at least only delete the keyboard folder
     -Can probably just touch config.h
     -Will that work when other files are also dependent on the flag?
-
--If calibrating, sync calibration start/end and values every print
-    -If no_eeprom, sync slave bounds to master for printing
 
 -Currently the _RIGHT stuff isn't being checked in mux and power functions
     -Either disallow setting different ones (preferred), or add support for it (messy)
@@ -150,7 +147,8 @@ MIDI:
         -Or keep track of whether a switch has been updated due to a change or the DC, and only apply DC if last update was a change
     -Keep track of which switches actually need updating, and update during a profile change? Currently saving all of them
     -Don't run runtime DC on specific profiles (inverse of priority indices) if I'm not updating on profile change
--Currently has an issue were the factor causes the trigger heights to be set incorrectly, since the initial ones also need to be offset by the adjustment value.
+    -A stronger mode might have per switch counter that slightly moves the bounds together if they haven't been updated in x scans
+-*Currently has an issue were the factor causes the trigger heights to be set incorrectly, since the initial ones also need to be offset by the adjustment value.
     -Save it to the switch config?
     -Actually I don't think this is the case
 
@@ -203,3 +201,5 @@ Notes:
 -LED on B2 is active high
 -Button on C13 is active high
 -When doing transactions stuff, make sure that the registration is correct! trans_initiator2target_initializer stuff needs to be correct to function!
+-Using dynamic side assignment costs about 50 scans per second
+    -Is that because of less const, or something else?

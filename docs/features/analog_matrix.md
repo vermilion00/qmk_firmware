@@ -74,7 +74,7 @@ Roughly in descending order of priority:
 * Controlling sensor power via GPIO
 * Assigning a color to a profile
 
-
+<!--MARK: Calibration -->
 # Calibration
 
 If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a calibration key and hold that during startup (more info in the config section.) If the keyboard doesn't yet have any calibration values saved, it will automatically enter calibration mode.
@@ -131,7 +131,7 @@ For split keyboards, the left and right half are separated:
 
 This feature doesn't work on AVR chips. Support may be added in the future, but ARM will be preferred generally anyway, due to firmware size limitations and better specs.
 
-
+<!--MARK: Configuration -->
 # ARM configuration
 
 Enable the ADC peripheral:
@@ -181,13 +181,14 @@ You'd either have to use 32 channel multiplexers, or make a split keyboard, to g
 #define RP_ADC_USE_ADC1 TRUE
 ```
 
-
+<!--MARK: Gen config -->
 # General configuration
 
 ## info.json/keyboard.json
 
 This is where the bulk of the configuration lives. Since a GUI is still work in progress, the heights, rapid trigger settings, profiles and additional features are all configured here.
 
+<!--MARK: Hardware -->
 ### Hardware
 
 This section contains the details of how everything is connected to the microcontroller. Split keyboards need to use the same pins for both halves currently, or various optimizations won't work.
@@ -281,6 +282,7 @@ If possible, the multiplexer channel select pins should be selected to all be on
 
 Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix (lite) scanning is currently not supported, but is planned for the future.
 
+<!--MARK: Config -->
 ### Config
 
 This section contains information about specific subfeatures and profile settings.
@@ -329,7 +331,7 @@ If matrix scanning doesn't work correctly, you can also try adding various delay
 ```
 Like the startup delay, this is an extremely short amount of time. The mux select delay waits every time the multiplexer channel was changed, while the adc scan delay waits after every adc scan. The time value is dependent on the processing speed.
 
-
+<!--MARK: Profiles -->
 ### Profiles
 
 This section contains all information about trigger heights, rapid trigger, etc. The json is currently the only way to configure them, as VIAL integration is still a ways off. 
@@ -386,6 +388,7 @@ You can use profile switch keycodes at any point, even with the switch mode set 
 Sets the profile that is used at startup or when a layer with no assigned profile is active, assuming that profile_switch_mode is set to default.
 Defaults to 0 if not set, or if set to a profile that isn't configured.
 
+<!--MARK: Profile objects -->
 ### Profile objects
 
 A profile object contains all information relevant to that profile, and looks roughly like this:
@@ -455,14 +458,14 @@ This will use the constant rapid trigger mode as the default for all keys in tha
 ```json
 "trigger_height": [ 1.0, 1.5, 2.0, 0.3 ]
 ```
-This is an array of floats where every index corresponds to one key. These floats are scaled to integers according to the calibration values during initialization, and no scanning logic uses the actual floats, so don't worry about performance here. By default, the height is counted from the top, so a height of 1.0 means that pressing the key down by 1 millimeter will activate it. If you want to set the heights to be counted from the bottom, you can set "distance_from_bottom": true in the config section (not the profile section).
+This is an array of floats where every index corresponds to one key. These floats are scaled to integers according to the calibration values during initialization, and no scanning logic uses the actual floats, so don't worry about performance here. By default, the height is counted from the top, so a height of 1.0 means that pressing the key down by 1 millimeter will activate it. If you want to set the heights to be counted from the bottom, you can set "distance_from_bottom": true in the config section (not the profile section).  
 If you wish to use the same height for all keys in the profile, you can just set one value:
 
 ```json
 "trigger_height": [ 1.0 ]
 ```
-::: warning
-Keep in mind that the output of the sensor isn't directly proportional to the travel distance of the switch, and that it depends on a lot of factors, e.g. the switch used, the sensor used, the thickness of the PCB, etc. This means that the distance values are likely not going to be accurate, so go by feel instead of measurements when configuring your profiles.
+::: warning  
+Keep in mind that the output of the sensor isn't directly proportional to the travel distance of the switch, and that it depends on a lot of factors, e.g. the switch used, the sensor used, the thickness of the PCB, etc. This means that the distance values are likely not going to be accurate, so go by feel instead of measurements when configuring your profiles.  
 :::
 
 Only necessary when the profile uses a key mode other than "constant_rapid_trigger" (3) on at least one of the keys.
@@ -482,7 +485,7 @@ Set the distance that keys need to travel down in order to count as being activa
 ```
 Sets the distance that keys need to travel up in order to count as being released. If it's not defined, it will be set to be equal to the press distance. Unlike the release height, this doesn't need to be lower than the press distance, as fully released keys are always counted as being deactivated.
 
-
+<!--MARK: Keycodes -->
 # Keycodes
 
 Profile-related keycodes:
@@ -494,18 +497,24 @@ Profile-related keycodes:
 | AM_PRINT_PROFILE      | AM_PRPR        | Prints the currently active profile to the console.                          |
 | AM_CALIBRATE          | AM_CLBR        | Starts calibration of the keyboard. On split keyboards, only starts calibration of the master half. |
 
-
+<!--MARK: Functions -->
 # Functions
 
-| Function             | Description                                                                                    |
-|----------------------|                                                                                                |
+| Function             | Description                        |
+|----------------------|------------------------------------|
 | void set_active_profile(uint8_t profile) | Activates the profile passed as the parameter. |
 | uint8_t get_active_profile(void) | Returns the currently active profile. |
 | void toggle_profile_lock(void) | Toggles automatic profile switching on and off. |
 | void set_profile_lock(bool value) | Sets the automatic profile switching state to the passed parameter. |
 | void calibrate_switches(void) | Starts calibration immediately. |
 
+You can use these functions from your 'keyboard'.c or keymap.c file by including the analog_matrix header at the top of the file:
+```c
+#include "analog_matrix.h"
+```
 
+
+<!--MARK: Split kb -->
 # Split keyboards
 
 The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind.
@@ -515,7 +524,8 @@ By default, QMK loads the same firmware into both halves and assigns the side du
 To flash the left half, you use
 "qmk flash -kb path/to/your/keyboard -km keymap_name -s left"
 
-Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compiling time, as the firmware needs to be recompiled for each half. Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs. To speed up compilation time, you can use the -j flag to compile multiple files in parallel (e.g. -j 10).
+Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compilation time, as the firmware needs to be recompiled for each half.  
+Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs. To speed up compilation time, you can use the -j flag to compile multiple files in parallel (e.g. -j 10).
 
 The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
 ```c
@@ -531,7 +541,17 @@ Debug options to print to the console don't work on the slave half, but having t
 When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
 If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
 
+To use different multiplexer pins for each half, you need to use the -s flag to flash each half, or disable mux optimizations by setting
+```json
+"no_mux_optimization": true
+```
+to true inside the hardware object in the json, or by defining
+```c
+#define NO_MUX_OPTIMIZATION
+```
+inside of your keyboards config.h. This will cause a performance hit, so using the same pins for each half is heavily recommended.
 
+<!--MARK: Features -->
 # Other features
 
 ## Debugging
@@ -618,6 +638,7 @@ On my setup (split STM32F446 with 61 keys total, RGB underglow and slave half tr
 
 This feature is not very useful currently, as USB polling rates above 1k aren't supported, but this is work in progress.
 
+<!--MARK: Joystick -->
 ## Analog Joystick
 
 ::: warning  
@@ -705,7 +726,7 @@ Also, the joystick feature accepts a maximum of 6 axes, meaning that the RZ axis
 :::
 
 ### Keycodes
-The keycodes are all prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.
+All joystick keycodes are prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.
 
 | Button    | XBox    | Playstation   | Nintendo |
 |-----------|---------|---------------|----------|
@@ -724,7 +745,7 @@ The keycodes are all prefixed by JS_. You can use the layout parameter to change
 | JS_12     | JS_DPL  | JS_DPL        | JS_DPL   |
 | JS_13     | JS_DPR  | JS_DPR        | JS_DPR   |
 
-There are more buttons defined, up to JS_31. These can be used, but don't have an alias at the moment.
+There are more buttons defined, up to JS_31. These can be used, but don't have an alias, as they don't appear in default gamepad layouts.
 
 Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. This feature divides the axes up into two components, each being controlled by one keycode. The keycode name is comprised of:
 * The prefix JS_
@@ -747,7 +768,7 @@ Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. T
 | JS_RPZ<sup>1</sup> | :o:    | :o:         | :o:      |
 | JS_RNZ<sup>1</sup> | :o:    | :o:         | :o:      |
 
-1: The right Z axis does not corrently work, due to a bug with the firmware, where one more axis than necessary needs to be defined, while the joystick feature limits the amount of joystick axes to 6.
+1: The right Z axis does not corrently work, due to a bug with the firmware, where one more axis than necessary needs to be defined, while the joystick feature limits the amount of joystick axes to 6. As standard gamepads only use 5 axes anyway, fixing this is a low priority at the moment.
 
 
 ## Mixed matrix
@@ -763,7 +784,7 @@ If you're not using the invert_adc option:
 If the invert_adc option is used, instead of connecting the multiplexer input to the leg connected to the positive voltage source, connect it to the ground leg. <br>
 While this isn't very useful for most situations, it can be used to be able to use the encoder click action until actual mixed matrix support is implemented.
 
-
+<!--MARK: Debug guide -->
 # Debugging guide
 
 #### Keyboard doesn't work after flashing
@@ -828,15 +849,46 @@ Using this while something is connected to the same line as the LED can cause pr
 
 If your master half has lost connection to the slave half after flashing, the likely cause is a mismatch in the enabled features. If one of the features needs to send data to the other half, it needs to be enabled and configured on both halves. Flashing the slave half with the same firmware usually fixes this.
 This includes adding another profile, joystick, MIDI, and priority keys (depending on the configuration).
+If you have QMKs debug mode enabled, you will see messages saying that "split synchronisation failed", or similar, in the console.
 
+#### Some keys don't work
+
+This can have many causes. The exact symptom can help with the diagnosis:
+For normal keyboards:
+
+* Pressing a key causes many keys to activate:
+    * Check your mux pin configuration.
+    * A mux channel is missing its connection to the sensor.
+* Keys are not activating the correct keycode:
+    * Make sure the layout macro definition is correct, and remember that it's 0-indexed.
+* One or more keys in different sections don't work:
+    * The sensor connection to the multiplexer could be severed.
+    * The ground connection of the sensor could be missing.
+    * The 5V/3.3V connection of the sensor could be missing.
+    * Use debug options to read the value of one sensor at a time:
+        * 0 -> Missing 5V/3.3V connection
+        * 4095 -> Missing ground connection
+        * Reasonable value but doesn't change, or changes together with another key -> missing sensor connection to mux
+* An entire section of keys close together doesn't work:
+    * This likely means that the connection between multiplexer output and ADC pin is severed.
+
+<!-- 
+TODO: Add this when it's more fleshed out
+MARK: Design tips
+# Keyboard design tips
+
+* Keep the analog traces short
+* 
+-->
 
 # Additional Resources
 
 If you want an implementation example, you can look up [my current keyboard.](https://www.github.com/vermilion00/qmk_firmware/tree/kb/keyboards/0/he)
 There you can see an actual, working implementation.
 
-If you have any questions, feel free to contact me at vermilion00.github@gmail.com
+If you have any questions, feel free to contact me at vermilion00.github@gmail.com.
 
+<!--
 TODO:
 * Make analog_matrix the main page, then have hardware and software config as two separate subpages
 * Do I need to specifically set ADC_1 and/or DMA info in mcuconf? Probably only when the default one isn't used
@@ -848,3 +900,5 @@ TODO:
 * Include information about endpoints etc, for MIDI and joystick features, in the mcu list
 * Add options to the config options doc and the data driven doc
 * Remove personal references and email before upstreaming
+
+-->
