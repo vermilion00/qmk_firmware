@@ -52,19 +52,8 @@ bool transaction_rpc_exec(int8_t transaction_id, uint8_t initiator2target_buffer
 #define transaction_rpc_send(transaction_id, initiator2target_buffer_size, initiator2target_buffer) transaction_rpc_exec(transaction_id, initiator2target_buffer_size, initiator2target_buffer, 0, NULL)
 #define transaction_rpc_recv(transaction_id, target2initiator_buffer_size, target2initiator_buffer) transaction_rpc_exec(transaction_id, 0, NULL, target2initiator_buffer_size, target2initiator_buffer)
 
-
-//TODO: Test manual transactions
 #ifdef ANALOG_MATRIX_ENABLE
 // Handler function to allow manual transactions on master
 bool am_data_manual_transaction(void);
 void sync_calibration_values(bool init);
-// bool test_manual_transaction(void);
-// Define to easily make manual transaction helper functions -> defines prefix##_manual_transaction()
-//TODO: Probably won't keep it
-/*
-#define manual_handler_function_wrapper(prefix) \
-    bool prefix##_manual_transaction(void) { \
-    return manual_transaction_handler(#prefix, prefix##_manual_handler);\
-}
-*/
 #endif

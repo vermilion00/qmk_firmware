@@ -41,7 +41,7 @@
             "bootloader_key_right": [6, 5],
             "calibration_key_right": [7, 5],
             "scans_without_change": 4000,
-            "no_eeprom": true,
+            "no_eeprom": false,
             "debug_scan_values": false,
             "debug_scan_no_input": false,
             "dynamic_calibration": true,

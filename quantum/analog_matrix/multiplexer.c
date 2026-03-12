@@ -11,6 +11,13 @@
 #define GPIO_OUT_CLEAR 0xD0000018
 #endif
 
+//TODO: Add this stuff
+#ifdef MUX_PINS_CONTINUOUS
+extern SPLIT_MUTABLE uint8_t mux_offset;
+//TODO: Add typedef for gpio port
+extern SPLIT_MUTABLE stm32_gpio_t* mux_port;
+#endif
+
 //TODO: Change the port to point to the output register directly
 // STM32 needs GPIOx->ODR, AT32 needs GPIOx_ODT(?), AVR needs PORTx(?)
 #if MUX_CHANNELS > 1
@@ -19,7 +26,7 @@ void set_mux_channel(uint8_t channel) {
 #if defined USE_BSRR
 #if defined AT32F415
     // Set action takes priority
-    CONTINUOUS_MUX_PORT->SCR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
+    mux_port->SCR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
 #elif defined QMK_MCU_RP2040
     //TODO: Check how this works. Is it similar to the BS and BR registers? Can I do this in one call like the BSRR?
     // GPIO_OUT_CLEAR = (MUX_MASK << MUX_PIN_OFFSET);
@@ -28,10 +35,10 @@ void set_mux_channel(uint8_t channel) {
     *((volatile uint64_t *)GPIO_OUT_SET) = ((uint64_t)MUX_MASK << (MUX_PIN_OFFSET + 16)) | (channel << MUX_PIN_OFFSET);
 #else
     // Set action takes priority
-    CONTINUOUS_MUX_PORT->BSRR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
+    mux_port->BSRR.W = (MUX_MASK << MUX_PIN_OFFSET << 16) | (channel << MUX_PIN_OFFSET);
 #endif // defined AT32F415
 #else
-    CONTINUOUS_MUX_PORT->ODR = (CONTINUOUS_MUX_PORT->ODR & ~(MUX_MASK << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
+    mux_port->ODR = (mux_port->ODR & ~(MUX_MASK << MUX_PIN_OFFSET)) | (channel << MUX_PIN_OFFSET);
 #endif // defined USE_BSRR
 
 #else // if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT && !defined NO_MUX_OPTIMIZATION

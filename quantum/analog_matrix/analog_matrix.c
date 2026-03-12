@@ -78,7 +78,7 @@ bool calibration_started = false;
 #endif
 
 #ifdef DYNAMIC_CALIBRATION
-// Keeps track of how many switches need updating, and saves new data once it exceeds UPDATE_SWITCH_AMT, to avoid writing to EEPROM too often
+// Keeps track of how many switches need updating, and saves new data once it exceeds UPDATE_SWITCH_AMT, to avoid writing to storage too often
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
 // Check if the switch boundaries need updating, and update them if necessary.
 bool update_switch_bounds(uint8_t index, uint16_t value);
@@ -90,22 +90,35 @@ void scan_init_keys(void);
 void _bootloader_jump(bool init);
 SPLIT_MUTABLE uint8_t init_keys[AM_INIT_KEY_NUM][2] = AM_INIT_KEYS;
 init_func_t init_functions[AM_INIT_KEY_NUM] = AM_INIT_FUNCTIONS;
-// void (*init_functions[AM_INIT_KEY_NUM])() = AM_INIT_FUNCTIONS;
 #endif
 
 #if defined DEBUG_MUX_POSITION
 uint8_t debug_mux[2] = DEBUG_MUX_POSITION;
 #endif
 
-#ifdef POWER_PINS
-// Set the sensor power pins and delay, if defined
-static inline void set_sensor_power(uint8_t index);
-#endif
-
 PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
 uint8_t highest_layer = 0;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
+SPLIT_MUTABLE uint8_t adc_pin_num = ADC_PIN_NUM;
+#ifdef MUX_PINS
+SPLIT_MUTABLE uint8_t mux_channel_num = MUX_CHANNELS;
+//TODO: Add this stuff
+#ifndef EQUAL_MUX_PINS
+SPLIT_MUTABLE uint8_t mux_pin_num = MUX_PIN_NUM;
+#ifdef MUX_PINS_CONTINUOUS
+SPLIT_MUTABLE uint8_t mux_offset = MUX_PIN_OFFSET;
+//TODO: Add typedef for gpio port for other archs
+SPLIT_MUTABLE stm32_gpio_t* mux_port = CONTINUOUS_MUX_PORT;
+#endif
+#endif
+#endif
+
+#ifdef POWER_PINS
+SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
+// Set the sensor power pins and delay, if defined
+static inline void set_sensor_power(uint8_t index);
+#endif
 
 #ifdef SPLIT_KEYBOARD
 uint8_t switch_num_slave = SWITCH_NUM_R;
@@ -115,7 +128,6 @@ uint8_t switch_num_slave = SWITCH_NUM_R;
 //      I think it's currently done like that to be able to copy them over easily, but I should still know how much to copy over anyway SWITCH_NUM_R * sizeof(float)
 //      Also pretty sure it'd be less hassle defining stuff __attribute__((weak)) to let them be overridden with the MATRIX macros
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-bool keyboard_left;
 analog_key_t key_config[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
 const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM_R;
@@ -176,7 +188,7 @@ const pin_t power_pins_r[POWER_PIN_NUM] = POWER_PINS_R;
 
 #if AM_INIT_KEY_NUM > 0
 const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
-const void (*init_functions_r[AM_INIT_KEY_NUM_R])(void) = AM_INIT_FUNCTIONS_R;
+const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
 #endif
 
 //TODO: Does this even work? Has it been tested?
@@ -214,11 +226,6 @@ __attribute__((weak)) CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NU
 __attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... TOTAL_SWITCH_NUM-1] = 0} };
 #endif
 
-//TODO: If height layout doesn't work out, reverse this
-// #if defined USE_TRIGGER_HEIGHT
-// CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-// CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
-// #endif
 #if defined USE_TRIGGER_HEIGHT
 #if defined TRIGGER_HEIGHT
 __attribute__((weak)) CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
@@ -235,10 +242,6 @@ __attribute__((weak, alias("trigger_height_config"))) extern const float release
 #endif
 #endif // if defined USE_TRIGGER_HEIGHT
 
-// #if defined USE_RT_DISTANCE
-// CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-// CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
-// #endif
 #if defined USE_RT_DISTANCE
 #if defined RT_PRESS_DISTANCE
 __attribute__((weak)) CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
@@ -257,6 +260,7 @@ __attribute__((weak, alias("rt_press_distance_config"))) extern const float rt_r
 adc_mux adc_pin_mux[ADC_PIN_NUM];
 
 //TODO: Assign correct side at init
+// This is currently unused in favor of PRIORITY_INDICES
 #ifdef PRIORITY_MUXES
 uint8_t scan_amt = 0;
 uint8_t priority_muxes[PRIORITY_MUX_NUM][3] = PRIORITY_MUXES;
@@ -274,29 +278,27 @@ SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 
 //MARK: Init
 void analog_matrix_init(void) {
-    //TODO: Abstract this (Enables FPU on F446)
-    // SCB->CPACR |= ((3UL << 20U)|(3UL << 22U));  /* set CP10 and CP11 Full Access */
-
-    // Determine keyboard half and assign heights if keymap config is used
+    // Determine keyboard half, and assign heights if keymap config is used
     #if (KEYBOARD_SIDE == UNKNOWN && defined SPLIT_KEYBOARD) || defined KEYMAP_CONFIG
     assign_config(is_keyboard_left());
     #endif
 
-    for(uint8_t i = 0; i < ADC_PIN_NUM; i++) {
+    for(uint8_t i = 0; i < adc_pin_num; i++) {
         palSetLineMode(adc_pins[i], PAL_MODE_INPUT_ANALOG);
         // Convert adc pins to adc mux combination
         adc_pin_mux[i] = pinToMux(adc_pins[i]);
     }
 
     #ifdef MUX_PINS
-    for(uint8_t i = 0; i < MUX_PIN_NUM; i++) {
+    for(uint8_t i = 0; i < mux_pin_num; i++) {
         gpio_set_pin_output_push_pull(mux_pins[i]);
         gpio_write_pin_low(mux_pins[i]);
     }
     #endif
 
+    // POWER_BEFORE_SCAN stuff hasn't really been tested yet
     #if defined POWER_BEFORE_SCAN
-    for(uint8_t i = 0; i < POWER_PIN_NUM; i++) {
+    for(uint8_t i = 0; i < power_pin_num; i++) {
         gpio_set_pin_output_push_pull(power_pins[i]);
         gpio_write_pin_low(power_pins[i]);
     }
@@ -321,7 +323,7 @@ void analog_matrix_init(void) {
         calibrate_switches(false);
     }
 
-    //TODO: Make sure only having right keys defined doesn't cause problems
+    //TODO: Make sure only having keys for one half defined doesn't cause problems
     // Check keys like the calibration or bootmagic key before scanning begins
     #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
     scan_init_keys();
@@ -359,6 +361,7 @@ void scan_init_keys(void) {
     delay_ns(AM_STARTUP_DELAY);
     // wait_us(2);
 
+    //TODO: AM_INIT_KEY_NUM should be replaced by a var here
     for(uint8_t idx = 0; idx < AM_INIT_KEY_NUM; idx++) {
         #ifdef POWER_BEFORE_SCAN
         gpio_write_pin_high(power_pins[init_keys[idx][1]]);
@@ -396,9 +399,9 @@ void scan_init_keys(void) {
         #endif
     }
 }
-#else
-#define scan_init_keys();
-#endif // AM_INIT_KEY NUM > 0
+#else // AM_INIT_KEY NUM > 0
+#define scan_init_keys()
+#endif // AM_INIT_KEY NUM > 0 else
 
 
 //TODO: Would it be faster to save the mux info to the switch, loop through the key_config indices,
@@ -419,7 +422,7 @@ uint8_t analog_matrix_scan(void) {
     } else { scan_amt = 0; }
     #endif
 
-    for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
+    for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
         #if defined POWER_BEFORE_SCAN
         set_sensor_power(mux_channel);
         #elif defined CUSTOM_POWER_BEFORE_SCAN
@@ -431,7 +434,7 @@ uint8_t analog_matrix_scan(void) {
         delay_ns(MUX_SELECT_CYCLES);
         #endif
 
-        for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
+        for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
             index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index > 0), and scan if so
@@ -652,7 +655,8 @@ bool get_calibration_data(void) {
     //TODO: Add dynamic calibration stuff here
     for(uint8_t key = 0; key < switch_num; key++) {
         // Check if the switch data makes sense, start calibration if not
-        // A fake mixed matrix will have top/bottom values of 1023 and 0
+        // A fake mixed matrix will have top/bottom values of 4095 and 0
+        //TODO: So make a stricter check for that
         if(calibration_data[key].top_value < 10 && calibration_data[key].bottom_value < 10)  return false;
         if(calibration_data[key].top_value > 4000 && calibration_data[key].bottom_value > 4000)  return false;
         #ifndef INVERT_ADC
@@ -712,7 +716,7 @@ void calibrate_switches(bool init) {
 
     while(true) {
         LED_ON;
-        for(uint8_t mux_channel = 0; mux_channel < MUX_CHANNELS; mux_channel++) {
+        for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
             #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
             dprintf("Mux: %i\n", mux_channel);
             #endif
@@ -729,7 +733,7 @@ void calibrate_switches(bool init) {
             delay_ns(MUX_SELECT_CYCLES);
             #endif
 
-            for(uint8_t adc_channel = 0; adc_channel < ADC_PIN_NUM; adc_channel++) {
+            for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
                 matrix_index = mux_to_num[mux_channel][adc_channel];
                 // Check if a switch is at the position (matrix index > 0), and scan if so

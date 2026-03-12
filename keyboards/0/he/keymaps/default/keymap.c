@@ -4,8 +4,6 @@
 #include "keymap_us.h"
 #include "action.h"
 #include "action_layer.h"
-// #include "analog_matrix.h"
-// #include "joystick.h"
 #include "keycodes.h"
 #include "modules/getreuer/socd_cleaner/socd_cleaner.h"
 #include "quantum.h"
@@ -28,14 +26,6 @@
 #define CARET_VAL 50
 #define SCROLL_VAL 40
 
-/* ===== PROBLEMS ======
--WAIT_FOR_USB or USB_POLLING_INTERVAL need to be commented out before flashing slave half, or else it won't work
-    -Watchdog makes this unnecessary
--Sensitivity bug -> Variance in distance to sensor most likely
--Use Auto mouse layer feature?
-*/
-
-
 static bool alt_tab = false;
 static bool mouse_lock = false;
 static bool mslk = false;
@@ -46,7 +36,7 @@ static int8_t tempx = 0;
 static int8_t tempy = 0;
 static bool scroll_prev = false;
 static bool caret_prev = false;
-static unsigned int dragscroll_timer;
+static uint32_t dragscroll_timer;
 static bool game_layer = false;
 static bool lalt_held = false;
 
@@ -168,7 +158,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_FN] = LAYOUT(
      KC_ESC,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			          KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_BSPC,
-     AM_CLBR, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
+     KC_TAB,  KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      KC_DEL,  KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
      TG(1),   KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_NUBS,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                _______, KC_TAB,  													                                    KC_MPRV, KC_MNXT,

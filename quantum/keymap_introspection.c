@@ -185,6 +185,68 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 
 #if defined(ANALOG_MATRIX_ENABLE)
 #include "analog_matrix.h"
+#include "multiplexer.h"
+
+//TODO: Put this stuff into a header
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+extern uint8_t switch_num;
+extern uint8_t adc_pin_num;
+#ifdef MUX_PINS
+extern uint8_t mux_channel_num;
+#ifndef EQUAL_MUX_PINS
+extern uint8_t mux_pin_num;
+#ifdef MUX_PINS_RIGHT_CONTINUOUS
+extern uint8_t mux_offset;
+extern stm32_gpio_t* mux_port;
+#endif
+#endif
+#endif
+
+#ifdef POWER_PINS
+//TODO: Add power pin optimizations as well
+extern uint8_t power_pin_num;
+#endif
+extern uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM];
+extern const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM];
+extern uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2];
+extern const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2];
+
+extern uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern const uint8_t key_modes_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+
+#if AM_INIT_KEY_NUM > 0
+extern uint8_t init_keys[AM_INIT_KEY_NUM][2];
+extern const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2];
+extern init_func_t init_functions[AM_INIT_KEY_NUM];
+extern const init_func_t init_functions_r[AM_INIT_KEY_NUM];
+#endif
+
+#ifdef PRIORITY_INDICES
+extern uint8_t priority_index_num;
+extern uint8_t priority_indices[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern const uint8_t priority_indices_r[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#endif
+
+//TODO: Should also be able to define the _r parts as SWITCH_NUM_R and change the copy logic
+//TODO: Figure out proper guards here (keymap config, etc)
+#if defined USE_TRIGGER_HEIGHT
+extern float CONFIG_MUTABLE trigger_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#ifndef KEYMAP_CONFIG
+extern const float trigger_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern const float release_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#endif
+#endif // if defined USE_TRIGGER_HEIGHT
+#if defined USE_RT_DISTANCE
+extern float CONFIG_MUTABLE rt_press_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern float CONFIG_MUTABLE rt_release_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#ifndef KEYMAP_CONFIG
+extern float CONFIG_MUTABLE rt_press_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern float CONFIG_MUTABLE rt_release_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#endif
+#endif // if defined USE_RT_DISTANCE
+
+#endif // defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 
 extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
 #ifndef KEY_MODES
@@ -212,6 +274,21 @@ void assign_config(bool side) {
     #if KEYBOARD_SIDE == UNKNOWN
     if(side == RIGHT) {
         switch_num = SWITCH_NUM_R;
+        adc_pin_num = ADC_PIN_NUM_R;
+        #ifdef MUX_PINS
+        mux_channel_num = MUX_CHANNELS_R;
+        #ifndef EQUAL_MUX_PINS
+        mux_pin_num = MUX_PIN_NUM_R;
+        //TODO: Test optimization defines here (port and offset)
+        #ifdef MUX_PINS_RIGHT_CONTINUOUS
+        mux_offset = MUX_PIN_RIGHT_OFFSET;
+        mux_port = CONTINUOUS_MUX_PORT_RIGHT;
+        #endif
+        #endif
+        #endif
+        #ifdef POWER_PINS
+        power_pin_num = POWER_PIN_NUM_R;
+        #endif
 
         memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
         memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
@@ -223,7 +300,7 @@ void assign_config(bool side) {
         memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
         #endif
         #if defined POWER_PINS && !defined EQUAL_POWER_PINS
-        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+        memcpy(&power_pins, &power_pins_r, sizeof(power_pins_r));
         #endif
 
         #if AM_INIT_KEY_NUM > 0
@@ -232,8 +309,8 @@ void assign_config(bool side) {
         #endif
 
         //TODO: Test this
-        #ifdef PRIORITY_INDEXES
-        memcpy(&priority_indexes, &priority_indexes_r, sizeof(priority_indexes));
+        #ifdef PRIORITY_INDICES
+        memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices));
         priority_index_num = priority_index_num_r;
         #endif
 

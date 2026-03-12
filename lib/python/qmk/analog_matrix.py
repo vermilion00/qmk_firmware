@@ -49,6 +49,7 @@ RT_NAMES = {
 features = {}
 # Will be populated with all analog_matrix feature objects in lowercase
 objects = []
+split_keyboard = False
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -65,12 +66,12 @@ def generate_define(define, value=None):
 #MARK: Transform
 # Called by info.py before the rest of the functions here
 def _transform_am(info_data):
+    global split_keyboard
     if 'analog_matrix' not in info_data:
         return info_data
 
-    # he_hardware = info_data['analog_matrix']['hardware']
-
     if 'split' in info_data and info_data['split'].get('enabled', False):
+        split_keyboard = True
         info_data = _get_split_config(info_data)
 
         #TODO: Either disallow mux_to_num configs etc or add translations
@@ -302,7 +303,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
     config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
     info_data['analog_matrix']['hardware']['matrix_to_num'] = matrix_to_num
 
-    if 'split' in info_data and info_data['split'].get('enabled', False):
+    if split_keyboard:
         mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num_right']
         num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix_right']
         switch_num = info_data['analog_matrix']['hardware']['switch_num_right']
@@ -352,7 +353,7 @@ def get_port_def(json):
 def check_adc_pins(he_json, config_h_lines):
     hardware = he_json['hardware']
 
-    if hardware.get('adc_pins', 0) == hardware.get('adc_pins_right', 1):
+    if hardware.get('adc_pins') == hardware.get('adc_pins_right'):
         config_h_lines.append(generate_define('EQUAL_ADC_PINS'))
 
 
@@ -365,21 +366,24 @@ def check_mux_pins(json, config_h_lines):
     # if json['processor'] == 'RP2040':
     #     return
 
-    he_json = json['analog_matrix']
-    port_def = he_json['port_def']
-    hardware = he_json['hardware']
+    am_json = json['analog_matrix']
+    port_def = am_json['port_def']
+    hardware = am_json['hardware']
+
+    if 'mux_pins' not in hardware and 'mux_pins_right' not in hardware:
+        return
 
     if json['processor'] == 'RP2040':
         prefix = 2
     else:
         prefix = 1
 
-    if hardware.get('mux_pins', ['A0']) == hardware.get('mux_pins_right', ['A1']):
+    if hardware.get('mux_pins') == hardware.get('mux_pins_right'):
         config_h_lines.append(generate_define('EQUAL_MUX_PINS'))
 
     for postfix in ['', '_right']:
-        if f'mux_pins{postfix}' in he_json['hardware']:
-            mux_pins = he_json['hardware'][f'mux_pins{postfix}']
+        if f'mux_pins{postfix}' in am_json['hardware']:
+            mux_pins = am_json['hardware'][f'mux_pins{postfix}']
             port = mux_pins[0][:prefix]
             offset = int(mux_pins[0][prefix:])
             init_offset = offset
@@ -396,24 +400,33 @@ def check_mux_pins(json, config_h_lines):
 
 
 # MARK: Power pins
-def check_power_pins(he_json, config_h_lines):
+def check_power_pins(json, config_h_lines):
     """Check if mux pins are continuous on one port, and set the defines
     """
-    port_def = he_json['port_def']
-    hardware = he_json['hardware']
+    am_json = json['analog_matrix']
+    port_def = am_json['port_def']
+    hardware = am_json['hardware']
 
-    if hardware.get('power_pins', 0) == hardware.get('power_pins_right', 1):
+    if 'power_pins' not in hardware and 'power_pins_right' not in hardware:
+        return
+
+    if json['processor'] == 'RP2040':
+        prefix = 2
+    else:
+        prefix = 1
+
+    if hardware.get('power_pins') == hardware.get('power_pins_right'):
         config_h_lines.append(generate_define('EQUAL_POWER_PINS'))
 
     for postfix in ['', '_right']:
-        if f'power_pins{postfix}' in he_json['hardware']:
-            power_pins = he_json['hardware'][f'power_pins{postfix}']
-            port = power_pins[0][:1]
-            offset = int(power_pins[0][1:])
+        if f'power_pins{postfix}' in am_json['hardware']:
+            power_pins = am_json['hardware'][f'power_pins{postfix}']
+            port = power_pins[0][:prefix]
+            offset = int(power_pins[0][prefix:])
             init_offset = offset
 
             for pin in power_pins:
-                if pin[:1] == port and int(pin[1:]) == offset:
+                if pin[:prefix] == port and int(pin[prefix:]) == offset:
                     offset += 1
                 else:
                     return
@@ -605,7 +618,7 @@ def generate_profile_config(info_data, config_h_lines):
 
     #TODO: This stuff can definitely be simplified
     # Split up the height configs if necessary
-    if 'split' in info_data and info_data['split'].get('enabled', False):
+    if split_keyboard:
         g_to_l_index = info_data['analog_matrix']['hardware']['global_to_local_index']
         profile_num = len(trigger_heights)
         split_trigger_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
@@ -695,7 +708,7 @@ def validate_mux_to_matrix(mux_to_matrix):
     return valid
 
 
-def valid_profile_name(profile):
+def validate_profile_name(profile):
     if profile[:8] == 'profile_' and profile[8:].isnumeric():
         return True
     else:
@@ -712,7 +725,6 @@ def validate_analog_matrix_config(info_data):
 
     valid = True
 
-    #TODO: Add validation for _right pins (or leave them off tbh)
     if 'power_pins' in he_hardware:
         if len(he_hardware.get('mux_to_num', '')) != len(he_hardware.get('power_pins', '')) \
             and not he_hardware.get('custom_power_before_scan', False):
@@ -795,6 +807,9 @@ def get_features(info_data):
     for name, _ in info_data['analog_matrix'].items():
         objects.append(name.lower())
 
+    if 'split' in info_data and info_data['split'].get('enabled', False):
+        split_keyboard = True
+
 
 #MARK: General config
 def generate_analog_matrix_config(info_data, config_h_lines):
@@ -810,7 +825,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     #TODO: When keymap config is implemented, adjust validations
     validate_analog_matrix_config(info_data)
 
-    if 'split' in info_data and info_data['split'].get('enabled', False):
+    if split_keyboard:
         info_data = check_right_side_pins(info_data, config_h_lines)
 
     he_json = info_data['analog_matrix']
@@ -821,31 +836,44 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # if info_data.get('debounce', 0) > 0:
     #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
 
-    adc_pin_num = len(he_hardware.get('adc_pins', ''))
-    config_h_lines.append(generate_define('ADC_PIN_NUM', adc_pin_num))
-
     info_data = get_port_def(info_data)
     if info_data['analog_matrix']['hardware'].get('use_bsrr', False):
         config_h_lines.append(generate_define('USE_BSRR'))
 
+    #TODO: Move all of this stuff to a check_pins function
+    #TODO: While I use other EQUAL_* defines rarely, I don't think I use equal adc at all
     check_adc_pins(info_data['analog_matrix'], config_h_lines)
 
-    if 'mux_pins' in he_hardware:
-        mux_pin_num = len(he_hardware.get('mux_pins', ''))
-        config_h_lines.append(generate_define('MUX_PIN_NUM', mux_pin_num))
-        check_mux_pins(info_data, config_h_lines)
-    else:
-        #TODO: Is this necessary?
-        config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
+    # Get the amount of mux and power pins for each half
+    for postfix in ['', '_right']:
+        if f'adc_pins{postfix}' in he_hardware:
+            adc_pin_num = len(he_hardware.get(f'adc_pins{postfix}'))
+            fix = '_R' if postfix == '_right' else ''
+            config_h_lines.append(generate_define(f'ADC_PIN_NUM{fix}', adc_pin_num))
+        elif split_keyboard and postfix == 'right':
+            config_h_lines.append(generate_define('ADC_PIN_NUM_R', adc_pin_num))
 
-    if 'power_pins' in he_hardware:
-        power_pin_num = len(he_hardware['power_pins'])
-        config_h_lines.append(generate_define('POWER_PIN_NUM', power_pin_num))
-        config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
-        check_power_pins(info_data['analog_matrix'], config_h_lines)
+        if f'mux_pins{postfix}' in he_hardware:
+            mux_pin_num = len(he_hardware.get(f'mux_pins{postfix}'))
+            fix = '_R' if postfix == '_right' else ''
+            config_h_lines.append(generate_define(f'MUX_PIN_NUM{fix}', mux_pin_num))
+        elif split_keyboard and postfix == 'right':
+            config_h_lines.append(generate_define('MUX_PIN_NUM_R', mux_pin_num))
+        # else:
+        #     #TODO: Is this necessary?
+        #     config_h_lines.append(generate_define('MUX_PIN_NUM', 0))
 
-    # This is the total switch num to be used with the trigger_heights
-    switch_num = he_hardware.get('total_switch_num')
+        if f'power_pins{postfix}' in he_hardware:
+            power_pin_num = len(he_hardware[f'power_pins{postfix}'])
+            fix = '_R' if postfix == '_right' else ''
+            config_h_lines.append(generate_define(f'POWER_PIN_NUM{fix}', power_pin_num))
+            config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
+        elif split_keyboard and postfix == 'right':
+            config_h_lines.append(generate_define('POWER_PIN_NUM_R', power_pin_num))
+
+    check_mux_pins(info_data, config_h_lines)
+    check_power_pins(info_data, config_h_lines)
+
 
     # Get the reverse transform arrays
     info_data = get_matrix_to_mux(info_data, config_h_lines)
@@ -869,6 +897,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'debug_matrix_position' in he_json['config']:
         debug_matrix_position(info_data, config_h_lines)
 
+    switch_num = he_hardware.get('total_switch_num')
     # Only get the heights from the config if no profiles are defined
     if 'profiles' not in he_json:
         #Config stuff
@@ -901,6 +930,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     return info_data
 
 
+#TODO: Add the other pin stuff into here
 #MARK: Right side pins
 def check_right_side_pins(info_data, config_h_lines):
     he_hardware = info_data['analog_matrix']['hardware']
@@ -1002,7 +1032,7 @@ def get_priority_keys(info_data, config_h_lines):
     row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
     priority_idx = [0 for _ in range(switch_num)]
     priority_idx_r = [0 for _ in range(switch_num_r)]
-    if 'split' in info_data and info_data['split'].get('enabled', False):
+    if split_keyboard:
         matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
 
     for key in priority_keys:
