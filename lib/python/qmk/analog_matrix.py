@@ -429,32 +429,45 @@ def generate_profile_config(info_data, config_h_lines):
     profile_config = []
     key_modes = []
     profile_num = 0
+    from_bottom = info_data['analog_matrix']['config'].get('distance_from_bottom', False)
 
     while True:
+        #TODO: I can probably simplify this with a loop
         if f'profile_{profile_num}' in am_profiles:
             profile_data = am_profiles[f'profile_{profile_num}']
 
+            # base_trigger_height is the default value that then gets masked by the trigger_height values if they're not 0
+            base_trigger_height = profile_data.get('base_trigger_height', 0)
             trigger_height = profile_data.get('trigger_height', [0])
             if len(trigger_height) == 1:
-                trigger_height = [trigger_height[0] for _ in range(switch_num)]
+                trigger_height = [trigger_height[0] if trigger_height[0] > 0 else base_trigger_height for _ in range(switch_num)]
             trigger_heights.append(trigger_height)
 
+            # If base_release_height is defined, it takes priority over offset, as the two values clash
+            # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
+            base_release_height = profile_data.get('base_release_height', 0)
+            #TODO: Apply from bottom stuff
+            offset = -profile_data.get('release_offset', 0) if not from_bottom else profile_data.get('release_offset', 0)
             release_height = profile_data.get('release_height', [0])
-            if release_height == [0]:
-                release_height = trigger_height
-            elif len(release_height) == 1:
-                release_height = [release_height[0] for _ in range(switch_num)]
+            if len(release_height) == 1:
+                release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
+            if base_release_height == 0:
+                release_height = [round(trigger_height[idx] + offset, 2) if release_height[idx] == 0 else base_release_distance for idx in range(switch_num)]
             release_heights.append(release_height)
 
+            base_press_distance = profile_data.get('base_press_distance', 0)
             rt_press_distance = profile_data.get('rt_press_distance', [0])
             if len(rt_press_distance) == 1:
                 rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
+            rt_press_distance = [distance if distance > 0 else base_press_distance for distance in rt_press_distance]
 
+            base_release_distance = profile_data.get('base_release_distance', 0)
+            offset = profile_data.get('rt_release_offset', 0)
             rt_release_distance = profile_data.get('rt_release_distance', [0])
-            if rt_release_distance == [0]:
-                rt_release_distance = rt_press_distance
-            elif len(rt_release_distance) == 1:
-                rt_release_distance = [rt_release_distance[0] for _ in range(switch_num)]
+            if len(rt_release_distance) == 1:
+                rt_release_distance = [rt_release_distance[0] if rt_release_distance[0] > 0 else base_release_distance for _ in range(switch_num)]
+            if base_release_distance == 0:
+                rt_release_distance = [round(rt_press_distance[idx] + offset, 2) if rt_release_distance[idx] == 0 else rt_release_distance[idx] for idx in range(switch_num)]
 
             press_distances.append(rt_press_distance)
             release_distances.append(rt_release_distance)
@@ -476,8 +489,8 @@ def generate_profile_config(info_data, config_h_lines):
 
             #MARK: Key modes
             if 'rapid_trigger_type' in profile_data:
-                # If a rapid_trigger_type is defined for the profile, set the mode to it for
-                # all RT enabled keys
+                #TODO: This is kinda useless
+                # If a rapid_trigger_type is defined for the profile, set the mode to it for all RT enabled keys
                 if 'key_modes' in profile_data:
                     rt_int = RT_TYPES[profile_data['rapid_trigger_type'].upper()]
                     key_mode = profile_data['key_modes']
@@ -494,12 +507,6 @@ def generate_profile_config(info_data, config_h_lines):
                 else: #RT defined but no key_modes
                     key_modes.append([RT_TYPES[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
             else:
-                #TODO: Test this part
-                # key_mode = profile_data.get('key_modes', [-1])
-                # if len(key_mode) == 1:
-                #     key_mode = [key_mode[0] for _ in range(switch_num)]
-                # key_modes.append(key_mode)
-                # Set default key mode for the profile if it isn't set manually
                 default_mode = 0
                 if 'key_modes' not in profile_data:
                     if 'trigger_height' in profile_data:
@@ -564,18 +571,13 @@ def generate_profile_config(info_data, config_h_lines):
             if [idx for side in split_trigger_heights for profile in side for idx in profile].count(0) != switch_num * profile_num:
                     config_h_lines.append(generate_define(f'TRIGGER_HEIGHT{postfix}', f'{str(split_trigger_heights[index]).replace('[', '{').replace(']', '}')}'))
                     config_h_lines.append(generate_define(f'RELEASE_HEIGHT{postfix}', f'{str(split_release_heights[index]).replace('[', '{').replace(']', '}')}'))
-                # config_h_lines.append(generate_define('TRIGGER_HEIGHT_R', f'{str(split_trigger_heights[1]).replace('[', '{').replace(']', '}')}'))
-                # config_h_lines.append(generate_define('RELEASE_HEIGHT_R', f'{str(split_release_heights[1]).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_press_distances for profile in side for idx in profile].count(0) != switch_num * profile_num:
                     config_h_lines.append(generate_define(f'RT_PRESS_DISTANCE{postfix}', f'{str(split_press_distances[index]).replace('[', '{').replace(']', '}')}'))
                     config_h_lines.append(generate_define(f'RT_RELEASE_DISTANCE{postfix}', f'{str(split_release_distances[index]).replace('[', '{').replace(']', '}')}'))
-                # config_h_lines.append(generate_define('RT_PRESS_DISTANCE_R', f'{str(split_press_distances[1]).replace('[', '{').replace(']', '}')}'))
-                # config_h_lines.append(generate_define('RT_RELEASE_DISTANCE_R', f'{str(split_release_distances[1]).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_key_modes for profile in side for idx in profile].count(-1) != switch_num * profile_num:
                 config_h_lines.append(generate_define(f'KEY_MODES{postfix}', f'{str(split_key_modes[index]).replace('[', '{').replace(']', '}')}'))
-                # config_h_lines.append(generate_define('KEY_MODES_R', f'{str(split_key_modes[1]).replace('[', '{').replace(']', '}')}'))
 
     # Not a split keyboard
     else:

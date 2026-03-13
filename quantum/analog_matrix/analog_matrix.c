@@ -78,8 +78,9 @@ bool calibration_started = false;
 #endif
 
 #ifdef DYNAMIC_CALIBRATION
-// Keeps track of how many switches need updating, and saves new data once it exceeds UPDATE_SWITCH_AMT, to avoid writing to storage too often
+// Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
+uint8_t recalibrated_indices[SMAX(SWITCH_NUM)];
 // Check if the switch boundaries need updating, and update them if necessary.
 bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
@@ -480,8 +481,10 @@ uint8_t analog_matrix_scan(void) {
                     // If dynamic calibration is enabled, check if the boundaries need updating
                     #ifdef DYNAMIC_CALIBRATION
                     if(update_switch_bounds(index, adc_value)) {
-                        // If the bounds have been updated, translate the heights and save the new bounds
+                        // If the bounds have been updated, translate the heights
                         translate_mm_to_value(index);
+                        // Mark the index to update during a layer switch
+                        recalibrated_indices[recalibrated_switches] = index;
                     }
                     #endif // ifdef DYNAMIC_CALIBRATION
                     key_config[index].scan_value = adc_value;
@@ -543,21 +546,10 @@ uint8_t analog_matrix_scan(void) {
 //MARK: Translate
 // Translate the trigger height etc of all keys into the corresponding ADC values
 void translate_mm_to_value(uint8_t index) {
-    //TODO: I don't think I need to adjust deadzones here, since they're already applied during init
-    // #ifdef INVERT_ADC
-    // const uint16_t top_value = key_config[index].top_value + ADC_TOP_DEADZONE;
-    // const uint16_t bottom_value = key_config[index].bottom_value - ADC_BOTTOM_DEADZONE;
-    // const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
-    // #else
-    // const uint16_t top_value = key_config[index].top_value - ADC_TOP_DEADZONE;
-    // const uint16_t bottom_value = key_config[index].bottom_value + ADC_BOTTOM_DEADZONE;
-    // // ADC counts per mm of travel
-    // const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
-    // #endif
     const uint16_t top_value = key_config[index].top_value;
     const uint16_t bottom_value = key_config[index].bottom_value;
     #ifdef INVERT_ADC
-    // const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
+    const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
     #else
     const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
     #endif
@@ -566,6 +558,7 @@ void translate_mm_to_value(uint8_t index) {
         #ifndef INVERT_ADC
         #ifdef USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
+        //TODO: Instead of having a separate section, I can just subtract the height from the TRAVEL_DISTANCE to get the from_bottom value
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
         //TODO: Test this, add INVERT_ADC values
         key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[profile][index])) - ADC_SMOOTHING;
@@ -579,7 +572,7 @@ void translate_mm_to_value(uint8_t index) {
 
         #else // ifndef INVERT_ADC
         //Inverted ADC -> Lower switch means higher value
-hh
+
         #if defined USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Is this correct
@@ -675,7 +668,7 @@ bool get_calibration_data(void) {
         //TODO: I don't need this guard here, I can just set the factor to 0 by default
         #ifdef DYNAMIC_CALIBRATION
         //TODO: Apply deadzones here? Doesn't really do anything
-        adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value);
+        adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value - ADC_TOP_DEADZONE - ADC_BOTTOM_DEADZONE);
         #endif
         key_config[key].top_value = calibration_data[key].top_value - ADC_TOP_DEADZONE - adjustment;
         key_config[key].bottom_value = calibration_data[key].bottom_value + ADC_BOTTOM_DEADZONE + adjustment;
@@ -690,9 +683,6 @@ bool get_calibration_data(void) {
         key_config[key].bottom_value = calibration_data[key].bottom_value - ADC_BOTTOM_DEADZONE - adjustment;
         #endif
 
-        // All checks passed for this switch
-        // key_config[key].top_value = calibration_data[key].top_value;
-        // key_config[key].bottom_value = calibration_data[key].bottom_value;
     }
     return true;
     #endif // ifdef AM_NO_EEPROM else
@@ -1311,10 +1301,9 @@ layer_state_t reset_layer_state(void) {
 }
 
 
-//TODO: Make a new function for this for analog matrix, instead of taking the kb function
 //TODO: Make an equivalent for profile changes
 //MARK: Layer state
-layer_state_t layer_state_set_kb(layer_state_t state) {
+layer_state_t layer_state_set_am(layer_state_t state) {
     highest_layer = get_highest_layer(state);
 
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
@@ -1337,17 +1326,21 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
     // Not the cleanest way to allow disabling the update check
     #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES <= (SMAX(SWITCH_NUM) + 1)
     if(recalibrated_switches >= RECALIBRATED_SWITCHES) {
-        for(uint8_t key = 0; key < switch_num; key++) {
+        for(uint8_t key = 0; key < recalibrated_switches; key++) {
+            // Saving the idxs to an array also means keeping track of which switches have been updating via auto DC
+            const uint8_t idx = recalibrated_indices[key];
             // Cancel out deadzones before saving new values
             #ifndef INVERT_ADC
-            calibration_data[key].top_value = key_config[key].top_value + ADC_TOP_DEADZONE;
-            calibration_data[key].bottom_value = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+            calibration_data[idx].top_value = key_config[idx].top_value + ADC_TOP_DEADZONE;
+            calibration_data[idx].bottom_value = key_config[idx].bottom_value - ADC_BOTTOM_DEADZONE;
             #else
-            calibration_data[key].top_value = key_config[key].top_value - ADC_TOP_DEADZONE;
-            calibration_data[key].bottom_value = key_config[key].bottom_value + ADC_BOTTOM_DEADZONE;
+            calibration_data[idx].top_value = key_config[idx].top_value - ADC_TOP_DEADZONE;
+            calibration_data[idx].bottom_value = key_config[idx].bottom_value + ADC_BOTTOM_DEADZONE;
             #endif
         }
         eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
+        recalibrated_switches = 0;
+        memset(recalibrated_indices, 0, sizeof(recalibrated_indices));
     }
     #endif
     #endif
@@ -1369,9 +1362,7 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
         #endif
     }
     #endif // if PROFILE_SWITCH_MODE != MANUAL_PROFILE
-
-    // Need to call the user function
-    return layer_state_set_user(state);
+    return state;
 }
 #endif // if AM_PROFILE_NUM > 1
 
