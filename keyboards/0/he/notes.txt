@@ -15,7 +15,6 @@ Adjustment function:
             -So at the start and end no value is subtracted, towards the middle to highest amount is subtracted
             -Then use that to scale heights at init (and maybe rt during new height setting?)
 
-
 ADC optimizations:
 -Is the current implementation actually just blocking?
 -I should try to add support for the ADC_NUM_CHANNELS define, that sets the amount of channels scanned per operation.
@@ -174,9 +173,15 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
 
+Rework deadzones and calibration:
+-Instead of effectively reducing the range, the deadzones should just be zones at the top/bottom where the switch is forcibly released/pressed, regardless of height setting
+-Travel units and heights should be calculated off of the raw travel instead of reduced deadzone travel
+    -This way, setting heights is more consistent
+-To automatically
+
 BUGS:
 -Something made it spam keys after flashing (maybe boot too)
-    -Maybe the filter? Seemed to happen after I lowered the >> to 4, and fixed after I disabled it
+    -Maybe the filter? Seemed to happen after I lowered the >> to 3, and fixed after I disabled it
 
 -A high smoothing value causes keys to get stuck occasionally (40 to replicate)
 -The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
@@ -193,6 +198,7 @@ BUGS:
     -Maybe run a sophisticated check where the init key is counted as pressed if it is a certain value below the avg scan value of the matrix?
 -Calibration key doesn't start calibration on slave, likely because split communication is initialized after
     -Do post init checking for pressed calibration keys
+    -Instead of checking init keys in post, just check a calibration flag?
 
 
 Notes:
@@ -207,19 +213,19 @@ Notes:
     -Is that because of less const, or something else?
 -Keychron polynomial: f(x)=-2.99368*e^(-8)*x^(3)+2.04637*e^(-4)*x^(2)-0.48358*x+426.88962
 
+-Make a mode where the init key function scans all keys, and checks if one value is lower than the average deviation to be counted as pressed
+    -This can be checked before calibration data is loaded -> They still work even without valid values
+-I should be able to only save bottom values, and get the top values by simply scanning
+    -Since it makes sense to get the top values by scanning once anyway before going into the full scan, I don't really need to save them
+    -Scanning early makes sense with DC, to get rid of the top offset before saving
+    -Or just check AM_DC_DELTA in the save function before overwriting, instead of in the update function
+-For DC, I could slightly bring the bottom value up every time the switch was triggered without fully bottoming out
+-Should I change the distance to not take deadzones into account, and just let deadzone take prio?
+-Could also have a separate deadzone that is just the jitter at the top/bottom position, and use the closest value of those by default
+    -And the adc deadzone is just a user defined region around the top/bottom where the other stuff doesn't apply
+-Could even do a thing where each half has it's own deadzone based on if it's master/slave, and apply them after init?
+-Add a hack to define a default height/distance, then apply the actual one over, with 0s being ignored
 
-Lot of fucking issues right now, what did I change since then:
-Since last commit:
-    -Changed calibration values to be saved raw, with deadzones being applied during loading instead of before saving
-        -Before, no_eeprom would apply the deadzones twice
-        -Part of this was changing the travel distance to include deadzones, since it would otherwise not include them
-    -Added an SMAX define that simplifies MAX(val, val_R)
-    -Changed the define in nvm_eeprom_config slightly, but I highly doubt it changes stuff
-    -Changed the mux port to be a variable instead of a define
-    -Added a ADJUST_TRAVEL define that adds another field to the key_config (has since been disabled)
-    -Changed startup delay to use wait_ms
-    -Changed travel unit to be an actual float, before it was only a float when TRAVEL_DISTANCE was one (?)
-    -Changed some stuff in the script, specifically regarding num_to_matrix_r
-        -Also moved all pin definitions to their own functions and compacted it heavily
-    -Apparently this is only a thing if the slave (right) is connected?
-    -Either some changes I made after fixed stuff, or make clean helped
+-Setting the key_mode by default fails the height config validation, move it down
+
+-Lower deadzone and higher smoothing works wayyyyyy better -> like 100 deadzone, 60 smoothing

@@ -20,14 +20,6 @@
 #define LEFT 1
 #define UNKNOWN 2
 
-// Define if keymap config is used
-#if (!defined TRIGGER_HEIGHT && (defined USE_TRIGGER_HEIGHT)) || \
-    (!defined RT_PRESS_DISTANCE && (defined USE_RT_DISTANCE))
-#ifndef KEYMAP_CONFIG
-#   define KEYMAP_CONFIG
-#endif
-#endif
-
 // Override KEYBOARD_SIDE if -s flag is used
 #if defined SIDE_LEFT
 #undef KEYBOARD_SIDE
@@ -254,10 +246,10 @@ typedef at32_gpio_t gpio_port_t;
 #define MAX_ADC_VALUE 4095
 
 #ifndef ADC_DEADZONE
-#   define ADC_DEADZONE 120
+#   define ADC_DEADZONE 150
 #endif
 #ifndef ADC_SMOOTHING
-#   define ADC_SMOOTHING 24
+#   define ADC_SMOOTHING 60
 #endif
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
@@ -266,10 +258,10 @@ typedef at32_gpio_t gpio_port_t;
 #   define ADC_BOTTOM_DEADZONE ADC_DEADZONE
 #endif
 #ifndef SCANS_WITHOUT_CHANGE
-#   define SCANS_WITHOUT_CHANGE 6000
+#   define SCANS_WITHOUT_CHANGE 5000
 #endif
 #ifndef AM_STARTUP_DELAY
-#   define AM_STARTUP_DELAY 20
+#   define AM_STARTUP_DELAY 20 // In ms
 #endif
 #ifdef ADC_SCAN_DELAY
 #   define ADC_SCAN_CYCLES ADC_SCAN_DELAY
@@ -345,6 +337,8 @@ void toggle_profile_lock(void);
 void set_profile_lock(bool value);
 // Immediately starts calibration
 void calibrate_switches(bool init);
+// Run actions when the layer state changes
+layer_state_t layer_state_set_am(layer_state_t state);
 //TODO: Remove
 void _sync_cal(void);
 

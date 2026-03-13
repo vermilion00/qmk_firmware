@@ -7,6 +7,10 @@
 #include "util.h"
 #include "action_layer.h"
 
+#ifdef ANALOG_MATRIX_ENABLE
+#   include "analog_matrix.h"
+#endif
+
 /** \brief Default Layer State
  */
 layer_state_t default_layer_state = 0;
@@ -130,6 +134,9 @@ __attribute__((weak)) layer_state_t layer_state_set_modules(layer_state_t state)
  * Sets the layer to match the specified state (a bitmask)
  */
 void layer_state_set(layer_state_t state) {
+    #ifdef ANALOG_MATRIX_ENABLE
+    state = layer_state_set_am(state);
+    #endif
     state = layer_state_set_modules(state);
     state = layer_state_set_kb(state);
     ac_dprintf("layer_state: ");
