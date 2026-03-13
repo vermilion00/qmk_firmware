@@ -15,13 +15,6 @@
   */
 #pragma once
 
-// #define ADJUSTMENT_FUNCTION
-
-// #define USE_CONSTANT_RAPID_TRIGGER
-// #define USE_TRIGGER_HEIGHT
-// #define USE_NONE
-// #define USE_RT_DISTANCE
-
 /*
 #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \
               {k0A, k0B, k0C, k0D, k0E, k0F, k1A, k1B, k1C, k1D, k1E, k1F, k2A, k2B, k2C, k2D, k2E, k2F, k3A, k3B, k3C, k3D, k3E, k3F, k4C, k4D, k5D, k4E, k4F, k5E, k5F, k6A, k6B, k6C, k6D, k6E, k6F, k7A, k7B, k7C, k7D, k7E, k7F, k8A, k8B, k8C, k8D, k8E, k8F, k9A, k9B, k9C, k9D, k9E, k9F, kAC, kAD, kBA, kAA, kAB, kBB}
@@ -29,7 +22,7 @@
 
 #define DEBUG_MATRIX_SCAN_RATE
 
-// #define ADC_RESOLUTION 12
+// #define ADJUST_TRAVEL
 
 #define LED_PIN B2
 

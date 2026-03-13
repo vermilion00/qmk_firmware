@@ -86,6 +86,7 @@ While calibration mode is active, you'll need to press every single key on the k
 By default, the calibration values can be saved to some form of persistent storage, and recalled during startup. This requires you to either:
 * Use a chip with eeprom emulation support in QMK, or
 * Use and configure an external flash/eeprom storage chip
+It is heavily recommended to use one of these two options, as external flash chips are available for low prices at e.g. aliexpress, and being able to save calibration values will make the experience a lot better. Even low storage values like 512k are way more than enough.
 
 ::: warning  
 The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2), or an external storage chip.  
@@ -96,6 +97,11 @@ This requires a proper configuration of the EEPROM feature to work, visit the [E
 When using an external storage chip, don't forget to configure the used communication peripheral (I2C or SPI) as well.
 
 ## Hardcode values
+
+::: tip  
+It is highly recommended to use a form of persistent storage. Many chips support saving to the internal flash, and external storage chips can be bought for very cheap.  
+This option is only supposed to be used as a last resort, or for a testing environment.  
+:::
 
 To enable this option, set it in keyboard.json:
 
@@ -129,7 +135,7 @@ For split keyboards, the left and right half are separated:
 
 # AVR configuration
 
-This feature doesn't work on AVR chips. Support may be added in the future, but ARM will be preferred generally anyway, due to firmware size limitations and better specs.
+The analog matrix feature doesn't work on AVR chips. Support may be added in the future, but ARM will be preferred generally anyway, due to firmware size limitations and better specs.
 
 <!--MARK: Configuration -->
 # ARM configuration
@@ -165,8 +171,8 @@ You can find these values in the reference manual of your chip.
 
 # RP2040 configuration
 
-While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys max.
-You'd either have to use 32 channel multiplexers, or make a split keyboard, to get access to more keys than that.
+While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys.
+You'd either have to use 32 channel multiplexers, which are a lot more expensive than 16 channels, or make a split keyboard, to get access to more keys than that.
 
 ## halconf.h
 
@@ -191,7 +197,7 @@ This is where the bulk of the configuration lives. Since a GUI is still work in 
 <!--MARK: Hardware -->
 ### Hardware
 
-This section contains the details of how everything is connected to the microcontroller. Split keyboards need to use the same pins for both halves currently, or various optimizations won't work.
+This section contains the details of how everything is connected to the microcontroller. If you're making a split keyboard, it is recommended to use the same pins for both halves. While it is possible to change them, some optimizations might not work.
 
 ```json
 {
@@ -251,6 +257,8 @@ You can have different deadzones for top and bottom by using top_deadzone and bo
 ```
 The analog matrix logic assumes that the ADC value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
 
+
+#### Layout
 ```json
 "layouts": {
     "LAYOUT": {
@@ -265,7 +273,7 @@ The analog matrix logic assumes that the ADC value of a released switch is highe
 }
 ```
 
-The controller needs to know what ADC pin and multiplexer channel combination corresponds to what key. This is done by adding a "mux" parameter to each key. This mux parameter has the ADC pin as the first index, and the mux channel as the second index. Both of these are 0-indexed.
+The controller needs to know what ADC pin and multiplexer channel combination corresponds to what key. This is done by adding a "mux" parameter to each key in the layout definition. This mux parameter has the ADC pin as the first index, and the mux channel as the second index. Both of these are 0-indexed.
 Assume our hardware config looks like this:
 
 ```json
@@ -279,6 +287,7 @@ When choosing the layout, it is best to use the lowest multiplexer channel numbe
 It is best to distribute the channels evenly across the multiplexers. If you use e.g. 64 keys distributed among 6 multiplexers, the optimal arrangement would be using channels 0 through 10 on four multiplexers, and channels 0 through 9 on the remaining two. This way, the firmware recognizes that the highest channel number in use is channel 10, and skip reading the remaining 5 (assuming 16 channel multiplexers are used).
 
 If possible, the multiplexer channel select pins should be selected to all be on the same port, arranged consecutively in ascending order (e.g. B12, B13, B14, B15 or C10, C11, C12). <br> This allows the firmware to set the output via direct register access, making it more performant. In case this causes issues, you can also set the "no_mux_optimization" flag to true in the same object to skip this optimization. If the pins aren't arranged in this fashion, the optimization is skipped automatically.
+The performance impact of the optimization is low, however.
 
 Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix (lite) scanning is currently not supported, but is planned for the future.
 
@@ -310,7 +319,6 @@ For split keyboards, you can define a separate key for the right half by setting
 Similar to the above option, but also resets the EEPROM, meaning all data stored there will be lost.
 For split keyboards, you can define a separate key for the right half by setting "bootmagic_key_right".
 
-
 ```json
 "calibration_key": [1, 0]
 ```
@@ -320,16 +328,16 @@ Currently, only one half can be calibrated at a time. To calibrate the other hal
 
 If the initialization keys aren't registered properly during startup, you can try increasing the startup delay:
 ```json
-"startup_delay": 20000
+"startup_delay": 20
 ```
-This is a very short, arbitrary amount of time that the MCU waits before reading the initialization keys, as scanning them too early causes them to not be registered. Defaults to 20000.
+This the amount of time, in milliseconds, that the MCU waits before reading the initialization keys, as scanning them too early causes them to not be registered. Defaults to 20.
 
 If matrix scanning doesn't work correctly, you can also try adding various delays to this section:
 ```json
 "mux_select_delay": 500,
 "adc_scan_delay": 500
 ```
-Like the startup delay, this is an extremely short amount of time. The mux select delay waits every time the multiplexer channel was changed, while the adc scan delay waits after every adc scan. The time value is dependent on the processing speed.
+Like the startup delay, this is an extremely short, arbitrary amount of time (one asm("nop") instruction to be specific). The mux select delay waits every time the multiplexer channel was changed, while the adc scan delay waits after every adc scan. The time value is dependent on the processing speed. Both default to 0.
 
 <!--MARK: Profiles -->
 ### Profiles
@@ -517,8 +525,9 @@ You can use these functions from your 'keyboard'.c or keymap.c file by including
 <!--MARK: Split kb -->
 # Split keyboards
 
-The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind.
+The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind:
 
+<!--
 By default, QMK loads the same firmware into both halves and assigns the side during initialization. As an analog matrix requires a lot of additional information, this feature gives you the option to use the -s flag during flashing to reduce the firmware size by compiling the firmware specifically for one side.
 
 To flash the left half, you use
@@ -535,11 +544,16 @@ The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forc
 ```
 This will run that code only if the -s left flag is set.
 
+In case of issues with your configuration, try using the -s flag when flashing the sides, as assigning the sides at initialization is generally added later for new features.
+-->
+
 Joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
 
 Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
 When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
+
 If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
+When using the calibration_key to start calibration at init, only the half with the pressed down key will start calibration.
 
 To use different multiplexer pins for each half, you need to use the -s flag to flash each half, or disable mux optimizations by setting
 ```json
@@ -655,7 +669,7 @@ The analog joystick feature can be enabled by simply configuring it in the keybo
         "joystick": {
             "axes": 6,
             "buttons": 16,
-            "deadzone": 15,
+            "deadzone": 80,
             "layout": "XBOX",
             "resolution_methods": {
                 "x": "difference",
@@ -672,7 +686,7 @@ The axis buttons are split up by component. This means that for each axis (X, Y,
 If the negative axis value is bottomed out, the axis component value -X will be 127, and the axis value will be -127. If both buttons are pressed simultaneously, the output is decided by the resolution method.
 
 ```json
-"deadzone": 15
+"deadzone": 120
 ```
 This sets a deadzone to the top and bottom of the travel range, separate from the normal switch deadzone. If you wish to use different values for top and bottom, you can instead use top_deadzone and bottom_deadzone.
 
@@ -799,7 +813,7 @@ While this isn't very useful for most situations, it can be used to be able to u
 
 #### Keyboard starts calibration by itself
 
-1. If this happens every time the keyboard starts up, this likely means that either the calibration_key is registering a press during startup, or the calibration values aren't available. Try removing the calibration_key parameter, if bound. If that doesn't help:
+1. If this happens every time the keyboard starts up, this likely means that either the calibration_key is registering a press during startup, or the calibration values aren't available. Try removing the calibration_key parameter, if bound. If that doesn't help: <br>
 If the no_eeprom flag is set, the keyboard expects to find these parameters:
 ```json
 "analog_matrix": {
@@ -833,6 +847,7 @@ If your keyboard has a visible simple LED somewhere, you can use it to get visua
 
 config.h
 ```c
+// This doesn't work with smart LEDs like WS2812 etc
 #define LED_PIN B2 // This is the pin that the LED is connected to. It has to be a simple LED connected to a gpio pin.
 ```
 If the LED works by pulling the connected GPIO pin low, you can add this define to invert the logic:

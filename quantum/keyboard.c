@@ -715,6 +715,7 @@ void quantum_task(void) {
 #endif
 
 #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+//TODO: Could I move axis checking to keyboard_task, which also runs on the slave?
     analog_joystick_task();
 #endif
 

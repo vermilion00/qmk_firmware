@@ -111,14 +111,12 @@ void nvm_eeconfig_update_keymap(const keymap_config_t *keymap_config) {
 }
 
 //MARK: Analog matrix
-// These are set as build flags in common_features.mk, which reads info_rules.mk set by rules_mk.py
 #ifdef ANALOG_MATRIX_ENABLE
 void nvm_eeconfig_read_switch(analog_switch_t *switch_data, uint8_t key_idx) {
-    //TODO: Since each switch takes up a uint32, does key_idx need to be a uint32? Do I need to offset by 4x key_idx?
     switch_data->raw = eeprom_read_dword(EECONFIG_ANALOG_MATRIX + key_idx);
 }
 void nvm_eeconfig_read_keyboard(analog_switch_t *keyboard_data) {
-    // switch data is comprised of 2 uint16 -> bytes
+    // switch data is comprised of 2 uint16 -> 4 bytes
     const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * 4;
     eeprom_read_block(keyboard_data, EECONFIG_ANALOG_MATRIX, data_size);
 }

@@ -26,7 +26,7 @@
 #define CARET_VAL 50
 #define SCROLL_VAL 40
 
-static bool alt_tab = false;
+// static bool alt_tab = false;
 static bool mouse_lock = false;
 static bool mslk = false;
 static bool caret_mode = false;
@@ -72,16 +72,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
 									                                  KC_LCTL, KC_LALT,			 KC_ENT
   ),
-
-//   [_GMCL] = LAYOUT(
-//      KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
-//      KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                    			          KC_J,    KC_L,    JS_RPY,    KC_Y,    KC_SCLN, KC_MINS,
-//      KC_W,    KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                    			          KC_K,    JS_LNX,    JS_RNY,    JS_LPX,    KC_O,    KC_QUOT,
-//      KC_E,    KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
-//                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-// 						                                 KC_P,    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
-// 									                                  KC_LCTL, KC_LALT,			 KC_ENT
-//   ),
 
 //   [_GMCL] = LAYOUT(
 //      JS_0,  JS_1,    JS_2,    JS_3,    JS_4,    JS_5,                    			          JS_10,    JS_11,    JS_12,    JS_13,    KC_0,    KC_BSPC,
@@ -177,14 +167,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ),
 
   [_FN2] = LAYOUT(
-     QK_BOOT, JS_0,   JS_1,   JS_2,   JS_3,   KC_F5,                   			          AM_LOCK,   AM_AP(0),   AM_AP(1),   AM_AP(2),  KC_F10,  KC_BSPC,
+     QK_BOOT, JS_0,    JS_1,    JS_2,    JS_3,    KC_F5,                   			          AM_LOCK,   AM_AP(0),   AM_AP(1),   AM_AP(2),  KC_F10,  KC_BSPC,
      AM_PRNT, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      AM_CLBR, KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
-     AM_PRPR, TG(_GMPD),   KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
+     AM_PRPR, KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                KC_MPRV, KC_MNXT,  													                                    KC_MPRV, KC_MNXT,
 										         LCTAB, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
 												                      KC_LCTL, _______,	   		KC_LALT
-  ),
+  )
 
 //   [_FN2] = LAYOUT(
 //      QK_BOOT, KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                   			          KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_BSPC,
@@ -279,36 +269,36 @@ socd_cleaner_t socd_opposing_pairs[] = {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        case KC_T:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    tap_code(KC_TAB);
-                }
-                return false;
-            }
-            return true;
+        // case KC_T:
+        //     if (alt_tab) {
+        //         if (record->event.pressed) {
+        //             tap_code(KC_TAB);
+        //         }
+        //         return false;
+        //     }
+        //     return true;
 
-        case KC_R:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
+        // case KC_R:
+        //     if (alt_tab) {
+        //         if (record->event.pressed) {
+        //             register_code16(KC_LSFT);
+        //             tap_code(KC_TAB);
+        //             unregister_code16(KC_LSFT);
+        //         }
+        //         return false;
+        //     }
+        //     return true;
 
-        case KC_S:
-            if (alt_tab) {
-                if (record->event.pressed) {
-                    register_code16(KC_LSFT);
-                    tap_code(KC_TAB);
-                    unregister_code16(KC_LSFT);
-                }
-                return false;
-            }
-            return true;
+        // case KC_S:
+        //     if (alt_tab) {
+        //         if (record->event.pressed) {
+        //             register_code16(KC_LSFT);
+        //             tap_code(KC_TAB);
+        //             unregister_code16(KC_LSFT);
+        //         }
+        //         return false;
+        //     }
+        //     return true;
 
 		case MS_BTN1:
 			if(record->event.pressed){
@@ -361,10 +351,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 			if (record->event.pressed) {
                 register_code(KC_LALT);
                 tap_code(KC_TAB);
-                alt_tab = true;
+                layer_on(_FN);
+                // alt_tab = true;
 			} else {
+                layer_off(_FN);
 				unregister_code(KC_LALT);
-				alt_tab = false;
+				// alt_tab = false;
 			}
 			return false;
 
@@ -372,10 +364,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 register_code(KC_LCTL);
                 tap_code(KC_TAB);
-                alt_tab = true;
+                // alt_tab = true;
             } else {
                 unregister_code(KC_LCTL);
-                alt_tab = false;
+                // alt_tab = false;
             }
             return false;
 
