@@ -37,7 +37,7 @@
 //TODO: I think either this or nvm_eeconfig is unnecessary
 #ifndef AM_NO_EEPROM
 #include "eeconfig.h"
-analog_switch_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 
 //TODO: Testing, remove if unnecessary
@@ -104,15 +104,17 @@ SPLIT_MUTABLE uint8_t adc_pin_num = ADC_PIN_NUM;
 #ifdef MUX_PINS
 SPLIT_MUTABLE uint8_t mux_channel_num = MUX_CHANNELS;
 //TODO: Add this stuff
-#ifndef EQUAL_MUX_PINS
 SPLIT_MUTABLE uint8_t mux_pin_num = MUX_PIN_NUM;
 #ifdef MUX_PINS_CONTINUOUS
 SPLIT_MUTABLE uint8_t mux_offset = MUX_PIN_OFFSET;
-//TODO: Add typedef for gpio port for other archs
-SPLIT_MUTABLE stm32_gpio_t* mux_port = CONTINUOUS_MUX_PORT;
+#ifndef MCU_RP
+SPLIT_MUTABLE gpio_port_t* mux_port = CONTINUOUS_MUX_PORT;
 #endif
 #endif
+#else
+const uint8_t mux_channel_num = 0;
 #endif
+
 
 #ifdef POWER_PINS
 SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
@@ -128,42 +130,42 @@ uint8_t switch_num_slave = SWITCH_NUM_R;
 //      I think it's currently done like that to be able to copy them over easily, but I should still know how much to copy over anyway SWITCH_NUM_R * sizeof(float)
 //      Also pretty sure it'd be less hassle defining stuff __attribute__((weak)) to let them be overridden with the MATRIX macros
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-analog_key_t key_config[MAX(SWITCH_NUM, SWITCH_NUM_R)];
-uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM;
-const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM] = MUX_TO_NUM_R;
-uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX;
-const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2] = NUM_TO_MATRIX_R;
+analog_key_t key_config[SMAX(SWITCH_NUM)];
+uint8_t mux_to_num[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM;
+const uint8_t mux_to_num_r[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM_R;
+uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX;
+const uint8_t num_to_matrix_r[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX_R;
 
 #if defined KEY_MODES
-uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES;
-const uint8_t key_modes_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = KEY_MODES_R;
+__attribute__((weak)) uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES;
+const uint8_t key_modes_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES_R;
 #else
 // If they're not defined, assume they're set using the MATRIX macro, and copy stuff over from there at init
-uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+__attribute__((weak)) uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 
 #if defined USE_TRIGGER_HEIGHT
 #if defined TRIGGER_HEIGHT
-float trigger_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = TRIGGER_HEIGHT;
-float release_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RELEASE_HEIGHT;
-const float trigger_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = TRIGGER_HEIGHT_R;
-const float release_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RELEASE_HEIGHT_R;
+float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
+float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
+const float trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
+const float release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
 #else
-float trigger_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-float release_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
 #if defined RT_PRESS_DISTANCE
-float rt_press_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_PRESS_DISTANCE;
-float rt_release_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_RELEASE_DISTANCE;
-const float rt_press_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_PRESS_DISTANCE_R;
-const float rt_release_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)] = RT_RELEASE_DISTANCE_R;
+float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
+float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
+const float rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
+const float rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
 #else
-float rt_press_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-float rt_release_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 #endif // if defined USE_RT_DISTANCE
@@ -187,13 +189,13 @@ const pin_t power_pins_r[POWER_PIN_NUM] = POWER_PINS_R;
 #endif
 
 #if AM_INIT_KEY_NUM > 0
-const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
-const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
+const uint8_t init_keys_r[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS_R;
+const init_func_t init_functions_r[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS_R;
 #endif
 
 //TODO: Does this even work? Has it been tested?
 #ifdef PRIORITY_INDICES_R
-const uint8_t priority_indices_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = PRIORITY_INDICES_R;
+const uint8_t priority_indices_r[SMAX(SWITCH_NUM)] = PRIORITY_INDICES_R;
 const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
 #endif
 
@@ -247,8 +249,8 @@ __attribute__((weak, alias("trigger_height_config"))) extern const float release
 __attribute__((weak)) CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
 __attribute__((weak)) CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
 #else
-__attribute__((weak)) float rt_press_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-__attribute__((weak)) float rt_release_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+__attribute__((weak)) float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+__attribute__((weak)) float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 // __attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak)) const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak, alias("rt_press_distance_config"))) extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
@@ -270,7 +272,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]);
 #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
 uint8_t scan_amt = 0;
 #ifdef PRIORITY_INDICES
-uint8_t priority_indices[MAX(SWITCH_NUM, SWITCH_NUM_R)] = PRIORITY_INDICES;
+uint8_t priority_indices[SMAX(SWITCH_NUM)] = PRIORITY_INDICES;
 SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 #endif
 #endif
@@ -356,13 +358,11 @@ void scan_init_keys(void) {
     uint16_t adc_value;
     // Dummy read, as first read is always way off
     adc_value = adc_read(adc_pin_mux[init_keys[0][0]]);
-    // Long delay needed for correct init key reading after being plugged in
-    //TODO: Exchange the long delays here with a wait_ms/wait_us
-    delay_ns(AM_STARTUP_DELAY);
-    // wait_us(2);
+    // Long-ish delay needed for correct init key reading after being plugged in
+    wait_ms(AM_STARTUP_DELAY);
 
-    //TODO: AM_INIT_KEY_NUM should be replaced by a var here
-    for(uint8_t idx = 0; idx < AM_INIT_KEY_NUM; idx++) {
+    //TODO: AM_INIT_KEY_NUM should be replaced by a var here, or just assign an empty
+    for(uint8_t idx = 0; idx < SMAX(AM_INIT_KEY_NUM); idx++) {
         #ifdef POWER_BEFORE_SCAN
         gpio_write_pin_high(power_pins[init_keys[idx][1]]);
         #elif defined CUSTOM_POWER_BEFORE_SCAN
@@ -375,7 +375,7 @@ void scan_init_keys(void) {
         #endif // MUX_SELECT_DELAY
 
         uint8_t matrix_index = mux_to_num[init_keys[idx][1]][init_keys[idx][0]] - 1;
-        delay_ns(7000);
+        wait_ms(AM_STARTUP_DELAY / 5);
         adc_value = adc_read(adc_pin_mux[init_keys[idx][0]]);
 
         #ifdef POWER_BEFORE_SCAN
@@ -480,7 +480,6 @@ uint8_t analog_matrix_scan(void) {
                     // If dynamic calibration is enabled, check if the boundaries need updating
                     #ifdef DYNAMIC_CALIBRATION
                     if(update_switch_bounds(index, adc_value)) {
-                        //TODO: Instead of updating here, save index and update during layer switch instead?
                         // If the bounds have been updated, translate the heights and save the new bounds
                         translate_mm_to_value(index);
                     }
@@ -544,13 +543,23 @@ uint8_t analog_matrix_scan(void) {
 //MARK: Translate
 // Translate the trigger height etc of all keys into the corresponding ADC values
 void translate_mm_to_value(uint8_t index) {
-    uint16_t bottom_value = key_config[index].bottom_value;
-    uint16_t top_value = key_config[index].top_value;
-    #ifndef INVERT_ADC
-    // ADC counts per mm of travel
-    uint16_t travel_unit = floor((top_value - bottom_value) / TRAVEL_DISTANCE);
+    //TODO: I don't think I need to adjust deadzones here, since they're already applied during init
+    // #ifdef INVERT_ADC
+    // const uint16_t top_value = key_config[index].top_value + ADC_TOP_DEADZONE;
+    // const uint16_t bottom_value = key_config[index].bottom_value - ADC_BOTTOM_DEADZONE;
+    // const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
+    // #else
+    // const uint16_t top_value = key_config[index].top_value - ADC_TOP_DEADZONE;
+    // const uint16_t bottom_value = key_config[index].bottom_value + ADC_BOTTOM_DEADZONE;
+    // // ADC counts per mm of travel
+    // const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
+    // #endif
+    const uint16_t top_value = key_config[index].top_value;
+    const uint16_t bottom_value = key_config[index].bottom_value;
+    #ifdef INVERT_ADC
+    // const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
     #else
-    uint16_t travel_unit = floor((bottom_value - top_value) / TRAVEL_DISTANCE);
+    const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
@@ -558,7 +567,6 @@ void translate_mm_to_value(uint8_t index) {
         #ifdef USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
-
         //TODO: Test this, add INVERT_ADC values
         key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[profile][index])) - ADC_SMOOTHING;
         key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height[profile][index])) + ADC_SMOOTHING;
@@ -569,7 +577,8 @@ void translate_mm_to_value(uint8_t index) {
         #endif // ifndef DISTANCE_FROM_BOTTOM else
         #endif
 
-        #else //Inverted ADC -> Lower switch means higher value
+        #else // ifndef INVERT_ADC
+        //Inverted ADC -> Lower switch means higher value
 hh
         #if defined USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
@@ -585,6 +594,7 @@ hh
         #endif // ifndef INVERT_ADC else
 
         #if defined USE_RT_DISTANCE
+        //TODO: The threshold starts at 0 because there's only one, instead of one per profile, so I need to set it every profile switch(?)
         key_config[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
         key_config[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index] + ADC_SMOOTHING;
         #endif
@@ -607,12 +617,12 @@ bool get_calibration_data(void) {
     #endif
 
     #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-    uint16_t top_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES;
-    uint16_t bottom_values[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES;
+    uint16_t top_values[SMAX(SWITCH_NUM)] = AM_TOP_VALUES;
+    uint16_t bottom_values[SMAX(SWITCH_NUM)] = AM_BOTTOM_VALUES;
 
     if(!is_keyboard_left()) {
-        const uint16_t top_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_TOP_VALUES_R;
-        const uint16_t bottom_values_r[MAX(SWITCH_NUM, SWITCH_NUM_R)] = AM_BOTTOM_VALUES_R;
+        const uint16_t top_values_r[SMAX(SWITCH_NUM)] = AM_TOP_VALUES_R;
+        const uint16_t bottom_values_r[SMAX(SWITCH_NUM)] = AM_BOTTOM_VALUES_R;
         memcpy(&top_values, &top_values_r, sizeof(top_values_r));
         memcpy(&bottom_values, &bottom_values_r, sizeof(top_values_r));
     }
@@ -652,24 +662,37 @@ bool get_calibration_data(void) {
     // Read the calibration data from EEPROM
     eeconfig_read_keyboard((analog_switch_t*)&calibration_data);
 
-    //TODO: Add dynamic calibration stuff here
     for(uint8_t key = 0; key < switch_num; key++) {
+        uint16_t adjustment = 0;
         // Check if the switch data makes sense, start calibration if not
         // A fake mixed matrix will have top/bottom values of 4095 and 0
-        //TODO: So make a stricter check for that
         if(calibration_data[key].top_value < 10 && calibration_data[key].bottom_value < 10)  return false;
         if(calibration_data[key].top_value > 4000 && calibration_data[key].bottom_value > 4000)  return false;
+
         #ifndef INVERT_ADC
         if(calibration_data[key].top_value <= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 200) return false;
+        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 600) return false;
+        //TODO: I don't need this guard here, I can just set the factor to 0 by default
+        #ifdef DYNAMIC_CALIBRATION
+        //TODO: Apply deadzones here? Doesn't really do anything
+        adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value);
+        #endif
+        key_config[key].top_value = calibration_data[key].top_value - ADC_TOP_DEADZONE - adjustment;
+        key_config[key].bottom_value = calibration_data[key].bottom_value + ADC_BOTTOM_DEADZONE + adjustment;
+
         #else
         if(calibration_data[key].top_value >= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 200) return false;
+        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 600) return false;
+        #ifdef DYNAMIC_CALIBRATION
+        adjustment = AM_DC_FACTOR * (calibration_data[key].bottom_value - calibration_data[key].top_value);
+        #endif
+        key_config[key].top_value = calibration_data[key].top_value + ADC_TOP_DEADZONE + adjustment;
+        key_config[key].bottom_value = calibration_data[key].bottom_value - ADC_BOTTOM_DEADZONE - adjustment;
         #endif
 
-        // All checks passed for this switch, deadzones are applied during calibration
-        key_config[key].top_value = calibration_data[key].top_value;
-        key_config[key].bottom_value = calibration_data[key].bottom_value;
+        // All checks passed for this switch
+        // key_config[key].top_value = calibration_data[key].top_value;
+        // key_config[key].bottom_value = calibration_data[key].bottom_value;
     }
     return true;
     #endif // ifdef AM_NO_EEPROM else
@@ -689,19 +712,15 @@ void calibrate_switches(bool init) {
     #endif
 
     #ifdef SPLIT_KEYBOARD
-    //TODO: If this instantly goes into a while loop, does this still get transmitted? Apparently not
-    calibration_started = true;
-    //TODO: Force transaction here before entering while loop, keep forcing it until it succeeds
-
-
     if(is_keyboard_master()) {
         #ifdef AM_NO_EEPROM
         if(!is_keyboard_left()) {
             char right[] = "_right";
-            memcpy(&side, right, sizeof(right));
+            memcpy(&side, &right, sizeof(right));
         }
         #endif
 
+        calibration_started = true;
         // Force a synchronisation so that the slave starts calibrating as well
         uint8_t tries = 0;
         while (tries < 50) {
@@ -748,26 +767,26 @@ void calibrate_switches(bool init) {
 
                     if(first_scan) {
                         #ifdef INVERT_ADC
-                        key_config[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
-                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
-                        #else
-                        key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                        key_config[matrix_index].top_value = adc_value;
                         key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                        #else
+                        key_config[matrix_index].top_value = adc_value;
+                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                         #endif
 
                         continue;
                     }
 
                     #ifdef INVERT_ADC
-                    if(adc_value < key_config[matrix_index].top_value - ADC_TOP_DEADZONE){
-                        key_config[matrix_index].top_value = adc_value + ADC_TOP_DEADZONE;
+                    if(adc_value < key_config[matrix_index].top_value){
+                        key_config[matrix_index].top_value = adc_value;
                         scans_without_change = 0;
                         #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
-                    } else if (adc_value > key_config[matrix_index].bottom_value + ADC_BOTTOM_DEADZONE) {
-                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
+                    } else if (adc_value > key_config[matrix_index].bottom_value) {
+                        key_config[matrix_index].bottom_value = adc_value;
                         scans_without_change = 0;
                         #ifdef DEBUG_CALIBRATION
                         dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
@@ -778,24 +797,22 @@ void calibrate_switches(bool init) {
                     }
 
                     #else // ifdef INVERT_ADC
-                    if(adc_value > key_config[matrix_index].top_value + ADC_TOP_DEADZONE){
-                        key_config[matrix_index].top_value = adc_value - ADC_TOP_DEADZONE;
+                    if(adc_value > key_config[matrix_index].top_value){
+                        key_config[matrix_index].top_value = adc_value;
                         scans_without_change = 0;
                         #ifdef DEBUG_CALIBRATION
                         dprintf("Key %i: new top value %i\n", matrix_index, adc_value);
                         #endif
 
-                    } else if (adc_value < key_config[matrix_index].bottom_value - ADC_BOTTOM_DEADZONE) {
-                        key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                    } else if (adc_value < key_config[matrix_index].bottom_value) {
+                        key_config[matrix_index].bottom_value = adc_value;
                         scans_without_change = 0;
                         #ifdef DEBUG_CALIBRATION
                         dprintf("Key %i: new bottom value %i\n", matrix_index, adc_value);
                         #endif
 
                     // Check if new valid calibration values have been saved for this key
-                    //TODO: Check more stuff here
-                    //TODO: Increase this for 12 bit
-                    } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 200) {
+                    } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 600) {
                         scans_without_change = 0;
                     }
                     #endif // ifdef INVERT_ADC else
@@ -821,8 +838,7 @@ void calibrate_switches(bool init) {
             #ifdef SPLIT_KEYBOARD
             calibration_started = false;
             #endif
-            // Clear matrix to avoid stuck keys
-            //TODO: This doesn't help with the stuck layer, reset layer states as well?
+            // Clear matrix and layer state to avoid stuck keys
             void reset_matrix_keys(void);
             reset_matrix_keys();
             layer_state_t reset_layer_state(void);
@@ -830,11 +846,18 @@ void calibrate_switches(bool init) {
 
             #ifndef AM_NO_EEPROM
             for(uint8_t key = 0; key < switch_num; key++) {
+                // Save the calibration values without a deadzone applied
                 calibration_data[key].top_value = key_config[key].top_value;
                 calibration_data[key].bottom_value = key_config[key].bottom_value;
+                #ifndef INVERT_ADC
+                key_config[key].top_value -= ADC_TOP_DEADZONE;
+                key_config[key].bottom_value += ADC_BOTTOM_DEADZONE;
+                #else
+                key_config[key].top_value += ADC_TOP_DEADZONE;
+                key_config[key].bottom_value -= ADC_BOTTOM_DEADZONE;
+                #endif
             }
             eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
-            break;
 
             #else // ifndef AM_NO_EEPROM
             #ifdef SPLIT_KEYBOARD
@@ -858,8 +881,20 @@ void calibrate_switches(bool init) {
             }
             print(" ],\nPaste these lines into the hall_effect.config object in keyboard.json.\n\n");
 
-            break;
             #endif // ifndef AM_NO_EEPROM else
+
+            // Apply deadzones
+            for(uint8_t key = 0; key < switch_num; key++) {
+                #ifndef INVERT_ADC
+                key_config[key].top_value -= ADC_TOP_DEADZONE;
+                key_config[key].bottom_value += ADC_BOTTOM_DEADZONE;
+                #else
+                key_config[key].top_value += ADC_TOP_DEADZONE;
+                key_config[key].bottom_value -= ADC_BOTTOM_DEADZONE;
+                #endif
+            }
+
+            break;
         }
     }
 }
@@ -1064,22 +1099,32 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
 //MARK: Update bounds
 #ifdef DYNAMIC_CALIBRATION
+#define DEBUG_CALIBRATION
+#ifdef DEBUG_CALIBRATION
+#define OUTPUT_VAL(value, side, index) dprintf("New %s value for key %u: %u", side, index, value)
+#else
+#define OUTPUT_VAL(value, side)
+#endif
 bool update_switch_bounds(uint8_t index, uint16_t value) {
     #ifndef INVERT_ADC
     if(value >= (key_config[index].top_value + AM_DC_DELTA + ADC_TOP_DEADZONE)){
         key_config[index].top_value = value - ADC_TOP_DEADZONE;
+        OUTPUT_VAL(value, "top", index);
         return true;
     } else if (value <= (key_config[index].bottom_value - AM_DC_DELTA - ADC_BOTTOM_DEADZONE)) {
         key_config[index].bottom_value = value + ADC_BOTTOM_DEADZONE;
+        OUTPUT_VAL(value, "bottom", index);
         return true;
     }
 
     #else // ifndef INVERT_ADC
     if(value < key_config[index].top_value - AM_DC_DELTA - ADC_TOP_DEADZONE){
         key_config[index].top_value = value + ADC_TOP_DEADZONE;
+        OUTPUT_VAL(value, "top", index);
         return true;
     } else if (value > key_config[index].bottom_value + AM_DC_DELTA + ADC_BOTTOM_DEADZONE) {
         key_config[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
+        OUTPUT_VAL(value, "top", index);
         return true;
     }
     #endif // ifndef INVERT_ADC else
@@ -1110,7 +1155,8 @@ void get_switch_data(void) {
 
 
 //MARK: Bootmagic
-void _bootmagic(void) {
+// Helper functions because the current init key implementation requires taking a bool for the calibration function
+void _bootmagic(bool init) {
     eeconfig_disable();
     bootloader_jump();
 }
@@ -1123,7 +1169,7 @@ void _bootloader_jump(bool init) {
 //TODO: Remove this and the call in keyboard.c at the start
 //MARK: Force bootloader
 //TODO: Do actual init key checking here?
-void _force_bootloader(void) {
+// void _force_bootloader(void) {
     // palSetLineMode(A0, PAL_MODE_INPUT_ANALOG);
     // //TODO: This probably doesn't work with dynamic side assignment
     // #ifdef MUX_PINS
@@ -1144,7 +1190,40 @@ void _force_bootloader(void) {
     //     LED_ON;
     //     bootloader_jump();
     // }
-}
+// }
+
+// #ifndef CONST_A1
+// #    define CONST_A1 426.88962
+// #endif
+// #ifndef CONST_B1
+// #    define CONST_B1 -0.48358
+// #endif
+// #ifndef CONST_C1
+// #    define CONST_C1 2.04637e-4
+// #endif
+// #ifndef CONST_D1
+// #    define CONST_D1 -2.99368e-8
+// #endif
+
+//MARK: Keychron adjust
+// Removed a minus since keychron uses inverted ADC values
+// #define TRAVEL_POLYNOMIAL(x) (CONST_A1 + CONST_B1 * x + CONST_C1 * x * x + CONST_D1 * x * x * x)
+
+// uint8_t convert_to_travel(uint8_t index, uint16_t value) {
+//     uint16_t travel;
+//     // const uint16_t bottom = key_config[index].bottom_value;
+//     const uint16_t x = value - key_config[index].bottom_value;
+
+//     // Keychron uses inverse adc values
+//     // if (x > REF_ZERO_TRAVEL) return 0;
+
+//     //TODO: Save the travel_units to the key config
+//     travel = (uint16_t)((TRAVEL_POLYNOMIAL(x) - TRAVEL_POLYNOMIAL(REF_ZERO_TRAVEL)) * scale_factor[row][col] * TRAVEL_SCALE + 0.5);
+//     if (travel > (FULL_TRAVEL_UNIT + 1) * TRAVEL_SCALE - 1) travel = (FULL_TRAVEL_UNIT + 1) * TRAVEL_SCALE - 1;
+
+//     // Limit travel to 256 counts?
+//     return travel & 0xFF;
+// }
 
 
 //MARK: Power pins
@@ -1152,10 +1231,10 @@ void _force_bootloader(void) {
 void set_sensor_power(uint8_t index) {
     #ifdef POWER_PINS_CONTINUOUS
     #ifdef USE_BSRR
-    #if defined AT32F415
+    #if defined MCU_AT32
     // Set action takes priority
     CONTINUOUS_POWER_PORT->SCR.W = (((1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
-    #elif defined QMK_MCU_RP2040
+    #elif defined MCU_RP
     //TODO: Test RP2040 optimizations
     *((volatile uint64_t *)GPIO_OUT_SET) = (((uint64_t)(1 << POWER_PIN_NUM) - 1) << POWER_PIN_OFFSET << 16) | (1 << (index + POWER_PIN_OFFSET));
     #else // ifdef mcutype
@@ -1250,13 +1329,23 @@ layer_state_t layer_state_set_kb(layer_state_t state) {
 
     change_layer_settings(highest_layer);
 
+    //TODO: This implementation doesn't work right with eeprom and DC factor, as it will save the reduced value for unused switches
+    //      Need to only update switch values that have been set by runtime DC, and not DC factor
     //TODO: Can be simplified by adding updated idx to an array, then looping through it here and only updating those values
+    //TODO: How much faster is updating a single switch vs updating the whole config?
     #ifdef DYNAMIC_CALIBRATION
-    #ifndef AM_NO_EEPROM
+    // Not the cleanest way to allow disabling the update check
+    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES <= (SMAX(SWITCH_NUM) + 1)
     if(recalibrated_switches >= RECALIBRATED_SWITCHES) {
         for(uint8_t key = 0; key < switch_num; key++) {
-            calibration_data[key].top_value = key_config[key].top_value;
-            calibration_data[key].bottom_value = key_config[key].bottom_value;
+            // Cancel out deadzones before saving new values
+            #ifndef INVERT_ADC
+            calibration_data[key].top_value = key_config[key].top_value + ADC_TOP_DEADZONE;
+            calibration_data[key].bottom_value = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+            #else
+            calibration_data[key].top_value = key_config[key].top_value - ADC_TOP_DEADZONE;
+            calibration_data[key].bottom_value = key_config[key].bottom_value + ADC_BOTTOM_DEADZONE;
+            #endif
         }
         eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
     }

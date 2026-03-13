@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "gpio.h"
 #include "matrix.h"
 #include <stdint.h>
 #include "action_layer.h"
@@ -9,7 +8,8 @@
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
-// #include "math.h"
+
+#define SMAX(var) MAX(var, var##_R)
 
 #define NONE 0
 #define RAPID_TRIGGER 1
@@ -231,9 +231,19 @@ typedef struct analog_key_t {
     uint16_t scan_value;
     uint16_t bottom_value;
     uint16_t top_value;
+    #ifdef ADJUST_TRAVEL
+    uint16_t travel_mult;
+    #endif
     uint8_t row;
     uint8_t col;
 } analog_key_t;
+
+#if defined MCU_STM32
+typedef stm32_gpio_t gpio_port_t;
+#elif defined MCU_AT32
+typedef at32_gpio_t gpio_port_t;
+//TODO: How do I do this for RP2040?
+#endif
 
 /* Configuration defaults */
 #if defined ADC_RESOLUTION && ADC_RESOLUTION < 12
@@ -259,7 +269,7 @@ typedef struct analog_key_t {
 #   define SCANS_WITHOUT_CHANGE 6000
 #endif
 #ifndef AM_STARTUP_DELAY
-#   define AM_STARTUP_DELAY 20000
+#   define AM_STARTUP_DELAY 20
 #endif
 #ifdef ADC_SCAN_DELAY
 #   define ADC_SCAN_CYCLES ADC_SCAN_DELAY
@@ -287,6 +297,10 @@ typedef struct analog_key_t {
 #   define RECALIBRATED_SWITCHES 5
 #endif
 #endif // ifdef DYNAMIC_CALIBRATION
+//TODO: Is AM_INIT_KEY_NUM 0 if none are defined?
+#ifndef AM_INIT_KEY_NUM_R
+#define AM_INIT_KEY_NUM_R AM_INIT_KEY_NUM
+#endif
 
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
@@ -297,8 +311,9 @@ extern bool manual_profile_lock;
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
 
-//TODO: Why does it work without this using stm32, but not using rp2040?
+#if defined MUX_PINS || defined MUX_PINS_R
 extern SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM];
+#endif
 
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 extern analog_key_t key_config[];

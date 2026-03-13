@@ -167,6 +167,8 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 -Mixed matrix needs debouncing option for mechanical keys
     -Try to debounce only the mechanical keys
 
+-If only one height config (normal/rt) is defined, use it for all keys in that profile by default
+
 -Predefine some adjustment functions with several strength levels, with the option to use a custom one
 
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
@@ -203,3 +205,21 @@ Notes:
 -When doing transactions stuff, make sure that the registration is correct! trans_initiator2target_initializer stuff needs to be correct to function!
 -Using dynamic side assignment costs about 50 scans per second
     -Is that because of less const, or something else?
+-Keychron polynomial: f(x)=-2.99368*e^(-8)*x^(3)+2.04637*e^(-4)*x^(2)-0.48358*x+426.88962
+
+
+Lot of fucking issues right now, what did I change since then:
+Since last commit:
+    -Changed calibration values to be saved raw, with deadzones being applied during loading instead of before saving
+        -Before, no_eeprom would apply the deadzones twice
+        -Part of this was changing the travel distance to include deadzones, since it would otherwise not include them
+    -Added an SMAX define that simplifies MAX(val, val_R)
+    -Changed the define in nvm_eeprom_config slightly, but I highly doubt it changes stuff
+    -Changed the mux port to be a variable instead of a define
+    -Added a ADJUST_TRAVEL define that adds another field to the key_config (has since been disabled)
+    -Changed startup delay to use wait_ms
+    -Changed travel unit to be an actual float, before it was only a float when TRAVEL_DISTANCE was one (?)
+    -Changed some stuff in the script, specifically regarding num_to_matrix_r
+        -Also moved all pin definitions to their own functions and compacted it heavily
+    -Apparently this is only a thing if the slave (right) is connected?
+    -Either some changes I made after fixed stuff, or make clean helped

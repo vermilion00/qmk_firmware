@@ -206,13 +206,13 @@ extern stm32_gpio_t* mux_port;
 //TODO: Add power pin optimizations as well
 extern uint8_t power_pin_num;
 #endif
-extern uint8_t mux_to_num[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM];
-extern const uint8_t mux_to_num_r[MAX(MUX_CHANNELS, MUX_CHANNELS_R)][ADC_PIN_NUM];
-extern uint8_t num_to_matrix[MAX(SWITCH_NUM, SWITCH_NUM_R)][2];
-extern const uint8_t num_to_matrix_r[MAX(SWITCH_NUM, SWITCH_NUM_R)][2];
+extern uint8_t mux_to_num[SMAX(MUX_CHANNELS)][ADC_PIN_NUM];
+extern const uint8_t mux_to_num_r[SMAX(MUX_CHANNELS)][ADC_PIN_NUM];
+extern uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2];
+extern const uint8_t num_to_matrix_r[SMAX(SWITCH_NUM)][2];
 
-extern uint8_t key_modes[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern const uint8_t key_modes_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern const uint8_t key_modes_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 
 #if AM_INIT_KEY_NUM > 0
 extern uint8_t init_keys[AM_INIT_KEY_NUM][2];
@@ -223,26 +223,26 @@ extern const init_func_t init_functions_r[AM_INIT_KEY_NUM];
 
 #ifdef PRIORITY_INDICES
 extern uint8_t priority_index_num;
-extern uint8_t priority_indices[MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern const uint8_t priority_indices_r[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
+extern const uint8_t priority_indices_r[SMAX(SWITCH_NUM)];
 #endif
 
 //TODO: Should also be able to define the _r parts as SWITCH_NUM_R and change the copy logic
 //TODO: Figure out proper guards here (keymap config, etc)
 #if defined USE_TRIGGER_HEIGHT
-extern float CONFIG_MUTABLE trigger_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern float CONFIG_MUTABLE trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #ifndef KEYMAP_CONFIG
-extern const float trigger_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern const float release_height_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern const float trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern const float release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-extern float CONFIG_MUTABLE rt_press_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern float CONFIG_MUTABLE rt_release_distance[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern float CONFIG_MUTABLE rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern float CONFIG_MUTABLE rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #ifndef KEYMAP_CONFIG
-extern float CONFIG_MUTABLE rt_press_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
-extern float CONFIG_MUTABLE rt_release_distance_r[AM_PROFILE_NUM][MAX(SWITCH_NUM, SWITCH_NUM_R)];
+extern float CONFIG_MUTABLE rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern float CONFIG_MUTABLE rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif
 #endif // if defined USE_RT_DISTANCE
 

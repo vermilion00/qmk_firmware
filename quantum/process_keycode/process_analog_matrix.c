@@ -119,9 +119,6 @@ bool process_analog_joystick(uint16_t keycode) {
 #endif
 
 
-// This currently only prints the data for the master side, plug in the other half to print its data
-//TODO: Send slave data over and print it as well
-//      Don't forget to update the docs once it works
 void print_calibration_data(void) {
     char side[7] = "";
     #ifdef SPLIT_KEYBOARD
@@ -131,17 +128,28 @@ void print_calibration_data(void) {
     }
     #endif
 
-    printf("\"top_values%s\": [ %u", side, key_config[0].top_value);
+    // The deadzone needs to be removed from the key_config values
+    #ifndef INVERT_ADC
+    int16_t adjustment = ADC_TOP_DEADZONE;
+    #else
+    int16_t adjustment = -ADC_TOP_DEADZONE;
+    #endif
+    printf("\"top_values%s\": [ %u", side, key_config[0].top_value + adjustment);
     if(switch_num > 1) {
         for(uint8_t index = 1; index < switch_num; index++){
-            printf(", %u", key_config[index].top_value);
+            printf(", %u", key_config[index].top_value + adjustment);
         }
     }
 
-    printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value);
+    #ifndef INVERT_ADC
+    adjustment = ADC_TOP_DEADZONE;
+    #else
+    adjustment = -ADC_TOP_DEADZONE;
+    #endif
+    printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value - adjustment);
     if(switch_num > 1) {
         for(uint8_t index = 1; index < switch_num; index++){
-            printf(", %u", key_config[index].bottom_value);
+            printf(", %u", key_config[index].bottom_value - adjustment);
         }
     }
     print(" ]\n");

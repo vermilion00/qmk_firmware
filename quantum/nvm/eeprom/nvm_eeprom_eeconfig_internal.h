@@ -30,15 +30,11 @@ typedef struct PACKED {
     uint32_t haptic;
     uint8_t  rgblight_ext;
     uint8_t  connection;
-    //TODO: Why are these always on, is it because they're small?
+    //TODO: Should I leave this in at all times, with SWITCH_NUM being defaulted to 0 somehow?
     #ifdef ANALOG_MATRIX_ENABLE
-    //TODO: Make this less of a hack
-    #ifndef SWITCH_NUM_R
-    #   define SWITCH_NUM_R 0
-    #endif
     uint32_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
-    // #else
-    // uint32_t calibration_data;
+    #else
+    uint32_t calibration_data;
     #endif
 } eeprom_core_t;
 
@@ -60,7 +56,6 @@ typedef struct PACKED {
 #define EECONFIG_HAPTIC (uint32_t *)(offsetof(eeprom_core_t, haptic))
 #define EECONFIG_RGBLIGHT_EXTENDED (uint8_t *)(offsetof(eeprom_core_t, rgblight_ext))
 #define EECONFIG_CONNECTION (uint8_t *)(offsetof(eeprom_core_t, connection))
-//TODO: Does this work, since it's an array?
 #define EECONFIG_ANALOG_MATRIX (uint32_t *)(offsetof(eeprom_core_t, calibration_data))
 
 // Size of EEPROM being used for core data storage
