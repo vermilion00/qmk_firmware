@@ -38,8 +38,7 @@ typedef union analog_switch_t {
         uint16_t bottom_value;
     };
 } analog_switch_t;
-//TODO: What does this do?
-typedef union analog_switch_t analog_switch_t;
+// typedef union analog_switch_t analog_switch_t;
 void                          nvm_eeconfig_read_switch(analog_switch_t *switch_data, uint8_t key_idx);
 void                          nvm_eeconfig_read_keyboard(analog_switch_t *keyboard_data);
 void                          nvm_eeconfig_update_switch(const analog_switch_t *switch_data, uint8_t key_idx);

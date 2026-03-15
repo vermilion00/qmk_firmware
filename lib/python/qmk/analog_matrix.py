@@ -446,13 +446,12 @@ def generate_profile_config(info_data, config_h_lines):
             # If base_release_height is defined, it takes priority over offset, as the two values clash
             # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
             base_release_height = profile_data.get('base_release_height', 0)
-            #TODO: Apply from bottom stuff
             offset = -profile_data.get('release_offset', 0) if not from_bottom else profile_data.get('release_offset', 0)
             release_height = profile_data.get('release_height', [0])
             if len(release_height) == 1:
                 release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
             if base_release_height == 0:
-                release_height = [round(trigger_height[idx] + offset, 2) if release_height[idx] == 0 else base_release_distance for idx in range(switch_num)]
+                release_height = [round(trigger_height[idx] + offset, 2) if release_height[idx] == 0 else release_height[idx] for idx in range(switch_num)]
             release_heights.append(release_height)
 
             base_press_distance = profile_data.get('base_press_distance', 0)

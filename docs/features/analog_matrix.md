@@ -39,6 +39,9 @@ Working features are:
 * Priority keys
     * With this feature, you select certain matrix positions to be scanned more often than others
     * Not very useful without high polling rate support, which is a low priority at the moment
+* Custom matrix
+    * If your matrix doesn't conform to the standards layed out in the first section, you can use a custom scanning implementation and still make use of all other features
+    * Overwriting the standard analog initialization routine is also possible
 * and more
 
 ## What doesn't work?
@@ -55,7 +58,6 @@ Working features are:
 * Mixed matrices, i.e. analog keys and mechanical keys together
     * Can be faked, but not actually implemented
     * This means that the encoder push action also needs a workaround to function
-* Custom matrix (lite) implementations
 * DKS (multiple actions assigned to one key, triggering depending on the distance)
 
 1: Might work, but hasn't been tested
@@ -68,7 +70,6 @@ Roughly in descending order of priority:
 * GUI Interface (VIAL)
 * Higher USB polling rates
 * DKS
-* Custom matrix implementation support
 * Joystick axes on slave half
 * Velocity-sensitive MIDI keys
 * Controlling sensor power via GPIO
@@ -555,7 +556,7 @@ When changing "debug_scan_no_input", you need to flash both halves, as it applie
 If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
 When using the calibration_key to start calibration at init, only the half with the pressed down key will start calibration.
 
-To use different multiplexer pins for each half, you need to use the -s flag to flash each half, or disable mux optimizations by setting
+If you wish to use different multiplexer pins for each half, the optimizations might not work. In case of issues, you can manually disable these optimizations by setting
 ```json
 "no_mux_optimization": true
 ```
@@ -563,10 +564,170 @@ to true inside the hardware object in the json, or by defining
 ```c
 #define NO_MUX_OPTIMIZATION
 ```
-inside of your keyboards config.h. This will cause a performance hit, so using the same pins for each half is heavily recommended.
+inside of your keyboards config.h. This will cause a minor performance penalty.
+
+
+<!--MARK: Filtering -->
+# Filtering
+
+By default, the feature implements the following predefined filters, to reduce noise in the ADC readings:
+```c
+#if defined STRONG_ADC_FILTER // 1/2 new, 1/2 old
+#   define ADC_FILTER(value, index) value = (value >> 1) + (key_config[index].scan_value >> 1)
+#elif defined WEAK_ADC_FILTER // 7/8 new, 1/8 old
+#   define ADC_FILTER(value, index) value = ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
+#elif defined NO_ADC_FILTER  // The filter is disabled
+#   define ADC_FILTER(value, index)
+#else // Medium filter, default  3/4 new, 1/4 old
+#   define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
+#endif
+```
+You can select the predefined filter by defining one of the following:
+```c
+// In config.h
+#define STRONG_ADC_FILTER
+// or
+#define WEAK_ADC_FILTER
+// or, to disable the filter entirely
+#define NO_ADC_FILTER
+```
+You can use a custom filter implementation by defining it in config.h:
+```c
+// In config.h
+#define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 2
+// #define ADC_FILTER(value, index) value = ((value * 2) / 3) + (key_config[index].scan_value / 3)
+```
+The filter gets called like this:
+```c
+// In analog_matrix.c
+ADC_FILTER(adc_value, matrix_index);
+```
+This means that any filter implementation needs to assign the adc value, which you can access via the 'value' parameter. To access the previously scanned value of that switch, you can use key_config[index].scan_value.
+
+As the filter works on absolute values, it is recommended to use the debug_matrix_position feature to see what the expected travel range of a switch is, and base your filter strength on that. The higher the range, the stronger the filter should be.
+
+If you wish to use your own filter, keep in mind that this filter will run once for every single key in every single scan, meaning that performance should be prioritised over steady readings, within reason. A simple filter will hardly cause a performance penalty, but a more complex filter might. Furthermore, it is advised to use primarily simple operations like adding, subtracting and bitshifting. If possible, multiply and divide by powers of 2 (2, 4, 8 etc), as those operations can be done efficiently via bitshifts (multiplying by 4 equals << 2, dividing by 8 equals >> 3 etc).
+
+
+<!--TODO: Add adjustment section here -->
+
+
+<!--TODO: Put this into its own page -->
+<!--MARK: Custom scanning -->
+# Custom Scanning
+
+The default matrix scanning routine works like this:
+1. Select multiplexer channel
+    * The channels are counted up from 0. Any channels higher than the highest used channel are skipped automatically.
+2. Loop through all used ADC pins
+3. Check if a switch is connected to the multiplexer channel and ADC pin combination
+4. If yes, measure the voltage and check if the switch state has changed (evaluation)
+5. Select the next multiplexer channel and start anew
+
+The scanning function returns true if the matrix state has changed, and false if it hasn't. The way this scanning routine is set up means that you can only use zero or one layers of multiplexers to connect your sensors to the microcontroller, i.e. the every multiplexer output pin has to be connected to an ADC pin directly. Connecting the output of one multiplexer to the input of another isn't supported natively, nor is using diodes to connect multiple sensors to one multiplexer channel, then selectively powering them.  
+However, if your matrix is layed out differently from the standard described above, you can still make use of this feature by replacing the default scanning routine with your own implementation. This would allow you to still make use of the calibration (including saving data), height translation, switch state evaluation, and all other features that don't directly change how the scanning routine works (i.e. basically any feature except dynamic calibration and priority keys will still work, and support for those can be implemented in your own scanning routine as well).
+
+## Setup
+
+To use your own scanning or initialization routine, you need to add a new file placed in your keyboard folder, and tell QMK to compile it as well. Assuming that file is called matrix.c: <br>
+In rules.mk:
+```
+SRC += matrix.c
+```
+Importantly, you should NOT add CUSTOM_MATRIX = yes or CUSTOM_MATRIX = lite to your rules.mk.
+A barebones implementation will look something like this:
+```c
+// In matrix.c
+#include "analog_matrix.h" // To make use of analog matrix functions
+// The function definition has to look like this
+uint8_t analog_matrix_scan(void) {
+    bool matrix_has_changed = false;
+    // Handle the matrix scanning here
+
+    return matrix_has_changed;
+}
+```
+This is all that's necessary to overwrite the scanning routine with your own. For it to work correctly, you need to keep a few things in mind:
+The evaluation function translates the ADC scan value of a switch into its press/release state, and returns true if the switch state has changed, NOT if it is pressed. <br> The evaluation function also handles stuff like joystick axes automatically (if those are enabled). <br>
+
+Our scanning routine can look something like this:
+```c
+uint8_t analog_matrix_scan(void) {
+    bool matrix_has_changed = false;
+    uint16_t adc_value;
+    uint8_t index;
+    
+    // Loop through all used multiplexer channels. mux_channel_num contains the highest used mux channel (of that half for split keyboards)
+    for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
+        set_mux_channel(mux_channel);
+        // If you need it, you can set a short delay here to let the multiplexer output settle before scanning.
+        delay_ns(MUX_SELECT_DELAY); 
+        // Loop through all used ADC pins. adc_pin_num contains the amount of pins (of that half for split keyboards)
+        for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
+            // mux_to_num contains the matrix index for all possible intersections of mux channels and adc pins. If the index at an intersection is 0, it means it is unused.
+            index = mux_to_num[mux_channel][adc_channel];
+            // An index of 0 means that the intersection is unused, we can continue with the next combination
+            if (index == 0) continue;
+            // Decrement the index to get the correct switch configuration if it is used.
+            index -= 1;
+
+            // Scan the selected channel combination. adc_pin_mux contains the converted ADC and ADC channel combination of all used ADC pins.
+            adc_value = adc_read(adc_pin_mux[adc_channel]);
+            // Filter the scan value using the algorithms described in the Filtering section
+            ADC_FILTER(adc_value, index);
+            // This checks if the value has changed enough compared to the previous value to warrant a full evaluation.
+            // If the change is smaller than ADC_SMOOTHING (60 by default, 12 bit ADC), we continue with the next switch.
+            if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) continue;
+            // Check if key is pressed/released, returns true if the switch state has changed
+            if(evaluate_value(index, adc_value)) {
+                matrix_has_changed = true;
+                // Toggle the state of the matrix position. The matrix array doesn't reset between scans. The matrix position of each switch is saved to the key_config[index].
+                matrix[key_config[index].row] ^= 1 << key_config[index].col;
+            }
+            // Update the previous scan value with the current one
+            key_config[index].scan_value = adc_value;
+        }
+    }
+
+    // On split keyboards, we need to run matrix_post_scan to get the slave matrix state
+    // This define is automatically set if a split keyboard is used, otherwise this code won't be included
+    #ifdef SPLIT_KEYBOARD
+    matrix_has_changed |= matrix_post_scan();
+    #endif
+
+    return matrix_has_changed;
+}
+```
+
+Let's assume we're using five switches. Two of those are connected to channels 0 and 1 of multiplexer number 0, the other three are connected to channels 0, 1 and 2 of mux 1.
+That means that our mux_to_num array has the form {{1, 2}, {3, 4}, {0, 5}}. As no switch is connected to multiplexer 0 channel 2, the index will be 0, meaning that it won't be scanned. Don't forget to decrement the index before scanning, or the functionality won't work correctly. <br>
+The mux_to_num array is filled automatically with the information taken from the LAYOUT object in info.json, and doesn't have to be manually set. If it isn't correct, double check that the mux parameters in the LAYOUT definition are set correctly.
+
+::: warning  
+The special debugging modes described in "Other Features->Debugging" are called directly during scanning, replacing the scanning routine will make them unusable.  
+:::
+
+To be able to print information to the console during development, you can include the "debug.h" header, allowing you to use the dprint and dprintf functions. Make sure that you have enabled the QMK debugging mode, or else they won't print anything. To print even with debugging disabled, you can use the "print.h" header and the print and printf functions instead, but keep in mind that these will cause a major performance penalty even with debugging disabled.
+
+If you need to initialize additional things, you can do so by defining a matrix_init_kb() function:
+```c
+void matrix_init_kb(void) {
+    // Initialize additional stuff without overwriting basic functionality
+}
+```
+This function will be called at the end of the default initialization function. 
+If you instead wish to overwrite it completely, you can do so similarily to the scanning function:
+```c
+void analog_matrix_init(void) {
+    // Setting this definition will completely overwrite the original function, so be very careful
+}
+```
+This function assigns the configuration to the correct half on split keyboards, sets the pin modes for the used multiplexer and ADC pins, reads the switch calibration data from EEPROM, calls the calibration function if the data is invalid, scans the init keys if they're used, and translates the configured heights into the equivalent ADC readings.  
+Overwriting this function can break functionality very easily, in many more ways than the scanning function, so it is recommended to do so only if you fully understand how this feature works. Otherwise, it is best to stick to adding stuff via matrix_init_kb().
+
 
 <!--MARK: Features -->
-# Other features
+# Other Features
 
 ## Debugging
 
@@ -582,9 +743,9 @@ On split keyboards, printing the scan values only works for the master half.
         "config": {
             "debug_mux_value": [0, 0],
             "debug_matrix_value": [0, 0],
-            "debug_scan_values": true,
-            "debug_calibration": true,
-            "debug_scan_no_input": true
+            "debug_scan_values": false,
+            "debug_calibration": false,
+            "debug_scan_no_input": false
         }
     }
 }
@@ -597,7 +758,7 @@ On split keyboards, printing the scan values only works for the master half.
 
 ::: warning  
 Enabling any of the print options will cause a performance hit, even if the console isn't enabled on your end. If you suddenly have performance issues after debugging, try checking if you disabled all debug modes, and flash the firmware again. <br>
-If you have a split keyboard and the slave half suddenly stopped working, or updates slowly, make sure that all debug options are disabled, then flash the firmware again.
+If you have a split keyboard and the slave half suddenly updates slowly, make sure that all debug options are disabled, then flash the firmware again.
 On split keyboards, enabling debug_scan_no_input on one half will not disable inputs on the other half.  
 :::
 
@@ -893,7 +1054,8 @@ MARK: Design tips
 # Keyboard design tips
 
 * Keep the analog traces short
-* 
+* Use a small decoupling capacitor (~100nF) between the ADC pin and ground
+* Low pass filter at each sensor?
 -->
 
 # Additional Resources
