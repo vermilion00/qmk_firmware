@@ -61,14 +61,6 @@ Split calibration:
 -Allow setting stuff in config.h directly again
     -To disable config checking, for analog_matrix: true in json->features
 
--Why is the slave joystick not updating?
-    -Do the slave joystick matrix positions show as updated?
-    -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
-
--Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
-    -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
-    -Also means that I'd need to either have extra space in the switch config for the joystick diff, or calculate it every update
-
 Joystick:
 -Currently, the slave side seems to not work, probs because the stuff is just not synced
 -Sync the state of the slave axis_values array to master, and evaluate there
@@ -80,6 +72,15 @@ Joystick:
 -To support multiple keys, the first one should set, the second one should +
     -Or reset state to 0 before and + all of them, pressing multiple keys of the same axis at once is unlikely
 -Slave side axes will only work if the master has access to the slave matrix_to_num at least
+
+-Why is the slave joystick not updating?
+    -Do the slave joystick matrix positions show as updated?
+    -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
+
+-Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
+    -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
+    -Also means that I'd need to either have extra space in the switch config for the joystick diff, or calculate it every update
+
 
 MIDI:
 -Basically the same logic as the joystick stuff
@@ -229,3 +230,12 @@ Notes:
 -Setting the key_mode by default fails the height config validation, move it down
 
 -Lower deadzone and higher smoothing works wayyyyyy better -> like 100 deadzone, 60 smoothing
+
+-Looks like keys occasionally tick up by like 35 for some reason
+-The keys that register randomly on the slave seem to all be the lower left MUX, near the thumb cluster
+
+-Try a RC lowpass filter (1.5kR, 100nF / 10nF) at the sensors
+-Try a 100nF bypass cap at the ADC pins to GND
+-Use Opamp at input pins to amplify signal, check if noise level increases too -> INA333 or 317?
+    -If it does    -> Sensor/connection/interference problem
+    -If it doesn't -> ADC problem, unstable reference voltage etc

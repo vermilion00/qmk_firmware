@@ -8,6 +8,7 @@
 #include "info_config.h"
 #include "analog.h"
 #include "util.h"
+#include "multiplexer.h"
 
 #define SMAX(var) MAX(var, var##_R)
 
@@ -246,7 +247,7 @@ typedef at32_gpio_t gpio_port_t;
 #define MAX_ADC_VALUE 4095
 
 #ifndef ADC_DEADZONE
-#   define ADC_DEADZONE 150
+#   define ADC_DEADZONE 100
 #endif
 #ifndef ADC_SMOOTHING
 #   define ADC_SMOOTHING 60
@@ -303,15 +304,53 @@ extern bool manual_profile_lock;
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
 
-#if defined MUX_PINS || defined MUX_PINS_R
-extern SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM];
+// Guarded to allow overwriting the filter with a different implementation
+#ifndef ADC_FILTER
+// This filter is more efficient than value -= (value - key_config[index].scan_value) >> 1
+#if defined STRONG_ADC_FILTER // half new, half old
+#   define ADC_FILTER(value, index) value = (value >> 1) + (key_config[index].scan_value >> 1)
+#elif defined WEAK_ADC_FILTER // 7/8 new, 1/8 old
+#   define ADC_FILTER(value, index) value = ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
+#elif defined NO_ADC_FILTER
+#   define ADC_FILTER(value, index)
+#else // Medium filter  3/4 new, 1/4 old
+#   define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
+#endif
+// #define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
+// #define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 1
+// #define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 2
+#endif
+
+#ifdef DYNAMIC_CALIBRATION
+// Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
+extern uint8_t recalibrated_switches = 0;
+extern uint8_t recalibrated_indices[SMAX(SWITCH_NUM)];
+// Check if the switch boundaries need updating, and update them if necessary.
+bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
 
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
+extern matrix_row_t matrix[MATRIX_ROWS];
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern PROFILE_MUTABLE uint8_t active_profile;
+extern pin_t adc_pins[ADC_PIN_NUM];
+extern adc_mux adc_pin_mux[ADC_PIN_NUM];
+#if defined MUX_PINS || defined MUX_PINS_R
+extern SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM];
+#endif
+#ifdef POWER_PINS
+extern SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
+// Set the sensor power pins and delay, if defined
+void set_sensor_power(uint8_t index);
+#endif
 extern uint8_t highest_layer;
+extern PROFILE_MUTABLE uint8_t active_profile;
+
+#ifndef AM_NO_EEPROM
+#include "eeconfig.h"
+extern analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
+#endif
 
 #ifdef ADJUSTMENT_FUNCTION
 __attribute__((weak)) uint16_t adjust(uint16_t value);
@@ -321,12 +360,32 @@ __attribute__((weak)) uint16_t adjust(uint16_t value);
 
 #ifdef SPLIT_KEYBOARD
 extern bool calibration_started;
+#ifdef AM_NO_EEPROM
 extern uint8_t switch_num_slave;
+#endif
 #endif
 
 /* Global Functions */
+// Readies the keyboard state before scanning begins
 void analog_matrix_init(void);
+// Scans the keys and calls the evaluation function on them
 uint8_t analog_matrix_scan(void);
+// Evaluates the value against the configured heights, to see if the switch state has changed. Returns true if changed.
+bool evaluate_value(uint8_t index, uint16_t value);
+// Populates the calibrated values from eeprom or hardcoded values, and applies deadzones
+bool get_calibration_data(void);
+// Get the switch data configured in the json
+void get_switch_data(void);
+// Scans the init keys defined in the info.json
+void scan_init_keys(void);
+// Translate the user defined heights and distances into the equivalent ADC values
+void translate_mm_to_value(uint8_t index);
+// Gets the previously calibrated min/max values for each switch from the EEPROM
+bool get_calibration_data(void);
+// Immediately starts calibration
+void calibrate_switches(bool init);
+// Assigns side and configuration at init
+void assign_config(bool side);
 // Activates the profile passed as the parameter (only on the master half on split keyboards)
 void set_active_profile(uint8_t profile);
 // Returns the active profile
@@ -335,12 +394,13 @@ uint8_t get_active_profile(void);
 void toggle_profile_lock(void);
 // Sets the profile lock state to the passed value
 void set_profile_lock(bool value);
-// Immediately starts calibration
-void calibrate_switches(bool init);
 // Run actions when the layer state changes
 layer_state_t layer_state_set_am(layer_state_t state);
+// Empty loop for short delays
+void delay_ns(uint16_t delay);
 //TODO: Remove
 void _sync_cal(void);
+
 
 typedef void (* init_func_t)(bool init);
 

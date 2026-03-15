@@ -21,9 +21,7 @@
 #include "nvm_eeconfig.h"
 #include "print.h"
 #include "suspend.h"
-// #ifdef ADJUST_FUNCTION
 #include "math.h"
-// #endif
 //TODO: Debouncing doesn't work currently, fix it just in case
 #if DEBOUNCE > 0
 #include "debounce.h"
@@ -45,34 +43,12 @@ analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #include "transactions.h"
 #endif
 
-// Defined to allow overwriting the filter with a different implementation, or none at all
-#ifndef FILTER
-#   define FILTER(value, index)
-// #   define FILTER(value, index) value += (value - key_config[index].scan_value) >> 4
-#endif
-
-// Checks if the switch is pressed or not, returns true if the state has changed
-//TODO: Dynamically change type of arg based on matrix size
-//      Create a matrix_index_t enum with nested #if statements checking the matrix sizes
-static inline bool evaluate_value(uint8_t index, uint16_t value);
-// Empty loop for short delays
-static inline void delay_ns(uint16_t delay);
-// Get the switch data configured in the json
-void get_switch_data(void);
-// Translate the user defined trigger height etc into the equivalent ADC values
-void translate_mm_to_value(uint8_t index);
-// Gets the previously calibrated min/max values for each switch from the EEPROM
-//TODO: Allow saving to flash
-bool get_calibration_data(void);
-// Runs a full keyboard calibration to get the ADC values for the bottom out and unpressed positions
-// void calibrate_switches(void);
-
 extern matrix_row_t matrix[MATRIX_ROWS];
 #if DEBOUNCE > 0
 extern matrix_row_t raw_matrix[MATRIX_ROWS];
 #endif
 #ifdef SPLIT_KEYBOARD
-// row offsets for each hand
+// Row offsets for each hand
 extern uint8_t thisHand, thatHand;
 bool calibration_started = false;
 #endif
@@ -81,13 +57,10 @@ bool calibration_started = false;
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
 uint8_t recalibrated_indices[SMAX(SWITCH_NUM)];
-// Check if the switch boundaries need updating, and update them if necessary.
-bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
 
 #if AM_INIT_KEY_NUM > 0
 // Initialize the keys to be checked at initialization
-void scan_init_keys(void);
 void _bootloader_jump(bool init);
 SPLIT_MUTABLE uint8_t init_keys[AM_INIT_KEY_NUM][2] = AM_INIT_KEYS;
 init_func_t init_functions[AM_INIT_KEY_NUM] = AM_INIT_FUNCTIONS;
@@ -102,8 +75,8 @@ uint8_t highest_layer = 0;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 SPLIT_MUTABLE uint8_t adc_pin_num = ADC_PIN_NUM;
-#ifdef MUX_PINS
 SPLIT_MUTABLE uint8_t mux_channel_num = MUX_CHANNELS;
+#ifdef MUX_PINS
 //TODO: Add this stuff
 SPLIT_MUTABLE uint8_t mux_pin_num = MUX_PIN_NUM;
 #ifdef MUX_PINS_CONTINUOUS
@@ -112,18 +85,16 @@ SPLIT_MUTABLE uint8_t mux_offset = MUX_PIN_OFFSET;
 SPLIT_MUTABLE gpio_port_t* mux_port = CONTINUOUS_MUX_PORT;
 #endif
 #endif
-#else
-const uint8_t mux_channel_num = 0;
 #endif
 
 
 #ifdef POWER_PINS
 SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
 // Set the sensor power pins and delay, if defined
-static inline void set_sensor_power(uint8_t index);
+void set_sensor_power(uint8_t index);
 #endif
 
-#ifdef SPLIT_KEYBOARD
+#if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
 uint8_t switch_num_slave = SWITCH_NUM_R;
 #endif
 
@@ -280,7 +251,7 @@ SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 
 
 //MARK: Init
-void analog_matrix_init(void) {
+__attribute__((weak)) void analog_matrix_init(void) {
     // Determine keyboard half, and assign heights if keymap config is used
     #if (KEYBOARD_SIDE == UNKNOWN && defined SPLIT_KEYBOARD) || defined KEYMAP_CONFIG
     assign_config(is_keyboard_left());
@@ -405,13 +376,8 @@ void scan_init_keys(void) {
 #endif // AM_INIT_KEY NUM > 0 else
 
 
-//TODO: Would it be faster to save the mux info to the switch, loop through the key_config indices,
-//      and sort the key_config by mux_channel, like the priority muxes?
-//      Maybe even sort the adc channels to be ascending, then descending,
-//      so at least one adc channel is used twice in a row, if that makes a difference
-//      Should make a difference as they're still hooked up through a mux, but maybe it automatically resets between scans by default or smth?
 //MARK: Scan
-uint8_t analog_matrix_scan(void) {
+__attribute__((weak)) uint8_t analog_matrix_scan(void) {
     bool matrix_has_changed = false;
     uint16_t adc_value;
     uint8_t index;
@@ -450,8 +416,8 @@ uint8_t analog_matrix_scan(void) {
 
                 adc_value = adc_read(adc_pin_mux[adc_channel]);
 
-                // Simple IIR filter with 1/16 alpha by default
-                FILTER(adc_value, index);
+                // Simple IIR filter with 1/4 alpha by default
+                ADC_FILTER(adc_value, index);
 
                 #ifdef DEBUG_MUX_POSITION
                 if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
@@ -465,30 +431,26 @@ uint8_t analog_matrix_scan(void) {
                 #endif
 
                 // Check if the value has changed enough to warrant an evaluation
-                //TODO: This could perhaps cause issues around the borders, with missing updates?
-                if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) {
-                    continue;
+                //TODO: This could perhaps cause issues around the borders, with missing updates, especially on higher smoothing levels
+                if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) continue;
+                // Check if key is pressed/released, returns true if the switch state has changed
+                if(evaluate_value(index, adc_value)) {
+                    matrix_has_changed = true;
+                    #ifndef DEBUG_SCAN_NO_INPUT
+                    matrix[key_config[index].row] ^= 1 << key_config[index].col;
+                    #endif
                 }
-                else {
-                    // Check if key is pressed/released and set matrix_has_changed, returns true if the switch state has changed
-                    if(evaluate_value(index, adc_value)) {
-                        matrix_has_changed = true;
-                        #ifndef DEBUG_SCAN_NO_INPUT
-                        matrix[key_config[index].row] ^= 1 << key_config[index].col;
-                        #endif
-                    }
 
-                    // If dynamic calibration is enabled, check if the boundaries need updating
-                    #ifdef DYNAMIC_CALIBRATION
-                    if(update_switch_bounds(index, adc_value)) {
-                        // If the bounds have been updated, translate the heights
-                        translate_mm_to_value(index);
-                        // Mark the index to update during a layer switch
-                        recalibrated_indices[recalibrated_switches] = index;
-                    }
-                    #endif // ifdef DYNAMIC_CALIBRATION
-                    key_config[index].scan_value = adc_value;
+                // If dynamic calibration is enabled, check if the boundaries need updating
+                #ifdef DYNAMIC_CALIBRATION
+                if(update_switch_bounds(index, adc_value)) {
+                    // If the bounds have been updated, translate the heights
+                    translate_mm_to_value(index);
+                    // Mark the index to update during a layer switch
+                    recalibrated_indices[recalibrated_switches] = index;
                 }
+                #endif // ifdef DYNAMIC_CALIBRATION
+                key_config[index].scan_value = adc_value;
             }
             #ifdef DEBUG_SCAN_VALUES
             else {
@@ -646,6 +608,8 @@ bool get_calibration_data(void) {
         key_config[key].top_value = top_values[key] + ADC_TOP_DEADZONE + adjustment;
         key_config[key].bottom_value = bottom_values[key] - ADC_BOTTOM_DEADZONE - adjustment;
         #endif // ifndef INVERT_ADC else
+        // Prime the filter to avoid large swings at the start
+        key_config[key].scan_value = key_config[key].top_value;
     }
 
     return true;
@@ -682,6 +646,8 @@ bool get_calibration_data(void) {
         key_config[key].top_value = calibration_data[key].top_value + ADC_TOP_DEADZONE + adjustment;
         key_config[key].bottom_value = calibration_data[key].bottom_value - ADC_BOTTOM_DEADZONE - adjustment;
         #endif
+
+        key_config[key].scan_value = key_config[key].top_value;
 
     }
     return true;
@@ -749,7 +715,7 @@ void calibrate_switches(bool init) {
                 if(matrix_index > 0){
                     matrix_index -= 1;
                     adc_value = adc_read(adc_pin_mux[adc_channel]);
-                    FILTER(adc_value, matrix_index);
+                    ADC_FILTER(adc_value, matrix_index);
 
                     #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
                     dprintf("%u/%2u: %i, ", adc_channel, mux_channel, adc_value);
@@ -839,13 +805,6 @@ void calibrate_switches(bool init) {
                 // Save the calibration values without a deadzone applied
                 calibration_data[key].top_value = key_config[key].top_value;
                 calibration_data[key].bottom_value = key_config[key].bottom_value;
-                #ifndef INVERT_ADC
-                key_config[key].top_value -= ADC_TOP_DEADZONE;
-                key_config[key].bottom_value += ADC_BOTTOM_DEADZONE;
-                #else
-                key_config[key].top_value += ADC_TOP_DEADZONE;
-                key_config[key].bottom_value -= ADC_BOTTOM_DEADZONE;
-                #endif
             }
             eeconfig_update_keyboard((analog_switch_t*)&calibration_data);
 
@@ -899,7 +858,7 @@ void _sync_cal(void) {
 
 
 //MARK: Evaluate
-static inline bool evaluate_value(uint8_t index, uint16_t value) {
+bool evaluate_value(uint8_t index, uint16_t value) {
     #if defined JOYSTICK_ENABLE
     if(joystick_layer){
         if(key_config[index].axis_index != -1) {
@@ -1089,11 +1048,10 @@ static inline bool evaluate_value(uint8_t index, uint16_t value) {
 
 //MARK: Update bounds
 #ifdef DYNAMIC_CALIBRATION
-#define DEBUG_CALIBRATION
 #ifdef DEBUG_CALIBRATION
-#define OUTPUT_VAL(value, side, index) dprintf("New %s value for key %u: %u", side, index, value)
+#define OUTPUT_VAL(value, side, index) dprintf("New %s value for key %u: %u\n", side, index, value)
 #else
-#define OUTPUT_VAL(value, side)
+#define OUTPUT_VAL(value, side, index)
 #endif
 bool update_switch_bounds(uint8_t index, uint16_t value) {
     #ifndef INVERT_ADC
