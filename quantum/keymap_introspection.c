@@ -462,9 +462,8 @@ void create_joystick_mask(uint8_t current_layer) {
             uint8_t key_index = matrix_to_num[row][col];
             // uint8_t key_index = matrix_to_num[row - thisHand][col];
 
-            if(key_index == 0) continue;
+            if(key_index == 255) continue;
 
-            key_index -= 1;
             //TODO: When the master checks every row instead of just the master half, fix this
             const uint16_t keycode = keymaps[current_layer][row + thisHand][col];
             if(IS_AM_JOYSTICK_AXIS(keycode)) {
@@ -512,7 +511,7 @@ void create_midi_mask(uint8_t current_layer) {
     for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
         for(uint8_t col = 0; col < MATRIX_COLS; col++) {
             const uint16_t keycode = keymaps[current_layer][row][col];
-            const uint8_t key_index = matrix_to_num[row - thisHand][col] - 1;
+            const uint8_t key_index = matrix_to_num[row - thisHand][col];
 
             if(IS_MIDI_NOTE(keycode)) {
                 midi_layer = true;

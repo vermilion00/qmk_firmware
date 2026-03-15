@@ -167,6 +167,7 @@ bool evaluate_joystick_axis(axis_name_t axis) {
 
 extern matrix_row_t matrix[MATRIX_ROWS];
 // Clear the matrix and switch state of all joystick keys
+//TODO: If this is called on the slave, wouldn't it reset keys outside of array? Is matrix defined as full rows there, or rows per hand?
 void reset_joystick_keys(void) {
     // Reset the pressed state of all joystick keys to avoid stuck keys
     for(uint8_t index = 0; index < switch_num; index++) {

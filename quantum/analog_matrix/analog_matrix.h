@@ -323,7 +323,7 @@ extern bool manual_profile_lock;
 
 #ifdef DYNAMIC_CALIBRATION
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
-extern uint8_t recalibrated_switches = 0;
+extern uint8_t recalibrated_switches;
 extern uint8_t recalibrated_indices[SMAX(SWITCH_NUM)];
 // Check if the switch boundaries need updating, and update them if necessary.
 bool update_switch_bounds(uint8_t index, uint16_t value);
@@ -348,7 +348,7 @@ extern uint8_t highest_layer;
 extern PROFILE_MUTABLE uint8_t active_profile;
 
 #ifndef AM_NO_EEPROM
-#include "eeconfig.h"
+#include "nvm_eeconfig.h"
 extern analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 

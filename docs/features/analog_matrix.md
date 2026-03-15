@@ -39,7 +39,7 @@ Working features are:
 * Priority keys
     * With this feature, you select certain matrix positions to be scanned more often than others
     * Not very useful without high polling rate support, which is a low priority at the moment
-* Custom matrix
+* Custom scanning routine
     * If your matrix doesn't conform to the standards layed out in the first section, you can use a custom scanning implementation and still make use of all other features
     * Overwriting the standard analog initialization routine is also possible
 * and more
@@ -52,27 +52,34 @@ Working features are:
 * Dynamic calibration (update bounds during use, coming soon though)
 * Controlling the sensor power via gpio pins<sup>1</sup>
 * High USB polling rates
-    * Currently low priority WIP
+    * Currently low priority
 * Assigning a color to a profile
     * You can instead assign a color to a layer and let the profile switch automatically when that layer is active
-* Mixed matrices, i.e. analog keys and mechanical keys together
+* Mixed matrices, i.e. analog keys and mechanical keys together*
     * Can be faked, but not actually implemented
     * This means that the encoder push action also needs a workaround to function
 * DKS (multiple actions assigned to one key, triggering depending on the distance)
 
-1: Might work, but hasn't been tested
+1: Might work, but hasn't been tested.
 
 ## Current TO-DO list
 
 Roughly in descending order of priority:
-* Dynamic calibration
-* Mixed matrices
-* GUI Interface (VIAL)
-* Higher USB polling rates
+* Dynamic calibration*
+    * Works well, but automatic saving to EEPROM needs tuning. Docs not available yet.
+* Proper mixed matrices
+* GUI (VIAL)
 * DKS
 * Joystick axes on slave half
 * Velocity-sensitive MIDI keys
-* Controlling sensor power via GPIO
+* Higher USB polling rates (> 1kHz)
+* Controlling sensor power via GPIO*
+    * Support for two different modes exists but hasn't been fully tested yet
+    * Supported modes are:
+        * A single pin controlling a FET, to cut off power to all sensors in case of a hibernation mode
+        * One power pin controlling power to all sensors on one mux channel, to toggle every time the mux channel changes
+            * This way, only the sensors being scanned will be powered
+        * User defined callback functions also exist, to allow for a custom powering logic
 * Assigning a color to a profile
 
 <!--MARK: Calibration -->
@@ -664,12 +671,10 @@ uint8_t analog_matrix_scan(void) {
         delay_ns(MUX_SELECT_DELAY); 
         // Loop through all used ADC pins. adc_pin_num contains the amount of pins (of that half for split keyboards)
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
-            // mux_to_num contains the matrix index for all possible intersections of mux channels and adc pins. If the index at an intersection is 0, it means it is unused.
+            // mux_to_num contains the matrix index for all possible intersections of mux channels and adc pins. If the index at an intersection is 255, it means it is unused.
             index = mux_to_num[mux_channel][adc_channel];
             // An index of 0 means that the intersection is unused, we can continue with the next combination
-            if (index == 0) continue;
-            // Decrement the index to get the correct switch configuration if it is used.
-            index -= 1;
+            if (index == 255) continue;
 
             // Scan the selected channel combination. adc_pin_mux contains the converted ADC and ADC channel combination of all used ADC pins.
             adc_value = adc_read(adc_pin_mux[adc_channel]);
@@ -700,7 +705,7 @@ uint8_t analog_matrix_scan(void) {
 ```
 
 Let's assume we're using five switches. Two of those are connected to channels 0 and 1 of multiplexer number 0, the other three are connected to channels 0, 1 and 2 of mux 1.
-That means that our mux_to_num array has the form {{1, 2}, {3, 4}, {0, 5}}. As no switch is connected to multiplexer 0 channel 2, the index will be 0, meaning that it won't be scanned. Don't forget to decrement the index before scanning, or the functionality won't work correctly. <br>
+That means that our mux_to_num array has the form {{1, 2}, {3, 4}, {255, 5}}. As no switch is connected to multiplexer 0 channel 2, the index will be 255, meaning that it won't be scanned.<br>
 The mux_to_num array is filled automatically with the information taken from the LAYOUT object in info.json, and doesn't have to be manually set. If it isn't correct, double check that the mux parameters in the LAYOUT definition are set correctly.
 
 ::: warning  
