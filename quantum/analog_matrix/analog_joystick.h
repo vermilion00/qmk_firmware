@@ -64,6 +64,9 @@ bool joystick_post_scan(void);
 void analog_joystick_task(void);
 void reset_joystick_keys(void);
 
+#ifndef JS_DEADZONE
+#define JS_DEADZONE 80
+#endif
 #if !defined JS_TOP_DEADZONE
 #define JS_TOP_DEADZONE JS_DEADZONE
 #endif

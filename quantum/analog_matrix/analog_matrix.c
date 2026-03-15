@@ -5,8 +5,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-// #include <sys/cdefs.h>
-// #include "analog.h"
 #include "_wait.h"
 #include "action_layer.h"
 #include "bootloader.h"
@@ -18,7 +16,6 @@
 #include "keymap_introspection.h"
 #include "matrix.h"
 #include "multiplexer.h"
-#include "nvm_eeconfig.h"
 #include "print.h"
 #include "suspend.h"
 #include "math.h"
@@ -32,9 +29,7 @@
 #ifdef MIDI_ENABLE
 #include "analog_midi.h"
 #endif
-//TODO: I think either this or nvm_eeconfig is unnecessary
 #ifndef AM_NO_EEPROM
-#include "eeconfig.h"
 analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 
@@ -346,7 +341,7 @@ void scan_init_keys(void) {
         delay_ns(MUX_SELECT_CYCLES);
         #endif // MUX_SELECT_DELAY
 
-        uint8_t matrix_index = mux_to_num[init_keys[idx][1]][init_keys[idx][0]] - 1;
+        const uint8_t matrix_index = mux_to_num[init_keys[idx][1]][init_keys[idx][0]];
         wait_ms(AM_STARTUP_DELAY / 5);
         adc_value = adc_read(adc_pin_mux[init_keys[idx][0]]);
 
@@ -359,12 +354,12 @@ void scan_init_keys(void) {
         // If the key is activated, call the respective function
         // These functions are set in the INIT_FUNCTIONS dict at the top of analog_matrix.py
         #ifndef INVERT_ADC
-        if(adc_value < key_config[matrix_index].bottom_value + 200) {
+        if(adc_value < key_config[matrix_index].bottom_value + 4 * ADC_BOTTOM_DEADZONE) {
             LED_ON;
             init_functions[idx](true);
         }
         #else
-        if(adc_value > key_config[matrix_index].bottom_value - 200) {
+        if(adc_value > key_config[matrix_index].bottom_value - 4 * ADC_BOTTOM_DEADZONE) {
             LED_ON;
             (*init_functions[idx])(true);
         }
@@ -404,59 +399,59 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
             index = mux_to_num[mux_channel][adc_channel];
-            // Check if a switch is at the position (matrix index > 0), and scan if so
-            if(index > 0) {
-                index -= 1;
-
-                #ifdef PRIORITY_INDICES
-                if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
-                    if(!priority_indices[index]) { continue; }
+            // Check if a switch is at the position (matrix index < 255), and scan if so
+            if(index == 255) {
+                #ifdef DEBUG_SCAN_VALUES
+                else {
+                    dprintf("%u/%2u:    , ",adc_channel, mux_channel);
                 }
                 #endif
-
-                adc_value = adc_read(adc_pin_mux[adc_channel]);
-
-                // Simple IIR filter with 1/4 alpha by default
-                ADC_FILTER(adc_value, index);
-
-                #ifdef DEBUG_MUX_POSITION
-                if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
-                    dprintf("%u\n", adc_value);
-                }
-                #elif defined DEBUG_SCAN_VALUES
-                dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
-                #endif
-                #ifdef ADC_SCAN_DELAY
-                delay_ns(ADC_SCAN_CYCLES);
-                #endif
-
-                // Check if the value has changed enough to warrant an evaluation
-                //TODO: This could perhaps cause issues around the borders, with missing updates, especially on higher smoothing levels
-                if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) continue;
-                // Check if key is pressed/released, returns true if the switch state has changed
-                if(evaluate_value(index, adc_value)) {
-                    matrix_has_changed = true;
-                    #ifndef DEBUG_SCAN_NO_INPUT
-                    matrix[key_config[index].row] ^= 1 << key_config[index].col;
-                    #endif
-                }
-
-                // If dynamic calibration is enabled, check if the boundaries need updating
-                #ifdef DYNAMIC_CALIBRATION
-                if(update_switch_bounds(index, adc_value)) {
-                    // If the bounds have been updated, translate the heights
-                    translate_mm_to_value(index);
-                    // Mark the index to update during a layer switch
-                    recalibrated_indices[recalibrated_switches] = index;
-                }
-                #endif // ifdef DYNAMIC_CALIBRATION
-                key_config[index].scan_value = adc_value;
+                continue;
             }
-            #ifdef DEBUG_SCAN_VALUES
-            else {
-                dprintf("%u/%2u:    , ",adc_channel, mux_channel);
+
+            #ifdef PRIORITY_INDICES
+            if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
+                if(!priority_indices[index]) { continue; }
             }
             #endif
+
+            adc_value = adc_read(adc_pin_mux[adc_channel]);
+
+            // Simple IIR filter with 1/4 alpha by default
+            ADC_FILTER(adc_value, index);
+
+            #ifdef DEBUG_MUX_POSITION
+            if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
+                dprintf("%u\n", adc_value);
+            }
+            #elif defined DEBUG_SCAN_VALUES
+            dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
+            #endif
+            #ifdef ADC_SCAN_DELAY
+            delay_ns(ADC_SCAN_CYCLES);
+            #endif
+
+            // Check if the value has changed enough to warrant an evaluation
+            //TODO: This could perhaps cause issues around the borders, with missing updates, especially on higher smoothing levels
+            if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) continue;
+            // Check if key is pressed/released, returns true if the switch state has changed
+            if(evaluate_value(index, adc_value)) {
+                matrix_has_changed = true;
+                #ifndef DEBUG_SCAN_NO_INPUT
+                matrix[key_config[index].row] ^= 1 << key_config[index].col;
+                #endif
+            }
+
+            // If dynamic calibration is enabled, check if the boundaries need updating
+            #ifdef DYNAMIC_CALIBRATION
+            if(update_switch_bounds(index, adc_value)) {
+                // If the bounds have been updated, translate the heights
+                translate_mm_to_value(index);
+                // Mark the index to update during a layer switch
+                recalibrated_indices[recalibrated_switches] = index;
+            }
+            #endif // ifdef DYNAMIC_CALIBRATION
+            key_config[index].scan_value = adc_value;
         }
         #ifdef CUSTOM_POWER_BEFORE_SCAN
         set_sensor_power_low_kb(mux_channel);
@@ -506,13 +501,16 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
 
 
 //MARK: Translate
-// Translate the trigger height etc of all keys into the corresponding ADC values
+// Translate the heights of all keys into the corresponding ADC values
 void translate_mm_to_value(uint8_t index) {
-    const uint16_t top_value = key_config[index].top_value;
-    const uint16_t bottom_value = key_config[index].bottom_value;
     #ifdef INVERT_ADC
+    const uint16_t top_value = key_config[index].top_value - ADC_TOP_DEADZONE;
+    const uint16_t bottom_value = key_config[index].bottom_value + ADC_BOTTOM_DEADZONE;
     const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
     #else
+    // Take out the deadzones here, since we want to calculate the travel unit for the entire range
+    const uint16_t top_value = key_config[index].top_value + ADC_TOP_DEADZONE;
+    const uint16_t bottom_value = key_config[index].bottom_value - ADC_BOTTOM_DEADZONE;
     const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
     #endif
 
@@ -625,21 +623,21 @@ bool get_calibration_data(void) {
         // A fake mixed matrix will have top/bottom values of 4095 and 0
         if(calibration_data[key].top_value < 10 && calibration_data[key].bottom_value < 10)  return false;
         if(calibration_data[key].top_value > 4000 && calibration_data[key].bottom_value > 4000)  return false;
+        // No switch can have a valid value above 4095 due to the 12 bit ADC resolution
+        if(calibration_data[key].top_value > 4100 || calibration_data[key].bottom_value > 4100) return false;
 
         #ifndef INVERT_ADC
         if(calibration_data[key].top_value <= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 600) return false;
-        //TODO: I don't need this guard here, I can just set the factor to 0 by default
+        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 7 * ADC_TOP_DEADZONE) return false;
         #ifdef DYNAMIC_CALIBRATION
-        //TODO: Apply deadzones here? Doesn't really do anything
-        adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value - ADC_TOP_DEADZONE - ADC_BOTTOM_DEADZONE);
+        adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value);
         #endif
         key_config[key].top_value = calibration_data[key].top_value - ADC_TOP_DEADZONE - adjustment;
         key_config[key].bottom_value = calibration_data[key].bottom_value + ADC_BOTTOM_DEADZONE + adjustment;
 
         #else
         if(calibration_data[key].top_value >= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 600) return false;
+        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 7 * ADC_TOP_DEADZONE) return false;
         #ifdef DYNAMIC_CALIBRATION
         adjustment = AM_DC_FACTOR * (calibration_data[key].bottom_value - calibration_data[key].top_value);
         #endif
@@ -711,70 +709,70 @@ void calibrate_switches(bool init) {
             for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
                 matrix_index = mux_to_num[mux_channel][adc_channel];
-                // Check if a switch is at the position (matrix index > 0), and scan if so
-                if(matrix_index > 0){
-                    matrix_index -= 1;
-                    adc_value = adc_read(adc_pin_mux[adc_channel]);
-                    ADC_FILTER(adc_value, matrix_index);
+                // Check if a switch is at the position (matrix index < 255), and scan if so
+                if(matrix_index == 255) continue;
 
-                    #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
-                    dprintf("%u/%2u: %i, ", adc_channel, mux_channel, adc_value);
+                adc_value = adc_read(adc_pin_mux[adc_channel]);
+                ADC_FILTER(adc_value, matrix_index);
+
+                #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
+                dprintf("%u/%2u: %i, ", adc_channel, mux_channel, adc_value);
+                #endif
+
+                if(first_scan) {
+                    #ifdef INVERT_ADC
+                    key_config[matrix_index].top_value = adc_value;
+                    key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
+                    #else
+                    key_config[matrix_index].top_value = adc_value;
+                    key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
                     #endif
 
-                    if(first_scan) {
-                        #ifdef INVERT_ADC
-                        key_config[matrix_index].top_value = adc_value;
-                        key_config[matrix_index].bottom_value = adc_value + ADC_BOTTOM_DEADZONE;
-                        #else
-                        key_config[matrix_index].top_value = adc_value;
-                        key_config[matrix_index].bottom_value = adc_value - ADC_BOTTOM_DEADZONE;
-                        #endif
-
-                        continue;
-                    }
-
-                    #ifdef INVERT_ADC
-                    if(adc_value < key_config[matrix_index].top_value){
-                        key_config[matrix_index].top_value = adc_value;
-                        scans_without_change = 0;
-                        #ifdef DEBUG_CALIBRATION
-                        dprintf("key %i: new top value %i\n", matrix_index, adc_value);
-                        #endif
-
-                    } else if (adc_value > key_config[matrix_index].bottom_value) {
-                        key_config[matrix_index].bottom_value = adc_value;
-                        scans_without_change = 0;
-                        #ifdef DEBUG_CALIBRATION
-                        dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
-                        #endif
-
-                    } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < 200) {
-                        scans_without_change = 0;
-                    }
-
-                    #else // ifdef INVERT_ADC
-                    if(adc_value > key_config[matrix_index].top_value){
-                        key_config[matrix_index].top_value = adc_value;
-                        scans_without_change = 0;
-                        #ifdef DEBUG_CALIBRATION
-                        dprintf("Key %i: new top value %i\n", matrix_index, adc_value);
-                        #endif
-
-                    } else if (adc_value < key_config[matrix_index].bottom_value) {
-                        key_config[matrix_index].bottom_value = adc_value;
-                        scans_without_change = 0;
-                        #ifdef DEBUG_CALIBRATION
-                        dprintf("Key %i: new bottom value %i\n", matrix_index, adc_value);
-                        #endif
-
-                    // Check if new valid calibration values have been saved for this key
-                    } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 600) {
-                        scans_without_change = 0;
-                    }
-                    #endif // ifdef INVERT_ADC else
-                    // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
-                    evaluate_value(matrix_index, adc_value);
+                    continue;
                 }
+
+                #ifdef INVERT_ADC
+                if(adc_value < key_config[matrix_index].top_value){
+                    key_config[matrix_index].top_value = adc_value;
+                    scans_without_change = 0;
+                    #ifdef DEBUG_CALIBRATION
+                    dprintf("key %i: new top value %i\n", matrix_index, adc_value);
+                    #endif
+
+                } else if (adc_value > key_config[matrix_index].bottom_value) {
+                    key_config[matrix_index].bottom_value = adc_value;
+                    scans_without_change = 0;
+                    #ifdef DEBUG_CALIBRATION
+                    dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
+                    #endif
+
+                } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < 7 * ADC_TOP_DEADZONE) {
+                    scans_without_change = 0;
+                }
+
+                #else // ifdef INVERT_ADC
+                if(adc_value > key_config[matrix_index].top_value){
+                    key_config[matrix_index].top_value = adc_value;
+                    scans_without_change = 0;
+                    #ifdef DEBUG_CALIBRATION
+                    dprintf("Key %i: new top value %i\n", matrix_index, adc_value);
+                    #endif
+
+                } else if (adc_value < key_config[matrix_index].bottom_value) {
+                    key_config[matrix_index].bottom_value = adc_value;
+                    scans_without_change = 0;
+                    #ifdef DEBUG_CALIBRATION
+                    dprintf("Key %i: new bottom value %i\n", matrix_index, adc_value);
+                    #endif
+
+                // Check if new valid calibration values have been saved for this key
+                } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < 7 * ADC_TOP_DEADZONE) {
+                    scans_without_change = 0;
+                }
+                #endif // ifdef INVERT_ADC else
+                //TODO: Check how much the calibrated values deviate from the scan values, would matching the time help?
+                // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
+                evaluate_value(matrix_index, adc_value);
             }
 
             #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
@@ -1212,7 +1210,7 @@ void set_sensor_power(uint8_t index) {
 
 //MARK: Delay
 //TODO: Scale this so that it's roughly correct
-static inline void delay_ns(uint16_t delay) {
+void delay_ns(uint16_t delay) {
     // delay = (delay * 1000000000 / 180000000000);
     for(; delay > 0; delay--){
         __asm("");

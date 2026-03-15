@@ -66,7 +66,7 @@
         },
         "profiles": {
             "profile_0": {
-                "rt_press_distance": [0.3],
+                "rt_press_distance": [0.2],
                 "!base_press_distance": 0.5,
                 "!rt_press_distance": [
                     0,   0,   0,   0,   0,   0,                  0,   0,   0,   0,   0,   0,

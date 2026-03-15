@@ -100,16 +100,17 @@ def _transform_layout(info_data):
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
-        mux_to_num = [[0 for _ in range(adc_pins)] for _ in range(max_channels)]
+        mux_to_num = [[255 for _ in range(adc_pins)] for _ in range(max_channels)]
+        #TODO: Try changing this to -1 instead of [0, 0]
         num_to_matrix = [[0, 0] for _ in range(len(layout_data['layout']))]
         key_index = 0
         used_positions = []
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
-                key_index += 1
                 adc, mux = key_data['mux']
                 mux_to_num[mux][adc] = key_index
-                num_to_matrix[key_index-1] = key_data['matrix']
+                num_to_matrix[key_index] = key_data['matrix']
+                key_index += 1
                 if [adc, mux] not in used_positions:
                     used_positions.append([adc, mux])
                 else:
@@ -124,11 +125,13 @@ def _transform_layout(info_data):
     last_row = 0
     for num, row in enumerate(mux_to_num):
         for idx in row:
-            if idx != 0:
+            if idx != 255:
                 last_row = num
     mux_to_num = mux_to_num[:last_row + 1]
 
     # Trim the num_to_matrixes
+    #TODO: Update this to account for the new logic (empty positions 0 -> 255)
+    #TODO: Could it be that this never worked for normal keyboards, since split keyboards have -1 by default while normal keyboards have [0, 0]?
     num_to_matrix = [i for i in num_to_matrix if i != -1]
 
     info_data['analog_matrix']['hardware']['mux_to_num'] = mux_to_num
@@ -156,9 +159,9 @@ def _transform_layout_split(info_data):
     row_split = am_hardware['row_split']
 
     for layout_name, layout_data in info_data['layouts'].items():
-        mux_to_num_l = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
+        mux_to_num_l = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         num_to_matrix_l = [-1 for _ in range(len(layout_data['layout']))]
-        mux_to_num_r = [[0 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
+        mux_to_num_r = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         #Oversize this since we don't know how many keys there are per side, then trim after
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
         key_index_l = 0
@@ -168,19 +171,19 @@ def _transform_layout_split(info_data):
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
                 if key_data['matrix'][0] < row_split:
-                    key_index_l += 1
                     adc, mux = key_data['mux']
                     mux_to_num_l[mux][adc] = key_index_l
-                    num_to_matrix_l[key_index_l-1] = key_data['matrix']
+                    num_to_matrix_l[key_index_l] = key_data['matrix']
+                    key_index_l += 1
                     if [adc, mux] not in used_positions_l:
                         used_positions_l.append([adc, mux])
                     else: # Mux combo already used
                         cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the left half of the layout!")
                 else: # Right hand side
-                    key_index_r += 1
                     adc, mux = key_data['mux']
                     mux_to_num_r[mux][adc] = key_index_r
-                    num_to_matrix_r[key_index_r-1] = key_data['matrix']
+                    num_to_matrix_r[key_index_r] = key_data['matrix']
+                    key_index_r += 1
                     if [adc, mux] not in used_positions_r:
                         used_positions_r.append([adc, mux])
                     else: # Mux combo already used
@@ -197,13 +200,13 @@ def _transform_layout_split(info_data):
     last_row = 0
     for num, row in enumerate(mux_to_num_l):
         for idx in row:
-            if idx != 0:
+            if idx != 255:
                 last_row = num
     mux_to_num_l = mux_to_num_l[:last_row + 1]
 
     for num, row in enumerate(mux_to_num_r):
         for idx in row:
-            if idx != 0:
+            if idx !=255:
                 last_row = num
     mux_to_num_r = mux_to_num_r[:last_row + 1]
 
@@ -289,15 +292,16 @@ def get_matrix_to_mux(info_data, config_h_lines):
     num_to_mux = [[] for _ in range(switch_num)]
     for row_idx, row in enumerate(mux_to_num):
         for col_idx, idx in enumerate(row):
-            num_to_mux[idx-1] = [col_idx, row_idx]
+            if idx < 255:
+                num_to_mux[idx] = [col_idx, row_idx]
 
     config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
     info_data['analog_matrix']['hardware']['num_to_mux'] = num_to_mux
 
-    matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+    matrix_to_num = [[255 for _ in range(cols)] for _ in range(rows)]
 
     for idx, pos in enumerate(num_to_matrix):
-        matrix_to_num[pos[0]][pos[1]] = idx + 1
+        matrix_to_num[pos[0]][pos[1]] = idx
 
     config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
     info_data['analog_matrix']['hardware']['matrix_to_num'] = matrix_to_num
@@ -313,15 +317,15 @@ def get_matrix_to_mux(info_data, config_h_lines):
 
         for row_idx, row in enumerate(mux_to_num):
             for col_idx, idx in enumerate(row):
-                num_to_mux[idx-1] = [col_idx, row_idx]
+                num_to_mux[idx] = [col_idx, row_idx]
 
         config_h_lines.append(generate_define('NUM_TO_MUX_R', str(num_to_mux).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware']['num_to_mux_right'] = num_to_mux
 
-        matrix_to_num = [[0 for _ in range(cols)] for _ in range(rows)]
+        matrix_to_num = [[255 for _ in range(cols)] for _ in range(rows)]
 
         for idx, pos in enumerate(num_to_matrix):
-            matrix_to_num[pos[0] - row_split][pos[1]] = idx + 1
+            matrix_to_num[pos[0] - row_split][pos[1]] = idx
 
         config_h_lines.append(generate_define('MATRIX_TO_NUM_R', str(matrix_to_num).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware']['matrix_to_num_right'] = matrix_to_num
@@ -359,9 +363,9 @@ def debug_matrix_position(info_data, config_h_lines):
     scan_mux_r = []
     scan_pos = info_data['analog_matrix']['config']['debug_matrix_position']
     if scan_pos[0] >= row_split:
-        scan_mux_r = num_to_mux_r[matrix_to_num_r[scan_pos[0] - row_split][scan_pos[1]] - 1]
+        scan_mux_r = num_to_mux_r[matrix_to_num_r[scan_pos[0] - row_split][scan_pos[1]]]
     else:
-        scan_mux = num_to_mux[matrix_to_num[scan_pos[0]][scan_pos[1]] - 1]
+        scan_mux = num_to_mux[matrix_to_num[scan_pos[0]][scan_pos[1]]]
 
     if scan_mux != []:
         config_h_lines.append(generate_define('DEBUG_MUX_POSITION', str(scan_mux).replace('[', '{').replace(']', '}')))
@@ -396,12 +400,12 @@ def transform_init_keys(info_data, config_h_lines):
                 used_pos.append(key_pos)
             if len(key) > 6 and key[-6:] == '_RIGHT':
                 key = key[:-6]
-                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0] - row_split][key_pos[1]] - 1]
+                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0] - row_split][key_pos[1]]]
                 init_keys_r.append(key_mux)
                 init_key_num_r += 1
                 init_functions_r.append(INIT_FUNCTIONS[key])
             else:
-                key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]] - 1]
+                key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]]]
                 init_keys.append(key_mux)
                 init_key_num += 1
                 init_functions.append(INIT_FUNCTIONS[key])
@@ -960,14 +964,14 @@ def generate_joystick_config(info_data, config_h_lines):
 #     # Convert all matrix positions in the array into mux combos
 #     for key in priority_keys:
 #         if key[0] < row_split:
-#             num = matrix_to_num[key[0]][key[1]] - 1
+#             num = matrix_to_num[key[0]][key[1]]
 #             #TODO: Either flip mux channel and adc channel here or during assignment
 #             mux = num_to_mux[num]
 #             mux.append(num)
 #             # Result is a list of mux channel, adc channel, matrix index
 #             priority_muxes.append(mux)
 #         else:
-#             num = matrix_to_num_r[key[0] - row_split][key[1]] - 1
+#             num = matrix_to_num_r[key[0] - row_split][key[1]]
 #             mux = num_to_mux_r[num]
 #             mux.append(num)
 #             priority_muxes_r.append(mux)

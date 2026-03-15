@@ -180,6 +180,14 @@ Rework deadzones and calibration:
     -This way, setting heights is more consistent
 -To automatically
 
+Mixed Matrices:
+-Remove the check for the mux parameter.
+-Only include keys with a valid mux parameter in the key config
+-Set a define if mixed matrices are used
+-If that define is set, normal matrix scanning should be included
+-Since the normal scanning function resets the matrix each time, adjust to only toggle the state, or make a separate matrix array and combine them after
+-The normal keys won't show up in SWITCH_NUM, mux_to_num etc, but will show up in the layout macro if they're included in the LAYOUT object
+
 BUGS:
 -Something made it spam keys after flashing (maybe boot too)
     -Maybe the filter? Seemed to happen after I lowered the >> to 3, and fixed after I disabled it
@@ -239,3 +247,5 @@ Notes:
 -Use Opamp at input pins to amplify signal, check if noise level increases too -> INA333 or 317?
     -If it does    -> Sensor/connection/interference problem
     -If it doesn't -> ADC problem, unstable reference voltage etc
+
+-What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
