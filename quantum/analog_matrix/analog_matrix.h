@@ -185,7 +185,8 @@ typedef enum _key_mode_t: uint8_t {
 
 typedef struct Profile {
     layer_state_t layers;
-    #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
+    //TODO: When the priority mode define is fully implemented, update this
+    #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY || defined USE_PRIORITY_MODE
     bool priority_profile;
     #endif
 } Profile;
@@ -348,6 +349,10 @@ void set_sensor_power(uint8_t index);
 extern uint8_t highest_layer;
 extern PROFILE_MUTABLE uint8_t active_profile;
 
+#ifdef USE_PRIORITY_MODE
+extern bool priority_mode;
+#endif
+
 #ifndef AM_NO_EEPROM
 #include "nvm_eeconfig.h"
 extern analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
@@ -387,6 +392,8 @@ bool get_calibration_data(void);
 void calibrate_switches(bool init);
 // Assigns side and configuration at init
 void assign_config(bool side);
+// Runs whenever the profile has changed
+void profile_state_changed(uint8_t profile);
 // Activates the profile passed as the parameter (only on the master half on split keyboards)
 void set_active_profile(uint8_t profile);
 // Returns the active profile
