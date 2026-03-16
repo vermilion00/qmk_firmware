@@ -214,8 +214,8 @@ This section contains the details of how everything is connected to the microcon
             "mux_pins": ["B12", "B13", "B14", "B15"],
             "adc_pins": ["A0", "A1", "A2"],
             "travel_distance": 4.0,
-            "smoothing": 4,
-            "deadzone": 15
+            "smoothing": 60,
+            "deadzone": 80
         }
     },
     "layouts": {
@@ -248,16 +248,16 @@ This is an array of the analog pins used by the chip. The output of each multipl
 This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm. If it is wrong, then heights will be incorrectly converted. The travel distance of a switch can usually be found in its product description or datasheet.
 
 ```json
-"smoothing": 4
+"smoothing": 60
 ```
-Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late.
+Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it.
 
 
 ```json
-"deadzone": 15
+"deadzone": 80
 ```
 Sets a deadzone at the top and bottom range of the switch travel. A smaller value shrinks the deadzone. If you have issues with the switch occasionally not counting as released, increase this value.
-You can have different deadzones for top and bottom by using top_deadzone and bottom_deadzone instead.
+You can have different deadzones for top and bottom by using top_deadzone and bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Similarily, a switch inside the bottom deadzone will always count as pressed
 
 
 ```json
@@ -297,7 +297,7 @@ It is best to distribute the channels evenly across the multiplexers. If you use
 If possible, the multiplexer channel select pins should be selected to all be on the same port, arranged consecutively in ascending order (e.g. B12, B13, B14, B15 or C10, C11, C12). <br> This allows the firmware to set the output via direct register access, making it more performant. In case this causes issues, you can also set the "no_mux_optimization" flag to true in the same object to skip this optimization. If the pins aren't arranged in this fashion, the optimization is skipped automatically.
 The performance impact of the optimization is low, however.
 
-Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix lite implementation, which would still allow you to use the rest of the features. Custom matrix (lite) scanning is currently not supported, but is planned for the future.
+Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix scanning routine <!--TODO: Add anchor link here-->, which would still allow you to use the rest of the features.
 
 <!--MARK: Config -->
 ### Config
@@ -484,12 +484,31 @@ If you wish to use the same height for all keys in the profile, you can just set
 Keep in mind that the output of the sensor isn't directly proportional to the travel distance of the switch, and that it depends on a lot of factors, e.g. the switch used, the sensor used, the thickness of the PCB, etc. This means that the distance values are likely not going to be accurate, so go by feel instead of measurements when configuring your profiles.  
 :::
 
+It is also possible to set a default height value for the profile, and overwrite this for specific keys only:
+```json
+"base_trigger_height": 1.0,
+"trigger_height": [ 0, 0.3, 0.5, 0 ]
+```
+The base trigger height is first used for all keys, then the trigger height overwrites the value for all keys that don't have a value of 0. The resulting height config would be [ 1.0, 0.3, 0.5, 1.0 ].
+
 Only necessary when the profile uses a key mode other than "constant_rapid_trigger" (3) on at least one of the keys.
 
 ```json
 "release_height": [ 0.7 ]
 ```
-Similar to the trigger_height, this sets the height above which a key is counted as released. Has to be set to a lower value than the trigger height for that key. If it is not set, the release height will be equal to the trigger height.
+Similar to the trigger_height, this sets the height above which a key is counted as released. Has to be set to a lower value than the trigger height for that key.
+
+It is also possible to set a default release height value for the profile. Instead of using the trigger height for that key, it will instead use the base release height.
+```json
+"base_release_height": 1.0,
+"release_height": [ 0, 0.3, 0.5, 0 ]
+```
+You also have the option of setting an offset. If the release height isn't defined for the profile, the trigger height will instead be used with the offset subtracted:
+```json
+"trigger_height": [ 1.0, 1.5, 2.0, 0.3 ],
+"release_offset": 0.2
+```
+This option would result in a release height config of [ 0.8, 1.3, 1.8, 0.1 ]. Keep in mind that the offset needs to be positive, so that the resulting release height is lower than the trigger height for the same key, as it is counted from the top by default.
 
 ```json
 "rt_press_distance": [ 0.7, 0.3, 0.5, 1.5 ]
@@ -500,6 +519,8 @@ Set the distance that keys need to travel down in order to count as being activa
 "rt_release_distance": [ 0.7 ]
 ```
 Sets the distance that keys need to travel up in order to count as being released. If it's not defined, it will be set to be equal to the press distance. Unlike the release height, this doesn't need to be lower than the press distance, as fully released keys are always counted as being deactivated.
+
+The same base options and offset options can be used with the rapid trigger values. In this case, the offset can also be negative; an offset of -0.3 with an rt_press_distance of 0.8 results in an rt_release_distance of 0.5 millimeters.
 
 <!--MARK: Keycodes -->
 # Keycodes

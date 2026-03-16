@@ -541,12 +541,6 @@ void change_layer_settings(uint8_t current_layer) {
     create_midi_mask(current_layer);
     #endif
 
-    //TODO: Don't really need this, overflow while unused isn't a problem
-    // #ifdef PRIORITY_INDICES
-    // extern uint8_t scan_amt;
-    // scan_amt = 0;
-    // #endif
-
     //TODO: Add more mask functions here as necessary
 }
 

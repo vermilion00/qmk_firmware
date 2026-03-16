@@ -290,7 +290,9 @@ typedef at32_gpio_t gpio_port_t;
 #   define RECALIBRATED_SWITCHES 5
 #endif
 #endif // ifdef DYNAMIC_CALIBRATION
-//TODO: Is AM_INIT_KEY_NUM 0 if none are defined?
+//TODO: RM this once it's set by the script
+//      Also use the same indexes and funcions for both halves if only one is set
+//      -> I need to make sure that the resulting mux position exists on the other half, or else it will always count as triggered
 #ifndef AM_INIT_KEY_NUM_R
 #define AM_INIT_KEY_NUM_R AM_INIT_KEY_NUM
 #endif
@@ -306,25 +308,24 @@ extern bool manual_profile_lock;
 
 // Guarded to allow overwriting the filter with a different implementation
 #ifndef ADC_FILTER
-// This filter is more efficient than value -= (value - key_config[index].scan_value) >> 1
-#if defined STRONG_ADC_FILTER // half new, half old
+// This filter seems more efficient than value -= (value - key_config[index].scan_value) >> 1
+#if defined EXTREME_ADC_FILTER  // 1/4 new, 3/4 old
+#   define ADC_FILTER(value, index) value = (value >> 2) + ((key_config[index].scan_value * 3) >> 2)
+#elif defined STRONG_ADC_FILTER // 1/2 new, 1/2 old
 #   define ADC_FILTER(value, index) value = (value >> 1) + (key_config[index].scan_value >> 1)
-#elif defined WEAK_ADC_FILTER // 7/8 new, 1/8 old
+#elif defined WEAK_ADC_FILTER   // 7/8 new, 1/8 old
 #   define ADC_FILTER(value, index) value = ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
 #elif defined NO_ADC_FILTER
 #   define ADC_FILTER(value, index)
-#else // Medium filter  3/4 new, 1/4 old
+#else // Medium filter             3/4 new, 1/4 old
 #   define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
 #endif
-// #define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
-// #define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 1
 // #define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 2
 #endif
 
 #ifdef DYNAMIC_CALIBRATION
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 extern uint8_t recalibrated_switches;
-extern uint8_t recalibrated_indices[SMAX(SWITCH_NUM)];
 // Check if the switch boundaries need updating, and update them if necessary.
 bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
