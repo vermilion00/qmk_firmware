@@ -8,9 +8,12 @@ Adjustment function:
 -Should probably make the adjustment a special mode where:
     1. all switches get adjusted linearily to 0 - 1023
     2. Resulting value is adjusted via a piecewise lut
-        -The lut saves a mapping for adc value vs adjusted value
+        -The lut saves a mapping for adjusted adc value vs adjusted height value
         -Find the points above and below, get their values, then run linear interp
         -Then I can offer that lut up as a define, for others to replace
+            -If the LUT has n sections, that means that the needed section y can be obtained via (value) / (1023 / n) = y
+            -The bounds of the interp are then found via LUT(y) and LUT(y + 1)
+            -This hasn't been tested yet
         -Could also try a function that subtracts value the closer the value is to the middlepoint of the line between top and bottom
             -So at the start and end no value is subtracted, towards the middle to highest amount is subtracted
             -Then use that to scale heights at init (and maybe rt during new height setting?)
@@ -24,9 +27,9 @@ ADC optimizations:
     -Keep checking the buffer after conversion start, if one value is available then we can grab it and start evaluation on it
     -Reset the buffer to zero in the callback isr
     -Starting the conversion manually would make it easier to manage
+-Enable interleaved mode for supported chips
 
 Current Issues:
--Dynamic side assignment needs more declarations after moving to keymap_introspection
 -Calibration doesn't seem to give very accurate values, they appear to be further apart than during actual matrix scanning
     -Requires more testing tho
     -Deadzones help with that but not consistently
@@ -98,34 +101,23 @@ MIDI:
     -Can probably just touch config.h
     -Will that work when other files are also dependent on the flag?
 
--Currently the _RIGHT stuff isn't being checked in mux and power functions
-    -Either disallow setting different ones (preferred), or add support for it (messy)
-
--ADC Value changes faster at the bottom than at the top, adjust with a lut
-    -Allow defining own lut
-    -Instead of offsetting the scan value with the lut, use it to offset the height values at init
-    -Support for switch presets containing travel distance and lut
-    -Instead of lut, use a definable function? Would help with different values
-
 -Try a higher buffer depth and circular buffer?
 -Add always inline stuff
 
--Add mode for multiple actions on one key (DKS) somehow
+Add mode for multiple actions on one key (DKS) somehow
     -Use switch mode >= 10
     -switch mode - 10 gives us the index in an array of dks structs, where up to 4 heights are mapped to 4 actions
+    -Instead of actually setting the switch mode, use the same logic as joystick
+        -Mask, checking it during scan to see if it's a DKS switch, bind DKS(0) as a keycode that triggers the function in that array of DKS structs
+    -When a switch with that mode is scanned, send eval to another function
 
--Add option to define normal buttons to immediately jump to calibration/bootloader/reset
--->Technically, you could use normal buttons by wiring one pin to +V, the other to a mux channel and pull low with a resistor
-    -This should work perfectly if invert_adc isn't set
-    -If it is, wire one pin to GND and the other to a mux channel with a pull-up resistor
-
+Add option to define normal buttons to immediately jump to calibration/bootloader/reset
     -Or even mixed matrices, for encoders etc
     -Change layout mux validation to allow normal keys?
-    -Make it a separate matrix scan triggered off of a define
-    -Maybe just direct pins?
+    -Make it a separate matrix scan function triggered off of a define
     -Best way would probably be to make the matrix scan task separate, include the needed ones via define
-    -Need separate matrix_size definition for he matrix though
-    -Also a way to combine both into one complete matrix for the macro?
+    -Need separate matrix_size definition for analog matrix though
+    -Also a way to combine both into one complete matrix for the macro
 
 -Allow associating a color with a profile?
     -Or just set them by layer
@@ -135,22 +127,15 @@ MIDI:
     -If no heights file is available, use profile info to generate one
     -If x and y are set correctly for the keyboard, add tabs and spaces for a correct visual representation
 
--Enable interleaved ADC mode for supported mcus
-
--Make sure no conflicts happen with other features using the ADC
+-Make sure no conflicts happen with other features using the ADC somehow
+    -Might not be possible on chips with one ADC, if the other feature needs different settings compared to analog matrix
 
 -Go through all changed files and make sure that all new includes are actually necessary, and gate them if possible
 
--Dynamic calibration:
-    -Current simple implementation has issues with rarely used keys in EEPROM
-        -Need to check against original calibration values when deciding to update, instead of current
-        -Or keep track of whether a switch has been updated due to a change or the DC, and only apply DC if last update was a change
-    -Keep track of which switches actually need updating, and update during a profile change? Currently saving all of them
-    -Don't run runtime DC on specific profiles (inverse of priority indices) if I'm not updating on profile change
-    -A stronger mode might have per switch counter that slightly moves the bounds together if they haven't been updated in x scans
--*Currently has an issue were the factor causes the trigger heights to be set incorrectly, since the initial ones also need to be offset by the adjustment value.
-    -Save it to the switch config?
-    -Actually I don't think this is the case
+Dynamic calibration:
+-Current implementation has issues with the top value when a factor is used.
+    -Need to first scan all keys and set the top value, and only update the cal value if the difference is great.
+-A stronger mode might have per switch counter that slightly moves the bounds together if x updates occurred without the bound being reached
 
 Height assignment through layout macro:
 -Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
@@ -161,24 +146,13 @@ I shouldn't even need the fillers, I should be able to define TRIGGER_HEIGHT as 
 Instead of making a separate gate for every height, it would be cleaner to assume that either all or none of the configs are defined through the keymap, and set a define
 that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 
--Add an option for an offset applied to release height, if it isn't defined
-    -As in release height becomes trigger height + offset instead of just trigger height
-
 -Mixed matrix needs debouncing option for mechanical keys
     -Try to debounce only the mechanical keys
-
--If only one height config (normal/rt) is defined, use it for all keys in that profile by default
 
 -Predefine some adjustment functions with several strength levels, with the option to use a custom one
 
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
-
-Rework deadzones and calibration:
--Instead of effectively reducing the range, the deadzones should just be zones at the top/bottom where the switch is forcibly released/pressed, regardless of height setting
--Travel units and heights should be calculated off of the raw travel instead of reduced deadzone travel
-    -This way, setting heights is more consistent
--To automatically
 
 Mixed Matrices:
 -Remove the check for the mux parameter.
@@ -188,11 +162,7 @@ Mixed Matrices:
 -Since the normal scanning function resets the matrix each time, adjust to only toggle the state, or make a separate matrix array and combine them after
 -The normal keys won't show up in SWITCH_NUM, mux_to_num etc, but will show up in the layout macro if they're included in the LAYOUT object
 
-BUGS:
--Something made it spam keys after flashing (maybe boot too)
-    -Maybe the filter? Seemed to happen after I lowered the >> to 3, and fixed after I disabled it
-
--A high smoothing value causes keys to get stuck occasionally (40 to replicate)
+-A very high smoothing value causes keys to get stuck occasionally (shouldn't be the case cuz deadzones, maybe need to increase those?)
 -The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
 -The joystick layer registers weird keys occasionally, like ctrl when I've unbound it from that position
     -Also specifically the rnx and rpx keys are spammed
