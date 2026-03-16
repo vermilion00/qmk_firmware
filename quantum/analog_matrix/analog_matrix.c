@@ -64,6 +64,12 @@ init_func_t init_functions[AM_INIT_KEY_NUM] = AM_INIT_FUNCTIONS;
 uint8_t debug_mux[2] = DEBUG_MUX_POSITION;
 #endif
 
+#ifdef USE_PRIORITY_MODE
+bool priority_mode = false;
+#else
+const bool priority_mode = false;
+#endif
+
 PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
 uint8_t highest_layer = 0;
 
@@ -305,6 +311,11 @@ __attribute__((weak)) void analog_matrix_init(void) {
         translate_mm_to_value(index);
     }
 
+    //TODO: Run layer_state_set here to get potential masks etc
+
+    //TODO: Once this is actually important, enable it
+    profile_state_changed(active_profile);
+
     #if defined SPLIT_LAYER_SYNC
     // #if defined SPLIT_LAYER_SYNC || defined PRIORITY_INDICES
     change_layer_settings(highest_layer);
@@ -412,7 +423,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
             }
 
             #ifdef PRIORITY_INDICES
-            if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
+            if(priority_mode && scan_amt < PRIORITY_LEVEL) {
                 if(!priority_indices[index]) { continue; }
             }
             #endif
@@ -444,9 +455,10 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
                 #endif
             }
 
+            //TODO: Check for priority mode, only run this if it isn't enabled -> Set the priority_mode variable in the profile_change function
             // If dynamic calibration is enabled, check if the boundaries need updating
             #ifdef DYNAMIC_CALIBRATION
-            if(update_switch_bounds(index, adc_value)) {
+            if(!priority_mode && update_switch_bounds(index, adc_value)) {
                 // If the bounds have been updated, translate the heights
                 translate_mm_to_value(index);
                 recalibrated_switches += 1;
@@ -1062,19 +1074,27 @@ bool evaluate_value(uint8_t index, uint16_t value) {
 #ifdef DYNAMIC_CALIBRATION
 #ifdef DEBUG_CALIBRATION
 #define OUTPUT_VAL(value, side, index) dprintf("New %s value for key %u: %u\n", side, index, value)
+#define OUTPUT_SAVED dprintf("Saved ")
 #else
 #define OUTPUT_VAL(value, side, index)
+#define OUTPUT_SAVED
 #endif
 bool update_switch_bounds(uint8_t index, uint16_t value) {
     #ifndef INVERT_ADC
     if(value >= (key_config[index].top_value + AM_DC_DELTA + ADC_TOP_DEADZONE)){
         key_config[index].top_value = value - ADC_TOP_DEADZONE;
-        calibration_data[index].top_value = value;
+        if(calibration_data[index].top_value + AM_DC_DELTA < value || calibration_data[index].top_value - AM_DC_DELTA > value) {
+            calibration_data[index].top_value = value;
+            OUTPUT_SAVED;
+        }
         OUTPUT_VAL(value, "top", index);
         return true;
     } else if (value <= (key_config[index].bottom_value - AM_DC_DELTA - ADC_BOTTOM_DEADZONE)) {
         key_config[index].bottom_value = value + ADC_BOTTOM_DEADZONE;
-        calibration_data[index].bottom_value = value;
+        if(calibration_data[index].bottom_value - AM_DC_DELTA > value || calibration_data[index].bottom_value + AM_DC_DELTA < value) {
+            calibration_data[index].bottom_value = value;
+            OUTPUT_SAVED;
+        }
         OUTPUT_VAL(value, "bottom", index);
         return true;
     }
@@ -1082,10 +1102,18 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
     #else // ifndef INVERT_ADC
     if(value < key_config[index].top_value - AM_DC_DELTA - ADC_TOP_DEADZONE){
         key_config[index].top_value = value + ADC_TOP_DEADZONE;
+        if(calibration_data[index].top_value - AM_DC_DELTA > value || calibration_data[index].top_value + AM_DC_DELTA < value) {
+            calibration_data[index].top_value = value;
+            OUTPUT_SAVED;
+        }
         OUTPUT_VAL(value, "top", index);
         return true;
     } else if (value > key_config[index].bottom_value + AM_DC_DELTA + ADC_BOTTOM_DEADZONE) {
         key_config[index].bottom_value = value - ADC_BOTTOM_DEADZONE;
+        if(calibration_data[index].bottom_value + AM_DC_DELTA < value || calibration_data[index].bottom_value - AM_DC_DELTA > value) {
+            calibration_data[index].bottom_value = value;
+            OUTPUT_SAVED;
+        }
         OUTPUT_VAL(value, "top", index);
         return true;
     }
@@ -1264,6 +1292,10 @@ void set_active_profile(uint8_t profile) {
 void profile_state_changed(uint8_t profile) {
     //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
     // am_profile_manual_transaction();
+
+    #ifdef USE_PRIORITY_MODE
+    priority_mode = profiles[active_profile].priority_profile;
+    #endif
 
     //TODO: Make sure no conflicts are caused with features remapping key modes (probably doesn't happen anyway)
 

@@ -50,6 +50,7 @@ features = {}
 # Will be populated with all analog_matrix feature objects in lowercase
 objects = []
 split_keyboard = False
+use_priority_mode = False
 
 def generate_define(define, value=None):
     is_keymap = cli.args.filename
@@ -434,6 +435,7 @@ def generate_profile_config(info_data, config_h_lines):
     key_modes = []
     profile_num = 0
     from_bottom = info_data['analog_matrix']['config'].get('distance_from_bottom', False)
+    global use_priority_mode
 
     while True:
         #TODO: I can probably simplify this with a loop
@@ -486,8 +488,7 @@ def generate_profile_config(info_data, config_h_lines):
                 profile_config[profile_num].append(0)
 
             # Priority profile data
-            #TODO: Update this stuff for priority_muxes if needed
-            if 'priority_keys' in info_data['analog_matrix']['config'] or info_data['analog_matrix']['config'].get('slave_low_priority', False):
+            if use_priority_mode:
                 profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
 
             #MARK: Key modes
@@ -613,6 +614,7 @@ def generate_profile_config(info_data, config_h_lines):
         config_h_lines.append(generate_define('USE_TRIGGER_HEIGHT'))
     if use_distance == True:
         config_h_lines.append(generate_define('USE_RT_DISTANCE'))
+
 
 #MARK: Mux_to_matrix
 def validate_mux_to_matrix(mux_to_matrix):
@@ -740,6 +742,7 @@ def get_features(info_data):
 #MARK: General config
 def generate_analog_matrix_config(info_data, config_h_lines):
     """Generate the config.h lines for analog matrix keyboards."""
+    global use_priority_mode
     # Get all defined features and their status
     #TODO: Check if the features from rules_mk have been combined at this point
     if 'features' in info_data:
@@ -776,6 +779,21 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     # Transform priority key matrix positions to key indices
     get_priority_keys(info_data, config_h_lines)
+
+    #TODO: Update this stuff for priority_muxes if needed
+    #TODO: Put this into a function
+    if 'priority_keys' in info_data['analog_matrix']['config']:
+        use_priority_mode = True
+
+    if info_data['analog_matrix']['config'].get('slave_low_priority', False):
+        use_priority_mode = True
+
+    if info_data['analog_matrix']['config'].get('dynamic_calibration', False):
+        use_priority_mode = True
+
+    if use_priority_mode:
+        config_h_lines.append(generate_define("USE_PRIORITY_MODE"))
+
 
     split_layer_sync = False
     if 'joystick' in objects and features.get('joystick', True):
