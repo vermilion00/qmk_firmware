@@ -405,7 +405,12 @@ void set_profile_lock(bool value);
 // Run actions when the layer state changes
 layer_state_t layer_state_set_am(layer_state_t state);
 // Empty loop for short delays
+#ifdef AM_USE_DELAY
 void delay_ns(uint16_t delay);
+#else
+#define delay_ns(delay)
+#endif
+
 //TODO: Remove
 void _sync_cal(void);
 

@@ -180,6 +180,7 @@ socd_cleaner_t socd_opposing_pairs[] = {
 	{{KC_R, KC_T}, SOCD_CLEANER_LAST},
 };
 
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
 		case MS_BTN1:

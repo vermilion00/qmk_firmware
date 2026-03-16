@@ -3,13 +3,11 @@
 #include <stdint.h>
 #include "analog_joystick.h"
 #include "analog_matrix.h"
-// #include "info_config.h"
 #include "joystick_aliases.h"
 #include "matrix.h"
 #ifndef USE_JOYSTICK
 #include "keymap_introspection.h"
 #endif
-// #include "report.h"
 
 typedef enum axis_name_t {
     LEFT_X_AXIS = 0,
@@ -30,9 +28,8 @@ typedef enum axis_name_t {
 //     RIGHT_NEGATIVE_X_INDEX,
 //     RIGHT_NEGATIVE_Y_INDEX,
 //     RIGHT_POSITIVE_Y_INDEX
-// } axis_index_t;
+// } axis_component_t;
 
-//TODO: Just use uit8_t
 typedef uint8_t axis_component_t;
 
 typedef enum conflict_options_t {
