@@ -29,13 +29,11 @@
 #ifdef MIDI_ENABLE
 #include "analog_midi.h"
 #endif
-#ifndef AM_NO_EEPROM
-analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
-#endif
-
-//TODO: Testing, remove if unnecessary
 #ifdef SPLIT_KEYBOARD
 #include "transactions.h"
+#endif
+#ifndef AM_NO_EEPROM
+analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 
 extern matrix_row_t matrix[MATRIX_ROWS];
@@ -53,11 +51,11 @@ bool calibration_started = false;
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
 #endif
 
-#if AM_INIT_KEY_NUM > 0
+#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
 // Initialize the keys to be checked at initialization
 void _bootloader_jump(bool init);
-SPLIT_MUTABLE uint8_t init_keys[AM_INIT_KEY_NUM][2] = AM_INIT_KEYS;
-init_func_t init_functions[AM_INIT_KEY_NUM] = AM_INIT_FUNCTIONS;
+SPLIT_MUTABLE uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
+init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
 #endif
 
 #if defined DEBUG_MUX_POSITION
@@ -77,7 +75,6 @@ SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
 SPLIT_MUTABLE uint8_t adc_pin_num = ADC_PIN_NUM;
 SPLIT_MUTABLE uint8_t mux_channel_num = MUX_CHANNELS;
 #ifdef MUX_PINS
-//TODO: Add this stuff
 SPLIT_MUTABLE uint8_t mux_pin_num = MUX_PIN_NUM;
 #ifdef MUX_PINS_CONTINUOUS
 SPLIT_MUTABLE uint8_t mux_offset = MUX_PIN_OFFSET;
@@ -86,7 +83,6 @@ SPLIT_MUTABLE gpio_port_t* mux_port = CONTINUOUS_MUX_PORT;
 #endif
 #endif
 #endif
-
 
 #ifdef POWER_PINS
 SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
@@ -142,27 +138,26 @@ __attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOT
 #endif
 #endif // if defined USE_RT_DISTANCE
 
-//TODO: Currently, different amounts of pins per half is not supported, make sure the larger amount is defined
-pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
+pin_t adc_pins[SMAX(ADC_PIN_NUM)] = ADC_PINS;
 #if !defined EQUAL_ADC_PINS
-const pin_t adc_pins_r[ADC_PIN_NUM] = ADC_PINS_R;
+const pin_t adc_pins_r[ADC_PIN_NUM_R] = ADC_PINS_R;
 #endif
 #if defined MUX_PINS
-pin_t mux_pins[MUX_PIN_NUM] = MUX_PINS;
+pin_t mux_pins[SMAX(MUX_PIN_NUM)] = MUX_PINS;
 #if !defined EQUAL_MUX_PINS
-const pin_t mux_pins_r[MUX_PIN_NUM] = MUX_PINS_R;
+const pin_t mux_pins_r[MUX_PIN_NUM_R] = MUX_PINS_R;
 #endif
 #endif
 #if defined POWER_PINS
-pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
+pin_t power_pins[SMAX(POWER_PIN_NUM)] = POWER_PINS;
 #if !defined EQUAL_POWER_PINS
-const pin_t power_pins_r[POWER_PIN_NUM] = POWER_PINS_R;
+const pin_t power_pins_r[POWER_PIN_NUM_R] = POWER_PINS_R;
 #endif
 #endif
 
-#if AM_INIT_KEY_NUM > 0
-const uint8_t init_keys_r[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS_R;
-const init_func_t init_functions_r[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS_R;
+#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
+const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
+const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
 #endif
 
 //TODO: Does this even work? Has it been tested?
@@ -302,7 +297,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
     //TODO: Make sure only having keys for one half defined doesn't cause problems
     //      If only keys for one half are defined, they should be used for both halves
     // Check keys like the calibration or bootmagic key before scanning begins
-    #if AM_INIT_KEY_NUM > 0
+    #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
     scan_init_keys();
     #endif
 
@@ -333,7 +328,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
 
 
 //MARK: Init keys
-#if AM_INIT_KEY_NUM > 0
+#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
 void scan_init_keys(void) {
     uint16_t adc_value;
     // Dummy read, as first read is always way off
@@ -341,8 +336,7 @@ void scan_init_keys(void) {
     // Long-ish delay needed for correct init key reading after being plugged in
     wait_ms(AM_STARTUP_DELAY);
 
-    //TODO: AM_INIT_KEY_NUM should be replaced by a var here, or just assign an empty
-    for(uint8_t idx = 0; idx < SMAX(AM_INIT_KEY_NUM); idx++) {
+    for(uint8_t idx = 0; idx < sizeof(init_keys)/2; idx++) {
         #ifdef POWER_BEFORE_SCAN
         gpio_write_pin_high(power_pins[init_keys[idx][1]]);
         #elif defined CUSTOM_POWER_BEFORE_SCAN
@@ -350,9 +344,7 @@ void scan_init_keys(void) {
         #endif // CUSTOM_POWER_BEFORE_SCAN
 
         set_mux_channel(init_keys[idx][1]);
-        #ifdef MUX_SELECT_DELAY
         delay_ns(MUX_SELECT_CYCLES);
-        #endif // MUX_SELECT_DELAY
 
         const uint8_t matrix_index = mux_to_num[init_keys[idx][1]][init_keys[idx][0]];
         wait_ms(AM_STARTUP_DELAY / 5);
@@ -405,9 +397,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
         #endif
 
         set_mux_channel(mux_channel);
-        #ifdef MUX_SELECT_DELAY
         delay_ns(MUX_SELECT_CYCLES);
-        #endif
 
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
@@ -440,9 +430,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
             #elif defined DEBUG_SCAN_VALUES
             dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
             #endif
-            #ifdef ADC_SCAN_DELAY
             delay_ns(ADC_SCAN_CYCLES);
-            #endif
 
             // Check if the value has changed enough to warrant an evaluation
             //TODO: This could perhaps cause issues around the borders, with missing updates, especially on higher smoothing levels
@@ -455,7 +443,6 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
                 #endif
             }
 
-            //TODO: Check for priority mode, only run this if it isn't enabled -> Set the priority_mode variable in the profile_change function
             // If dynamic calibration is enabled, check if the boundaries need updating
             #ifdef DYNAMIC_CALIBRATION
             if(!priority_mode && update_switch_bounds(index, adc_value)) {
@@ -531,8 +518,8 @@ void translate_mm_to_value(uint8_t index) {
         #ifndef INVERT_ADC
         #ifdef USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
-        //TODO: Instead of having a separate section, I can just subtract the height from the TRAVEL_DISTANCE to get the from_bottom value
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
+        //      Would need to find something for RT distances though, which probably would render it redundant
         //TODO: Test this, add INVERT_ADC values
         key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[profile][index])) - ADC_SMOOTHING;
         key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height[profile][index])) + ADC_SMOOTHING;
@@ -560,9 +547,10 @@ void translate_mm_to_value(uint8_t index) {
         #endif // ifndef INVERT_ADC else
 
         #if defined USE_RT_DISTANCE
-        //TODO: The threshold starts at 0 because there's only one, instead of one per profile, so I need to set it every profile switch(?)
         key_config[index].rt_press_value[profile] = travel_unit * rt_press_distance[profile][index];
         key_config[index].rt_release_value[profile] = travel_unit * rt_release_distance[profile][index] + ADC_SMOOTHING;
+        // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
+        if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
         #endif
 
         // Assign the switch mode
@@ -677,8 +665,6 @@ bool get_calibration_data(void) {
 
 //MARK: Calibrate
 void calibrate_switches(bool init) {
-    uint16_t adc_value;
-    uint8_t matrix_index;
     // Save config values after x scans without a change
     uint32_t scans_without_change = 0;
     bool first_scan = true;
@@ -717,24 +703,19 @@ void calibrate_switches(bool init) {
             #endif
             #ifdef POWER_BEFORE_SCAN
             set_sensor_power(mux_channel);
-            #ifdef POWER_SELECT_DELAY
-            delay_ns(POWER_SELECT_CYCLES);
-            #endif
             #elif defined CUSTOM_POWER_BEFORE_SCAN
             set_sensor_power_high_kb(mux_channel);
             #endif
             set_mux_channel(mux_channel);
-            #ifdef MUX_SELECT_DELAY
             delay_ns(MUX_SELECT_CYCLES);
-            #endif
 
             for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
                 // Translate matrix mux and adc channels to matrix position
-                matrix_index = mux_to_num[mux_channel][adc_channel];
+                uint8_t matrix_index = mux_to_num[mux_channel][adc_channel];
                 // Check if a switch is at the position (matrix index < 255), and scan if so
                 if(matrix_index == 255) continue;
 
-                adc_value = adc_read(adc_pin_mux[adc_channel]);
+                uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]);
 
                 if(first_scan) {
                     #ifdef INVERT_ADC
@@ -899,10 +880,10 @@ bool evaluate_value(uint8_t index, uint16_t value) {
     switch(key_config[index].mode[active_profile]) {
         #if defined USE_NONE
         case none:
-        if(value > key_config[index].trigger_value[active_profile] || value > key_config[index].bottom_value) {
-            key_config[index].pressed = true;
-        } else if(value < key_config[index].release_value[active_profile] || value < key_config[index].top_value) {
+        if(value < key_config[index].top_value || value < key_config[index].release_value[active_profile]) {
             key_config[index].pressed = false;
+        } else if(value > key_config[index].trigger_value[active_profile] || value > key_config[index].bottom_value) {
+            key_config[index].pressed = true;
         } else {
             return false;
         }
@@ -911,8 +892,12 @@ bool evaluate_value(uint8_t index, uint16_t value) {
 
         #if defined USE_RAPID_TRIGGER
         case rapid_trigger:
+        // If the switch is not pressed past the threshold, reset it
+        if(value < key_config[index].top_value || value < key_config[index].release_value[active_profile]) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value > key_config[index].trigger_value[active_profile]) {
+        } else if(value > key_config[index].trigger_value[active_profile]) {
             // Set the new lowest value if needed
             if(value > key_config[index].rt_threshold + ADC_SMOOTHING || value > key_config[index].bottom_value) {
                 key_config[index].pressed = true;
@@ -923,18 +908,19 @@ bool evaluate_value(uint8_t index, uint16_t value) {
                 // Set the new activation threshold
                 key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
             }
-        } else if(value < key_config[index].release_value[active_profile] || value < key_config[index].top_value) {
-            // If the switch is not pressed past the threshold, reset it
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
         }
         break;
         #endif
 
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         case continuous_rapid_trigger:
+        // Check if the switch has been released completely
+        if(value < key_config[index].top_value) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
+            key_config[index].rt_active = false;
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(key_config[index].rt_active || (value > key_config[index].trigger_value[active_profile] + ADC_SMOOTHING)) {
+        } else if(key_config[index].rt_active || (value > key_config[index].trigger_value[active_profile] + ADC_SMOOTHING)) {
             key_config[index].rt_active = true;
             // Set the new lowest value if needed
             if(value > key_config[index].rt_threshold + ADC_SMOOTHING || value > key_config[index].bottom_value) {
@@ -945,32 +931,22 @@ bool evaluate_value(uint8_t index, uint16_t value) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
                 key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
-            }  else if(value < key_config[index].top_value) {
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
-            key_config[index].rt_active = false;
             }
-        // Check if the switch has been released completely
-        } else if(value < key_config[index].top_value) {
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
-            key_config[index].rt_active = false;
         }
         break;
         #endif
 
         #if defined USE_CONSTANT_RAPID_TRIGGER
         case constant_rapid_trigger:
-        // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
-        if((value > key_config[index].rt_threshold + ADC_SMOOTHING) || value > key_config[index].bottom_value) {
-            key_config[index].pressed = true;
-            key_config[index].rt_threshold = value;
         // Check if the key has been released past the threshold or completely
-        } else if((value + key_config[index].rt_threshold + ADC_SMOOTHING) < key_config[index].rt_release_value[active_profile]
-                  || value < key_config[index].top_value) {
+        if(value < key_config[index].top_value || (value + key_config[index].rt_threshold + ADC_SMOOTHING) < key_config[index].rt_release_value[active_profile]) {
             key_config[index].pressed = false;
             // Set the new activation threshold
             key_config[index].rt_threshold = value + key_config[index].rt_press_value[active_profile];
+        // Check if the key has been pressed past far enough for rapid trigger to activate it, or pressed down completely
+        } else if((value > key_config[index].rt_threshold + ADC_SMOOTHING) || value > key_config[index].bottom_value) {
+            key_config[index].pressed = true;
+            key_config[index].rt_threshold = value;
         }
         break;
         #endif
@@ -983,10 +959,10 @@ bool evaluate_value(uint8_t index, uint16_t value) {
     switch(key_config[index].mode[active_profile]) {
         #if defined USE_NONE
         case none:
-        if(value < key_config[index].trigger_value[active_profile] || value < key_config[index].bottom_value) {
-            key_config[index].pressed = true;
-        } else if(value > key_config[index].release_value[active_profile] || value > key_config[index].top_value) {
+        if(value > key_config[index].top_value || value > key_config[index].release_value[active_profile]) {
             key_config[index].pressed = false;
+        } else if(value < key_config[index].trigger_value[active_profile] || value < key_config[index].bottom_value) {
+            key_config[index].pressed = true;
         } else {
             return false;
         }
@@ -996,7 +972,10 @@ bool evaluate_value(uint8_t index, uint16_t value) {
         #if defined USE_RAPID_TRIGGER
         case rapid_trigger:
         // Rapid trigger is only active when the switch is lower than the trigger and release height
-        if(value < key_config[index].trigger_value[active_profile]) {
+        if(value > key_config[index].top_value || value > key_config[index].release_value[active_profile]) {
+            key_config[index].pressed = false;
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
+        } else if(value < key_config[index].trigger_value[active_profile]) {
             // Set the new lowest value if needed
             if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
                 key_config[index].pressed = true;
@@ -1007,19 +986,18 @@ bool evaluate_value(uint8_t index, uint16_t value) {
                 // Set the new activation threshold
                 key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
             }
-        //TODO: Check if it is faster to check if the key state is released, and only set values if they're not set already
-        } else if(value > key_config[index].release_value[active_profile] || value > key_config[index].top_value) {
-            // If the switch is not pressed past the threshold, reset it
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
         }
         break;
         #endif // defined USE_RAPID_TRIGGER
 
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         case continuous_rapid_trigger:
+        if(value > key_config[index].top_value || value > key_config[index].release_value) {
+            key_config[index].pressed = true;
+            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
+            key_config[index].rt_active = false;
         // Rapid trigger activates below the trigger height, but only stops when fully released
-        if(key_config[index].rt_active || (value < key_config[index].trigger_value[active_profile] - ADC_SMOOTHING)) {
+        } else if(key_config[index].rt_active || (value < key_config[index].trigger_value[active_profile] - ADC_SMOOTHING)) {
             key_config[index].rt_active = true;
             // Set the new lowest value if needed
             if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
@@ -1030,30 +1008,22 @@ bool evaluate_value(uint8_t index, uint16_t value) {
                 key_config[index].pressed = false;
                 // Set the new activation threshold
                 key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
-            } else if(value > key_config[index].top_value) {
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
-            key_config[index].rt_active = false;
             }
-        // Check if the switch has been released completely
-        } else if(value > key_config[index].top_value) {
-            key_config[index].pressed = false;
-            key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
-            key_config[index].rt_active = false;
         }
         break;
         #endif // defined USE_CONTINUOUS_RAPID_TRIGGER
 
         #if defined USE_CONSTANT_RAPID_TRIGGER
         case constant_rapid_trigger:
+        if(value > key_config[index].top_value) {
+            key_config[index].pressed = false;
         // Check if the key has been pressed far enough for rapid trigger to activate it, or pressed down completely
-        if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
+        } else if(value < key_config[index].rt_threshold - ADC_SMOOTHING || value < key_config[index].bottom_value) {
             key_config[index].pressed = true;
             key_config[index].rt_threshold = value;
 
         // Check if the key has been released far enough
-        } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[active_profile]
-                  || value > key_config[index].top_value) {
+        } else if((value - key_config[index].rt_threshold) > key_config[index].rt_release_value[active_profile]) {
             key_config[index].pressed = false;
             // Set the new activation threshold
             key_config[index].rt_threshold = value - key_config[index].rt_press_value[active_profile];
@@ -1131,28 +1101,15 @@ void get_switch_data(void) {
     adc_read(adc_pin_mux[0]);
     adc_read(adc_pin_mux[0]);
 
-    // for(uint8_t key = 0; key < switch_num; key++) {
-    //     uint8_t row = num_to_matrix[key][0];
-    //     uint8_t col = num_to_matrix[key][1];
-    //     key_config[key].row = row;
-    //     key_config[key].col = col;
-
-    //     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++){
-    //         key_config[key].mode[profile] = key_modes[profile][key];
-    //     }
-
-    //     #if defined JOYSTICK_ENABLE
-    //     key_config[key].axis_index = -1;
-    //     #endif
-    // }
     for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
-        //TODO: Add delays
         set_mux_channel(mux_channel);
+        delay_ns(MUX_SELECT_CYCLES);
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             const uint8_t index = mux_to_num[mux_channel][adc_channel];
             if(index == 255) continue;
 
-            uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]);
+            delay_ns(ADC_SCAN_DELAY);
+            const uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]);
             key_config[index].top_value = adc_value;
             // Assign this value here to prime the filter
             key_config[index].scan_value = adc_value;
@@ -1240,21 +1197,21 @@ void set_sensor_power(uint8_t index) {
     }
     #endif // ifdef POWER_PINS_CONTINUOUS else
 
-    #ifdef POWER_SELECT_DELAY
     delay_ns(POWER_SELECT_CYCLES);
-    #endif
 }
 #endif // ifdef POWER_PINS
 
 
 //MARK: Delay
 //TODO: Scale this so that it's roughly correct
+#ifdef AM_USE_DELAY
 void delay_ns(uint16_t delay) {
     // delay = (delay * 1000000000 / 180000000000);
     for(; delay > 0; delay--){
         __asm("");
     }
 }
+#endif
 
 
 //MARK: Profiles
@@ -1277,15 +1234,14 @@ void set_active_profile(uint8_t profile) {
 
         // Start the transaction manually
         am_data_manual_transaction();
-
-        //TODO: Call profile setting change function here, and call manual transaction from there
-        profile_state_changed(profile);
     }
+    profile_state_changed(profile);
 }
 #endif // ifndef SPLIT_KEYBOARD else
 #else // if AM_PROFILE_NUM > 1
 #define set_active_profile(profile)
 #endif // if AM_PROFILE_NUM > 1
+
 
 #if AM_PROFILE_NUM > 1
 // Makes all changes that need to happen on a profile change
@@ -1300,7 +1256,6 @@ void profile_state_changed(uint8_t profile) {
     //TODO: Make sure no conflicts are caused with features remapping key modes (probably doesn't happen anyway)
 
 }
-
 #else
 #define profile_state_change(profile)
 #endif
@@ -1402,13 +1357,9 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
             #if POWER_BEFORE_SCAN == TRUE
             set_sensor_power(mux_channel);
             #endif
-            #ifdef POWER_SELECT_DELAY
             delay_ns(POWER_SELECT_CYCLES);
-            #endif
             set_mux_channel(mux_channel);
-            #ifdef MUX_SELECT_DELAY
             delay_ns(MUX_SELECT_CYCLES);
-            #endif
             last_channel = mux_channel;
         }
 
@@ -1418,9 +1369,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
             dprintf("%u\n", adc_value);
         }
         #endif
-        #ifdef ADC_SCAN_DELAY
         delay_ns(ADC_SCAN_CYCLES);
-        #endif
 
         if(evaluate_value(matrix_index, adc_value)) {
             matrix_has_changed = true;
@@ -1441,6 +1390,7 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
 
 
 //MARK: Suspend
+//TODO: Instead of using invert matrix power like this, instead use an on_state define and use gpio_write_pin(pin, state) and gpio_write_pin(pin, !state) to turn on/off respectively
 __attribute__((weak)) void suspend_power_down_kb(void) {
     #ifdef MATRIX_POWER_PIN
     #ifndef INVERT_MATRIX_POWER

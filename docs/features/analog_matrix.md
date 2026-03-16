@@ -25,9 +25,10 @@ This feature is in a beta state. This means that, while it is fully functional, 
 
 Working features are:
 * Calibration
-    * Saving calibration data to persistent storage
+    * Save calibration data to persistent storage
+    * Automatic adjusting of calibration data during use (as an optional mode)
 * Split communication
-    * Split profile sync
+    * Split profile and calibration synchronisation
 * Automatic and manual profile switching
 * Rapid trigger
 * Analog joystick mode
@@ -37,10 +38,11 @@ Working features are:
     * Options to output the scan values for a single key or the entire matrix to the console
     * Options to disable output while debugging
 * Priority keys
-    * With this feature, you select certain matrix positions to be scanned more often than others
+    * Select certain matrix positions to be scanned more often than others
     * Not very useful without high polling rate support, which is a low priority at the moment
 * Custom scanning routine
     * If your matrix doesn't conform to the standards layed out in the first section, you can use a custom scanning implementation and still make use of all other features
+        * E.g. selectively powering sensors and using diodes, layering multiplexers
     * Overwriting the standard analog initialization routine is also possible
 * and more
 
@@ -49,7 +51,6 @@ Working features are:
 * GUI interface
     * VIAL support is in the early stages of development, with a high priority.
 * Joystick axes on the slave half
-* Dynamic calibration (update bounds during use, coming soon though)
 * Controlling the sensor power via gpio pins<sup>1</sup>
 * High USB polling rates
     * Currently low priority
@@ -60,13 +61,11 @@ Working features are:
     * This means that the encoder push action also needs a workaround to function
 * DKS (multiple actions assigned to one key, triggering depending on the distance)
 
-1: Might work, but hasn't been tested.
+1: An implementation is available, but hasn't been tested.
 
 ## Current TO-DO list
 
 Roughly in descending order of priority:
-* Dynamic calibration*
-    * Works well, but automatic saving to EEPROM needs tuning. Docs not available yet.
 * Proper mixed matrices
 * GUI (VIAL)
 * DKS
@@ -754,6 +753,29 @@ Overwriting this function can break functionality very easily, in many more ways
 
 <!--MARK: Features -->
 # Other Features
+
+## Dynamic Calibration
+
+This feature will automatically update the calibration values of a switch based on several parameters:
+```json
+"dynamic_calibration": true,
+"dynamic_calibration_factor": 0.1,
+"dynamic_calibration_delta": 5,
+"recalibrated_switches": 5
+```
+The basic functionality is enabled by setting "dynamic_calibration" to true. This will simply monitor the switch boundaries and update them if they've been exceeded.  
+If the boundaries have changed, the height values for that switch will be updated automatically according to the new bounds.  
+You can also set a factor that is applied to the calibration values at initialization. This means that the bounds are moved slightly closer together (a factor of 0.1 will move the top value down and the bottom value up by 10% of the travel range).  
+The new values for a switch are only saved, if the bounds have been moved due to a switch activation. To make sure that the flash isn't being written to too often, you have several options. The new boundary value needs to be higher or lower than the old calibration value by at least "dynamic_calibration_delta", and the values are only saved to storage while a layer is being changed, if the amount of switches with new values is equal or higher than "recalibrated_switches". If you don't wish to save the new values to storage automatically, you can set "recalibrated_switches" to a higher number than the amount of switches you have. This will disable the check completely.  
+
+If the no_eeprom option is used, this check is also disabled automatically.
+
+While the boundary check is very efficient, you nevertheless have the option of setting a profile to be a priority, by setting
+```json
+"priority_profile": true
+```
+inside the profile_n object. This will disable the boundary checks on that profile.
+
 
 ## Debugging
 

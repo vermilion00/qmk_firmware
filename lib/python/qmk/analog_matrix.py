@@ -729,6 +729,7 @@ def validate_height_config(am_json):
 
 
 def get_features(info_data):
+    global split_keyboard
     for feature, enabled in info_data['features'].items():
         features.update(((feature.lower(), enabled),))
 
@@ -759,6 +760,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     am_json = info_data['analog_matrix']
     am_hardware = info_data['analog_matrix']['hardware']
+    am_config = info_data['analog_matrix']['config']
 
     #TODO: Add this back when debouncing works
     #Hardware stuff
@@ -777,23 +779,10 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Transform init key matrix positions to mux combinations
     transform_init_keys(info_data, config_h_lines)
 
-    # Transform priority key matrix positions to key indices
-    get_priority_keys(info_data, config_h_lines)
+    get_priority_features(info_data, config_h_lines)
 
-    #TODO: Update this stuff for priority_muxes if needed
-    #TODO: Put this into a function
-    if 'priority_keys' in info_data['analog_matrix']['config']:
-        use_priority_mode = True
-
-    if info_data['analog_matrix']['config'].get('slave_low_priority', False):
-        use_priority_mode = True
-
-    if info_data['analog_matrix']['config'].get('dynamic_calibration', False):
-        use_priority_mode = True
-
-    if use_priority_mode:
-        config_h_lines.append(generate_define("USE_PRIORITY_MODE"))
-
+    if am_config.get('adc_scan_delay', 0) + am_config.get('mux_select_delay', 0) + am_config.get('power_select_delay', 0) > 0:
+        config_h_lines.append(generate_define('AM_USE_DELAY'))
 
     split_layer_sync = False
     if 'joystick' in objects and features.get('joystick', True):
@@ -961,6 +950,25 @@ def generate_joystick_config(info_data, config_h_lines):
             resolutions[AXIS_INDICES[axis]][0] = RESOLUTION_NAMES[method]
 
     config_h_lines.append(generate_define('AM_JOYSTICK_AXIS_CONFIG', f'{str(resolutions).replace('[', '{').replace(']', '}')}'))
+
+
+
+def get_priority_features(info_data, config_h_lines):
+    global use_priority_mode
+    if 'priority_keys' in info_data['analog_matrix']['config']:
+        use_priority_mode = True
+        # Transform priority key matrix positions to key indices
+        get_priority_keys(info_data, config_h_lines)
+
+    if info_data['analog_matrix']['config'].get('slave_low_priority', False):
+        use_priority_mode = True
+
+    if info_data['analog_matrix']['config'].get('dynamic_calibration', False):
+        use_priority_mode = True
+
+    if use_priority_mode:
+        config_h_lines.append(generate_define("USE_PRIORITY_MODE"))
+
 
 
 #MARK: Priority keys
