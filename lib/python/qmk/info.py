@@ -254,7 +254,7 @@ def info_json(keyboard, force_layout=None):
     info_data = _extract_rules_mk(info_data, rules_mk(str(keyboard)))
     info_data = _extract_config_h(info_data, config_h(str(keyboard)))
 
-    # If analog matrix is used, transform the HE matrix
+    # If analog matrix is used, transform the analog matrix layout info
     info_data = _transform_am(info_data)
 
     # Ensure that we have various calculated values
@@ -523,7 +523,6 @@ def _extract_split_transport(info_data, config_c):
         transport['sync']['modifiers'] = transport.pop('sync_modifiers')
 
 
-#TODO: Might need to add mappings for he pins here
 #MARK: Split right pins
 def _extract_split_right_pins(info_data, config_c):
     # Figure out the right half matrix pins
@@ -558,6 +557,7 @@ def _extract_split_right_pins(info_data, config_c):
         mux_pins = config_c.get('MUX_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         adc_pins = config_c.get('ADC_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
         power_pins = config_c.get('POWER_PINS_RIGHT', '').replace('{', '').replace('}', '').strip()
+        # direct_pins = config_c.get('DIRECT_PINS', '').replace(' ', '')[1:-1]
 
         if mux_pins and not info_data['analog_matrix']['hardware'].get('mux_pins_right'):
             info_data['analog_matrix']['hardware']['mux_pins_right'] = _extract_pins(mux_pins)
@@ -567,6 +567,9 @@ def _extract_split_right_pins(info_data, config_c):
 
         if power_pins and not info_data['analog_matrix']['hardware'].get('power_pins_right'):
             info_data['analog_matrix']['hardware']['power_pins_right'] = _extract_pins(power_pins)
+
+        # if direct_pins and not info_data['analog_matrix']['hardware'].get('direct_pins_right'):
+        #     info_data['analog_matrix']['hardware']['direct_pins_right'] = _extract_pins(direct_pins)
 
 
 def _extract_matrix_info(info_data, config_c):
@@ -827,19 +830,10 @@ def _extract_led_config(info_data, keyboard):
     return info_data
 
 
+#MARK: Matrix size def
 def _matrix_size(info_data):
     """Add info_data['matrix_size'] if it doesn't exist.
     """
-    if 'matrix_size' not in info_data and 'analog_matrix' in info_data:
-        info_data['matrix_size'] = {}
-        matrix = info_data['analog_matrix']['hardware']['num_to_matrix']
-        info_data['matrix_size']['rows'] = max([i[0] for i in matrix]) + 1
-        info_data['matrix_size']['cols'] = max([i[1] for i in matrix]) + 1
-
-        if 'split' in info_data:
-            if info_data['split'].get('enabled', False):
-                info_data['matrix_size']['rows'] *= 2
-
     if 'matrix_size' not in info_data and 'matrix_pins' in info_data:
         info_data['matrix_size'] = {}
 
@@ -895,7 +889,7 @@ def _check_matrix(info_data):
         actual_row_count = info_data['matrix_size'].get('rows', 0)
         col_count = row_count = 0
 
-        # Skip matrix check since HE matrix is checked elsewhere
+        # Skip matrix check since analog matrix is checked elsewhere
         if 'analog_matrix' in info_data:
             return
 

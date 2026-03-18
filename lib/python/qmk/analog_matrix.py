@@ -98,27 +98,57 @@ def _transform_layout(info_data):
         return info_data
 
     max_channels = 1 << len(am_hardware.get('mux_pins', ''))
+    # Direct pins are functionally converted to a matrix with 1 row
+    row_pins = max(len(am_hardware.get('row_pins', [])), 1)
+    col_pins = len(am_hardware.get('col_pins', [])) + len(am_hardware.get('direct_pins', []))
+    used_rc_positions = []
+    matrix_size = [0, 0]
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
         mux_to_num = [[255 for _ in range(adc_pins)] for _ in range(max_channels)]
-        #TODO: Try changing this to -1 instead of [0, 0]
-        num_to_matrix = [[0, 0] for _ in range(len(layout_data['layout']))]
+        num_to_matrix = [-1 for _ in range(len(layout_data['layout']))]
+        rc_to_matrix = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
         key_index = 0
+        total_key_num = 0
         used_positions = []
         for key_data in layout_data['layout']:
+            #TODO: Change the name from mux to a/m?
             if 'mux' in key_data:
                 adc, mux = key_data['mux']
                 mux_to_num[mux][adc] = key_index
                 num_to_matrix[key_index] = key_data['matrix']
+                matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
+                matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
                 key_index += 1
+                total_key_num += 1
                 if [adc, mux] not in used_positions:
                     used_positions.append([adc, mux])
                 else:
                     cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the layout!")
+            #TODO: Workshop the name a bit -> r/c, and change mux to a/m?
+            elif 'rc' in key_data:
+                data = key_data['rc']
+                if type(data) == "<class 'list'>":
+                    row, col = data
+                else:
+                    row, col = [0, data]
+                if row > row_pins:
+                    cli.log.error(f"R/C row index {row} for key {total_key_num} is too high!")
+                if col > col_pins:
+                    cli.log.error(f"R/C col index {col} for key {total_key_num} is too high!")
+                if [row, col] not in used_rc_positions:
+                    used_rc_positions.append([row, col])
+                    rc_to_matrix[row][col] = key_data['matrix']
+                else:
+                    cli.log.error(f"R/C combination {[row, col]} appears multiple times in the layout!")
+                matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
+                matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
+
+                total_key_num += 1
+
             else:
-                #TODO: When mixed matrices are a thing, remove this
-                cli.log.error(f"Missing mux info on key {key_index} in layout {layout_name}!")
+                cli.log.error(f"Missing info on key {key_index} in layout {layout_name}!")
                 return info_data
         break
 
@@ -131,8 +161,6 @@ def _transform_layout(info_data):
     mux_to_num = mux_to_num[:last_row + 1]
 
     # Trim the num_to_matrixes
-    #TODO: Update this to account for the new logic (empty positions 0 -> 255)
-    #TODO: Could it be that this never worked for normal keyboards, since split keyboards have -1 by default while normal keyboards have [0, 0]?
     num_to_matrix = [i for i in num_to_matrix if i != -1]
 
     info_data['analog_matrix']['hardware']['mux_to_num'] = mux_to_num
@@ -142,6 +170,13 @@ def _transform_layout(info_data):
     info_data['analog_matrix']['hardware']['switch_num_l'] = len(num_to_matrix)
     info_data['analog_matrix']['hardware']['total_switch_num'] = len(num_to_matrix)
     info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num)
+    info_data['matrix_size'] = {}
+    info_data['matrix_size']['rows'] = matrix_size[0] + 1
+    info_data['matrix_size']['cols'] = matrix_size[1] + 1
+    info_data['matrix_size']['analog_rows'] = max([i[0] for i in num_to_matrix]) + 1
+    info_data['matrix_size']['analog_cols'] = max([i[1] for i in num_to_matrix]) + 1
+    if used_rc_positions != []:
+        info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix
 
     return info_data
 
@@ -158,6 +193,11 @@ def _transform_layout_split(info_data):
         return info_data
     mux_channels = 1 << len(am_hardware.get('mux_pins', ''))
     row_split = am_hardware['row_split']
+    #TODO: This needs to be updated for possibly separate pin amounts per half
+    row_pins = len(am_hardware.get('row_pins', []))
+    col_pins = len(am_hardware.get('col_pins', []))
+    used_rc_positions = []
+    matrix_size = [0, 0]
 
     for layout_name, layout_data in info_data['layouts'].items():
         mux_to_num_l = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
@@ -165,8 +205,11 @@ def _transform_layout_split(info_data):
         mux_to_num_r = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         #Oversize this since we don't know how many keys there are per side, then trim after
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
+        rc_to_matrix_l = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
+        rc_to_matrix_r = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
         key_index_l = 0
         key_index_r = 0
+        total_key_num = 0
         used_positions_l = []
         used_positions_r = []
         for key_data in layout_data['layout']:
@@ -176,6 +219,7 @@ def _transform_layout_split(info_data):
                     mux_to_num_l[mux][adc] = key_index_l
                     num_to_matrix_l[key_index_l] = key_data['matrix']
                     key_index_l += 1
+                    matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
                     if [adc, mux] not in used_positions_l:
                         used_positions_l.append([adc, mux])
                     else: # Mux combo already used
@@ -185,10 +229,42 @@ def _transform_layout_split(info_data):
                     mux_to_num_r[mux][adc] = key_index_r
                     num_to_matrix_r[key_index_r] = key_data['matrix']
                     key_index_r += 1
+                    matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
+                    matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
                     if [adc, mux] not in used_positions_r:
                         used_positions_r.append([adc, mux])
                     else: # Mux combo already used
                         cli.log.error(f"Mux combination {[adc, mux]} appears multiple times in the right half of the layout!")
+                total_key_num += 1
+
+            elif 'rc' in key_data:
+                if key_data['matrix'][0] < row_split:
+                    row, col = key_data['rc']
+                    if row > row_pins:
+                        cli.log.error(f"Row index {row} for key {total_key_num} is too high!")
+                    if col > col_pins:
+                        cli.log.error(f"Col index {col} for key {total_key_num} is too high!")
+                    if [row, col] not in used_rc_positions:
+                        used_rc_positions.append([row, col])
+                        rc_to_matrix_l[row][col] = key_data['matrix']
+                    else:
+                        cli.log.error(f"Matrix combination {[row, col]} appears multiple times in the layout!")
+                    matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
+                else:
+                    row, col = key_data['rc']
+                    if row > row_pins:
+                        cli.log.error(f"Row index {row} for key {total_key_num} is too high!")
+                    if col > col_pins:
+                        cli.log.error(f"Col index {col} for key {total_key_num} is too high!")
+                    if [row, col] not in used_rc_positions:
+                        used_rc_positions.append([row, col])
+                        rc_to_matrix_r[row][col] = key_data['matrix']
+                    else:
+                        cli.log.error(f"Matrix combination {[row, col]} appears multiple times in the layout!")
+                    matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
+                    matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
+
+                total_key_num += 1
 
             #TODO: When actual mixed matrices will be a thing, remove this check
             else: # No mux definition in key data
@@ -227,6 +303,14 @@ def _transform_layout_split(info_data):
     info_data['analog_matrix']['hardware']['total_switch_num'] = len(num_to_matrix_l) + len(num_to_matrix_r)
     info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
     info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
+    info_data['matrix_size'] = {}
+    info_data['matrix_size']['rows'] = matrix_size[0] + 1
+    info_data['matrix_size']['cols'] = matrix_size[1] + 1
+    info_data['matrix_size']['analog_rows'] = max([i[0] for i in num_to_matrix_l]) + 1 + max([i[0] for i in num_to_matrix_r]) + 1
+    info_data['matrix_size']['analog_cols'] = max([i[1] for i in num_to_matrix_l]) + 1 + max([i[1] for i in num_to_matrix_r]) + 1
+    if used_rc_positions != []:
+        info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix_l
+        info_data['analog_matrix']['hardware']['rc_to_matrix_right'] = rc_to_matrix_r
 
     return info_data
 
@@ -284,11 +368,11 @@ def get_matrix_to_mux(info_data, config_h_lines):
     mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num']
     num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix']
     switch_num = info_data['analog_matrix']['hardware']['switch_num']
-    cols = info_data['matrix_size']['cols']
-    if 'split' in info_data and info_data['split'].get('enabled', False):
-        rows = info_data['matrix_size']['rows'] // 2
+    cols = info_data['matrix_size']['analog_cols']
+    if split_keyboard:
+        rows = info_data['matrix_size']['analog_rows'] // 2
     else:
-        rows = info_data['matrix_size']['rows']
+        rows = info_data['matrix_size']['analog_rows']
 
     num_to_mux = [[] for _ in range(switch_num)]
     for row_idx, row in enumerate(mux_to_num):
@@ -311,8 +395,8 @@ def get_matrix_to_mux(info_data, config_h_lines):
         mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num_right']
         num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix_right']
         switch_num = info_data['analog_matrix']['hardware']['switch_num_right']
-        rows = info_data['matrix_size']['rows'] // 2
-        cols = info_data['matrix_size']['cols']
+        rows = info_data['matrix_size']['analog_rows'] // 2
+        cols = info_data['matrix_size']['analog_cols']
         row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
         num_to_mux = [[] for _ in range(switch_num)]
 
@@ -337,9 +421,10 @@ def get_matrix_to_mux(info_data, config_h_lines):
 
 #TODO: Check if I need to adjust this for the different families
 #MARK: Port def
-def get_port_def(json):
+def get_port_def(json, config_h_lines):
     if json['processor'] in BSRR_PROCESSORS:
         json['analog_matrix']['hardware']['use_bsrr'] = True
+        config_h_lines.append(generate_define('USE_BSRR'))
 
     if json['processor'] in CHIBIOS_PROCESSORS:
         json['analog_matrix']['port_def'] = "GPIO"
@@ -678,9 +763,9 @@ def validate_analog_matrix_config(info_data):
                         valid = False
                         print(f"rt_press_distance needs to be set if rapid trigger is used in profile_{profile}!")
             else:
-                if 'trigger_height' not in profile_data:
+                if 'trigger_height' not in profile_data and 'rt_press_distance' not in profile_data:
                     valid = False
-                    print(f"Trigger height needs to be set if constant rapid trigger isn't used in profile_{profile}!")
+                    print(f"Either trigger height or rt press distance needs to be set in profile_{profile}!")
 
             for config in ['trigger_height', 'release_height', 'rt_press_distance', 'rt_release_distance', 'key_modes']:
                 num = len(profile_data.get(config, []))
@@ -744,32 +829,45 @@ def get_features(info_data):
 def generate_analog_matrix_config(info_data, config_h_lines):
     """Generate the config.h lines for analog matrix keyboards."""
     global use_priority_mode
+    am_json = info_data['analog_matrix']
+    am_hardware = info_data['analog_matrix']['hardware']
+    am_config = info_data['analog_matrix']['config']
+
     # Get all defined features and their status
     #TODO: Check if the features from rules_mk have been combined at this point
     if 'features' in info_data:
         get_features(info_data)
 
+    validate_analog_matrix_config(info_data)
+
     #TODO: The define in analog_matrix.h is too late, but find a cleaner way to force 12 bit res
     config_h_lines.append('''\n// Force ADC_RESOLUTION to 12 bits\n#undef ADC_RESOLUTION\n#define ADC_RESOLUTION 12''')
 
-    #TODO: When keymap config is implemented, adjust validations
-    validate_analog_matrix_config(info_data)
+    analog_debounce = am_hardware.get('analog_debounce', 0)
+    if analog_debounce > 0:
+        config_h_lines.append(f"\n#ifndef ANALOG_DEBOUNCE\n#  define ANALOG_DEBOUNCE {analog_debounce}\n#endif // ANALOG_DEBOUNCE\n#undef DEBOUNCE\n#define DEBOUNCE {analog_debounce}")
+    else:
+        config_h_lines.append(generate_define('ANALOG_DEBOUNCE', 0))
+        config_h_lines.append(generate_define('DEBOUNCE', 0))
 
     # if split_keyboard:
     #     info_data = check_right_side_pins(info_data, config_h_lines)
 
-    am_json = info_data['analog_matrix']
-    am_hardware = info_data['analog_matrix']['hardware']
-    am_config = info_data['analog_matrix']['config']
+    #MARK: Mixed matrix def
+    if 'rc_to_matrix' in am_hardware:
+        config_h_lines.append(generate_define('USE_MIXED_MATRIX'))
+        rc_to_matrix = am_hardware['rc_to_matrix']
+        config_h_lines.append(generate_define('RC_TO_MATRIX', str(rc_to_matrix).replace('[', '{').replace(']', '}')))
+        if split_keyboard:
+            rc_to_matrix_r = am_hardware.get('rc_to_matrix_right', rc_to_matrix)
+            config_h_lines.append(generate_define('RC_TO_MATRIX_R', str(rc_to_matrix_r).replace('[', '{').replace(']', '}')))
 
     #TODO: Add this back when debouncing works
     #Hardware stuff
     # if info_data.get('debounce', 0) > 0:
     #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
 
-    info_data = get_port_def(info_data)
-    if info_data['analog_matrix']['hardware'].get('use_bsrr', False):
-        config_h_lines.append(generate_define('USE_BSRR'))
+    info_data = get_port_def(info_data, config_h_lines)
 
     info_data = check_pins(info_data, config_h_lines)
 
@@ -818,11 +916,14 @@ def generate_analog_matrix_config(info_data, config_h_lines):
             else:
                 config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
 
-    # Validate trigger_heights separately after setting, in case of a len 1 define
+    else: # Profiles are configured
+        generate_profile_config(info_data, config_h_lines)
+
 
     if split_keyboard and split_layer_sync == True:
         config_h_lines.append(generate_define('SPLIT_LAYER_SYNC'))
 
+    # Validate trigger_heights separately after setting, in case of a len 1 define
     validate_height_config(am_json)
 
     return info_data
@@ -833,39 +934,44 @@ def check_pins(info_data, config_h_lines):
     # Check ADC Pins
     am_json = info_data['analog_matrix']
     hardware = am_json['hardware']
+    mixed_matrix = False
 
+    #TODO: This is already set in info.py, no need for it here, except it doesn't work without it, why not?
+    #TODO: When separate mixed pins are definable, add them here
+    #TODO: Instead of defining some pins via the auto system, just put them all into the lower loop to consolidate everything into one
     # Check right side pins
     if split_keyboard:
-        for pins in ['adc_pins', 'mux_pins', 'power_pins']:
-            if pins in hardware and f'{pins}_right' not in hardware:
-                pins_r = hardware[pins]
-                info_data['analog_matrix']['hardware'][f'{pins}_right'] = pins_r
-                config_h_lines.append(generate_define(f'{pins.upper()}_R', f'{{ {", ".join(map(str, pins_r))} }}'))
+        for pins in ['adc', 'mux', 'power']:
+            if f'{pins}_pins' in hardware and f'{pins}_pins_right' not in hardware:
+                pins_r = hardware[f'{pins}_pins']
+                info_data['analog_matrix']['hardware'][f'{pins}_pins_right'] = pins_r
+                config_h_lines.append(generate_define(f'{pins.upper()}_PINS_R', f'{{ {", ".join(map(str, pins_r))} }}'))
 
     # Generate pin num defines
-    for postfix in ['', '_right']:
-        if f'adc_pins{postfix}' in hardware:
-            adc_pin_num = len(hardware.get(f'adc_pins{postfix}'))
-            fix = '_R' if postfix == '_right' else ''
-            config_h_lines.append(generate_define(f'ADC_PIN_NUM{fix}', adc_pin_num))
-        elif split_keyboard and postfix == 'right':
-            config_h_lines.append(generate_define('ADC_PIN_NUM_R', adc_pin_num))
+    for postfix in ['', '_right'] if split_keyboard else ['']:
+        fix = '_R' if postfix == '_right' else ''
+        for pin in ['adc', 'mux', 'power', 'direct', 'row', 'col']:
+            if f'{pin}_pins{postfix}' in hardware:
+                num = len(hardware[f'{pin}_pins{postfix}'])
+                config_h_lines.append(generate_define(f'{pin.upper()}_PIN_NUM{fix}', num))
+            elif split_keyboard and postfix == '_right':
+                config_h_lines.append(generate_define(f'{pin.upper()}_PIN_NUM_R', 0))
 
-        if f'mux_pins{postfix}' in hardware:
-            mux_pin_num = len(hardware.get(f'mux_pins{postfix}'))
-            fix = '_R' if postfix == '_right' else ''
-            config_h_lines.append(generate_define(f'MUX_PIN_NUM{fix}', mux_pin_num))
-        elif split_keyboard and postfix == 'right':
-            config_h_lines.append(generate_define('MUX_PIN_NUM_R', mux_pin_num))
+            # If direct pins are defined, we ignore row and col pins
+            if pin == 'direct' and 'direct_pins' in hardware:
+                config_h_lines.append(generate_define(f'ROW_PIN_NUM{fix}', 1))
+                config_h_lines.append(generate_define(f'COL_PIN_NUM{fix}', len(hardware['direct_pins'])))
+                # Don't check row and col pins
+                break
+                #TODO: Allow separate amounts of pins for L/R?
+                # config_h_lines.append(generate_define(f'COL_PIN_NUM{fix}', len(hardware[f'direct_pins{postfix}'])))
 
-        if f'power_pins{postfix}' in hardware:
-            power_pin_num = len(hardware[f'power_pins{postfix}'])
-            fix = '_R' if postfix == '_right' else ''
-            config_h_lines.append(generate_define(f'POWER_PIN_NUM{fix}', power_pin_num))
-            config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
-        elif split_keyboard and postfix == 'right':
-            config_h_lines.append(generate_define('POWER_PIN_NUM_R', power_pin_num))
+    if 'power_pins' in hardware:
+        config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
 
+    # if 'direct_pins' in hardware or ('row_pins' in hardware and 'col_pins' in hardware):
+    #     # config_h_lines.append(generate_define('USE_MIXED_MATRIX'))
+    #     info_data['analog_matrix']['use_mixed_matrix'] = True
 
     if info_data['processor'] == 'RP2040':
         pre = 2

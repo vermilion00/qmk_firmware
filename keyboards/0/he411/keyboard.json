@@ -22,10 +22,12 @@
         "console": true,
         "joystick": false
     },
+    "debounce": 60,
     "analog_matrix": {
         "hardware": {
             "force_calibrate": false,
             "adc_pins": ["A0", "A1", "A2", "A3", "B0"],
+            "direct_pins": ["B12", "B13"],
             "travel_distance": 4.0,
             "smoothing": 60,
             "deadzone": 100
@@ -33,6 +35,7 @@
         "config": {
             "calibration_key": [0, 0],
             "scans_without_change": 6000,
+            "debug_calibration": false,
             "debug_scan_values": false,
             "debug_scan_no_input": false
         },
@@ -59,7 +62,9 @@
                 {"matrix": [0, 1], "x": 1, "y": 0, "mux": [1, 0]},
                 {"matrix": [0, 2], "x": 2, "y": 0, "mux": [2, 0]},
                 {"matrix": [0, 3], "x": 3, "y": 0, "mux": [3, 0]},
-                {"matrix": [0, 4], "x": 3, "y": 0, "mux": [4, 0]}
+                {"matrix": [0, 4], "x": 3, "y": 0, "mux": [4, 0]},
+                {"matrix": [0, 5], "x": 3, "y": 0, "rc":  0},
+                {"matrix": [0, 6], "x": 3, "y": 0, "rc":  1}
             ]
         }
     }

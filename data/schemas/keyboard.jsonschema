@@ -452,7 +452,13 @@
                                     "type": "string",
                                     "enum": ["L", "R", "*"]
                                 },
-                                "mux": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                "mux": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                "rc": {
+                                    "oneOf": [
+                                        {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                        {"type": "integer"}
+                                    ]
+                                }
                             }
                         }
                     }
@@ -529,6 +535,12 @@
                         "invert_matrix_power": {"type": "boolean"},
                         "mux_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "mux_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "row_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "row_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "col_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "col_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "direct_pins": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
+                        "direct_pins_right": {"$ref": "./definitions.jsonschema#/mcu_pin_array"},
                         "no_mux_optimization": {"type": "boolean"},
                         "mux_channels": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "mux_channels_right": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},

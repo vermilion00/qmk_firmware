@@ -188,7 +188,8 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 #include "multiplexer.h"
 
 //TODO: Put this stuff into a header
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+#ifdef SPLIT_KEYBOARD
+#if KEYBOARD_SIDE == UNKNOWN
 extern uint8_t switch_num;
 extern uint8_t adc_pin_num;
 #ifdef MUX_PINS
@@ -198,6 +199,7 @@ extern uint8_t mux_pin_num;
 #ifdef MUX_PINS_RIGHT_CONTINUOUS
 extern uint8_t mux_offset;
 extern stm32_gpio_t* mux_port;
+#endif
 #endif
 #endif
 #endif
