@@ -332,22 +332,28 @@ endif
 #MARK: Analog matrix
 ANALOG_MATRIX_ENABLE ?= no
 ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
-	OPT_DEFS += -DANALOG_MATRIX_ENABLE
-	COMMON_VPATH += $(QUANTUM_DIR)/analog_matrix
-	SRC += $(QUANTUM_DIR)/analog_matrix/analog_matrix.c
-	SRC += $(QUANTUM_DIR)/analog_matrix/multiplexer.c
-	SRC += $(QUANTUM_DIR)/process_keycode/process_analog_matrix.c
-    #TODO: Check if this is the only thing ANALOG_DRIVER_REQUIRED does
-	OPT_DEFS += -DHAL_USE_ADC=TRUE
+    OPT_DEFS += -DANALOG_MATRIX_ENABLE
+    OPT_DEFS += -DHAL_USE_ADC=TRUE
+    COMMON_VPATH += $(QUANTUM_DIR)/analog_matrix
+    SRC += $(QUANTUM_DIR)/analog_matrix/analog_matrix.c
+    SRC += $(QUANTUM_DIR)/analog_matrix/multiplexer.c
+    SRC += $(QUANTUM_DIR)/process_keycode/process_analog_matrix.c
+    #Don't include a debouncing algorithm by default
+    #This doesn't seem to help really
+#     DEBOUNCE_TYPE = custom
     QUANTUM_LIB_SRC += analog.c
 
-	JOYSTICK_ENABLE ?= no
+	ifeq ($(strip $(MIXED_MATRIX_ENABLE)), yes)
+        SRC += $(QUANTUM_DIR)/analog_matrix/mixed_matrix.c
+	endif
+
+    JOYSTICK_ENABLE ?= no
 	ifeq ($(strip $(JOYSTICK_ENABLE)), yes)
-		SRC += $(QUANTUM_DIR)/analog_matrix/analog_joystick.c
+        SRC += $(QUANTUM_DIR)/analog_matrix/analog_joystick.c
 	endif
 endif
 
-ifeq ($(KBSIDE),left)
+ifeq ($(KBSIDE), left)
     OPT_DEFS += -DSIDE_LEFT
 endif
 ifeq ($(KBSIDE), right)
@@ -695,16 +701,6 @@ ifneq ($(strip $(CUSTOM_MATRIX)), yes)
 		endif
 	endif
 endif
-
-#MARK: Side
-#TODO: This doesn't work because the rules_mk function doesn't get the side param currently
-# KB_SIDE ?= none
-# ifeq ($(strip $(KB_SIDE)), left)
-# 	OPT_DEFS += -DSIDE_LEFT
-# endif
-# ifeq ($(strip $(KB_SIDE)), right)
-# 	OPT_DEFS += -DSIDE_RIGHT
-# endif
 
 # Debounce Modules. Set DEBOUNCE_TYPE=custom if including one manually.
 DEBOUNCE_TYPE ?= sym_defer_g

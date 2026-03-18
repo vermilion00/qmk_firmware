@@ -44,6 +44,13 @@ Working features are:
     * If your matrix doesn't conform to the standards layed out in the first section, you can use a custom scanning implementation and still make use of all other features
         * E.g. selectively powering sensors and using diodes, layering multiplexers
     * Overwriting the standard analog initialization routine is also possible
+* Mixed matrix
+    * Both mechanical and analog keys can be used together
+    * Can choose between debouncing only the mechanical keys, or all keys
+    * Mechanical keys as bootmagic coming soon
+* Predefined filter options + debouncing
+    * Choose between several predefined filter strengths, or use your own filter
+    * Standard timer-based debouncing is disabled by default, but can be enabled
 * and more
 
 ## What doesn't work?
@@ -56,9 +63,6 @@ Working features are:
     * Currently low priority
 * Assigning a color to a profile
     * You can instead assign a color to a layer and let the profile switch automatically when that layer is active
-* Mixed matrices, i.e. analog keys and mechanical keys together*
-    * Can be faked, but not actually implemented
-    * This means that the encoder push action also needs a workaround to function
 * DKS (multiple actions assigned to one key, triggering depending on the distance)
 
 1: An implementation is available, but hasn't been tested.
@@ -66,9 +70,10 @@ Working features are:
 ## Current TO-DO list
 
 Roughly in descending order of priority:
-* Proper mixed matrices
-* GUI (VIAL)
+* Mechanical keys as bootmagic
+    * Also allow multiple keys to do one function
 * DKS
+* GUI (VIAL)
 * Joystick axes on slave half
 * Velocity-sensitive MIDI keys
 * Higher USB polling rates (> 1kHz)
@@ -214,7 +219,8 @@ This section contains the details of how everything is connected to the microcon
             "adc_pins": ["A0", "A1", "A2"],
             "travel_distance": 4.0,
             "smoothing": 60,
-            "deadzone": 80
+            "deadzone": 80,
+            "analog_debounce": 5
         }
     },
     "layouts": {
@@ -263,6 +269,12 @@ You can have different deadzones for top and bottom by using top_deadzone and bo
 "invert_adc": false
 ```
 The analog matrix logic assumes that the ADC value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
+
+
+```json
+"analog_debounce": 5
+```
+While it's disabled by default, you can enable timer-based debouncing routines by setting this parameter. Keep in mind that the normal "debounce" parameter doesn't work for analog keys, as that is reserved for debouncing the mechanical keys in a mixed matrix configuration.
 
 
 #### Layout
@@ -382,11 +394,11 @@ To switch between profiles, you can use the layer parameter to automatically swi
     }
 }
 ```
+The analog matrix feature allows you to assign a profile to a layer. This means that when a layer is switched, it will also activate the lowest index profile that is assigned to the highest active layer. If no profile is assigned, then this parameter decides which layer should be activated:
 
 ```json
 "profile_switch_mode": "last"
 ```
-The analog matrix feature allows you to assign a profile to a layer. This means that when a layer is switched, it will also activate the lowest index profile that is assigned to the highest active layer. If no profile is assigned, then this parameter decides which layer should be activated:
 
 |     Switch Mode   |        Description                                                                                             |
 |-------------------|----------------------------------------------------------------------------------------------------------------|
@@ -635,8 +647,85 @@ As the filter works on absolute values, it is recommended to use the debug_matri
 
 If you wish to use your own filter, keep in mind that this filter will run once for every single key in every single scan, meaning that performance should be prioritised over steady readings, within reason. A simple filter will hardly cause a performance penalty, but a more complex filter might. Furthermore, it is advised to use primarily simple operations like adding, subtracting and bitshifting. If possible, multiply and divide by powers of 2 (2, 4, 8 etc), as those operations can be done efficiently via bitshifts (multiplying by 4 equals << 2, dividing by 8 equals >> 3 etc).
 
+## Debouncing 
+
+Timer-based debouncing (the same stuff used for mechanical keys) is disabled by default, but can be enabled by setting the "analog_debounce" parameter:
+```json
+"analog_matrix": {
+    "hardware": {
+        "analog_debounce": 5
+    }
+},
+"debounce_type": "asym_eager_defer_pk"
+```
+This will use a debounce time of 5 milliseconds.
+
 
 <!--TODO: Add adjustment section here -->
+
+
+<!--MARK: Mixed matrix-->
+# Mixed Matrix
+
+If you wish, you can use normal (mechanical) keys together with your analog keys, e.g. to use the press action on an encoder. <br>
+You can either connect them to GPIO 'direct pin' style (one leg to a GPIO pin, the other leg to ground), or together in a matrix configuration using diodes. However, the pin definition will be different, and the layout macro needs extra information to work correctly.
+
+## Pin configuration
+
+If you wish to wire your mechanical keys together in a matrix configuration, you need to define both the row and column pins inside the "hardware" object:
+```json
+"analog_matrix": {
+    "hardware": {
+        "row_pins": ["B11", "B12"],
+        "col_pins": ["B13", "B14", "B15"]
+    }
+},
+"diode_direction": "COL2ROW"
+```
+By default, the diode orientation is column to row. If you wish to change it, you need to set the top level parameter "diode_direction" to "ROW2COL". This value is dependent on the orientation of your diodes. If the mechanical keys aren't working, try changing this parameter.
+
+If you only need a few mechanical keys, it is easier to use a direct pin configuration:
+```json
+"direct_pins": ["C12", "C13", "C14"]
+```
+This skips the need for diodes and simplifies the wiring, as you only need to connect one leg of the switch to ground and the other to one of the defined pins.
+You can only use either direct_pins or both row_pins and col_pins, as either option constitutes a full definition. If both options are defined, direct_pins wins.<br>
+::: tip  
+Don't forget that, while the direct_pins definition for a normal QMK matrix is a 2-dimensional array, this version only uses one dimension, as the "rc" parameter in the layout macro makes the second dimension obsolete (and the rc parameter is needed anyway)  
+:::
+
+## Layout configuration
+
+Similar to the mux parameter for analog keys, all mechanical keys need an added "rc" parameter to work correctly. Since the resulting keymap is a combination of mechanical and analog keys that don't fit into an electrical matrix together, the rc parameter maps the pin index(es) to a matrix position. The contents of the parameter depend on the pin definition used. If row_pins and col_pins is defined, functions identically to the mux parameter:
+```json
+"layouts": {
+    "LAYOUT": {
+        "layout": [
+            {"matrix": [0, 0], "x": 0, "y": 0, "mux": [0, 0]},
+            {"matrix": [0, 1], "x": 1, "y": 0, "mux": [0, 1]},
+            {"matrix": [0, 2], "x": 2, "y": 0, "rc":  [0, 0]},
+            {"matrix": [0, 3], "x": 3, "y": 0, "rc":  [1, 0]},
+            ...
+        ]
+    }
+}
+```
+The rc parameter is an array of two indices, with the first one corresponding to the pin index in the row array, and the second one belonging to the col pin index.
+
+If the direct_pin parameter is used instead, it will be a single integer, also corresponding to the direct pin index in the array:
+```json
+{"matrix": [0, 4], "x": 3, "y": 0, "rc": 0},
+{"matrix": [0, 5], "x": 3, "y": 0, "rc": 1}
+```
+To enable debouncing, you use the standard QMK configuration:
+```json
+"debounce": 5,
+"build": {
+    "debounce_type": "asym_eager_defer_pk"
+}
+```
+This will enable debouncing with a time of 5 milliseconds for the mechanical keys only. If these parameters aren't set, they default to 5 milliseconds and sym_defer_g respectively. If you wish to disable debouncing for the mechanical keys, you can set "debounce" to 0. <br>
+If you instead wish to use timer-based debouncing for both mechanical and analog keys, keep in mind that the time will be set by "analog_debounce" for both switch types instead. It is not possible to use different debouncing algorithms per switch type.
 
 
 <!--TODO: Put this into its own page -->
@@ -677,7 +766,7 @@ uint8_t analog_matrix_scan(void) {
 This is all that's necessary to overwrite the scanning routine with your own. For it to work correctly, you need to keep a few things in mind:
 The evaluation function translates the ADC scan value of a switch into its press/release state, and returns true if the switch state has changed, NOT if it is pressed. <br> The evaluation function also handles stuff like joystick axes automatically (if those are enabled). <br>
 
-Our scanning routine can look something like this:
+A simple scanning routine can look something like this:
 ```c
 uint8_t analog_matrix_scan(void) {
     bool matrix_has_changed = false;
@@ -720,6 +809,7 @@ uint8_t analog_matrix_scan(void) {
     matrix_has_changed |= matrix_post_scan();
     #endif
 
+    // Unlike the default QMK scanning function, this one returns true if the matrix state has changed
     return matrix_has_changed;
 }
 ```
@@ -744,11 +834,11 @@ This function will be called at the end of the default initialization function.
 If you instead wish to overwrite it completely, you can do so similarily to the scanning function:
 ```c
 void analog_matrix_init(void) {
-    // Setting this definition will completely overwrite the original function, so be very careful
+    // Setting this definition will completely overwrite the original function, so be VERY careful
 }
 ```
-This function assigns the configuration to the correct half on split keyboards, sets the pin modes for the used multiplexer and ADC pins, reads the switch calibration data from EEPROM, calls the calibration function if the data is invalid, scans the init keys if they're used, and translates the configured heights into the equivalent ADC readings.  
-Overwriting this function can break functionality very easily, in many more ways than the scanning function, so it is recommended to do so only if you fully understand how this feature works. Otherwise, it is best to stick to adding stuff via matrix_init_kb().
+This function assigns the configuration to the correct half on split keyboards, sets the pin modes for the used multiplexer and ADC pins, reads the switch calibration data from EEPROM, calls the calibration function if the data is invalid, scans the init keys if they're used, translates the configured heights into the equivalent ADC readings, and calls the mixed_matrix_init function, if enabled.  
+Overwriting this function can break all functionality VERY easily, in many more ways than the scanning function, so it is recommended to do so only if you fully understand how the analog matrix feature works. Otherwise, it is best to stick to adding stuff via matrix_init_kb().
 
 
 <!--MARK: Features -->
@@ -1104,6 +1194,8 @@ MARK: Design tips
 * Keep the analog traces short
 * Use a small decoupling capacitor (~100nF) between the ADC pin and ground
 * Low pass filter at each sensor?
+* Tie unused multiplexer channels to ground
+* Select the ADC Vref voltage appropriately for your sensor/orientation/switch combo
 -->
 
 # Additional Resources

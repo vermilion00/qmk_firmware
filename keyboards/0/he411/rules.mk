@@ -1,6 +1,6 @@
 # POINTING_DEVICE_DRIVER = pmw3360
 
-SRC += matrix.c
+# SRC += matrix.c
 
 KEYBOARD_SHARED_EP = yes
 #MOUSE_SHARED_EP = yes

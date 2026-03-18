@@ -1,6 +1,7 @@
 //TODO: Go through these and check which ones are needed
 
 #include "analog_matrix.h"
+#include "matrix.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -14,13 +15,16 @@
 #include "keyboard.h"
 #include "keycodes.h"
 #include "keymap_introspection.h"
-#include "matrix.h"
 #include "multiplexer.h"
 #include "print.h"
 #include "suspend.h"
 #include "math.h"
 //TODO: Debouncing doesn't work currently, fix it just in case
-#if DEBOUNCE > 0
+#if ANALOG_DEBOUNCE > 0
+#include "debounce.h"
+#endif
+#ifdef USE_MIXED_MATRIX
+#include "mixed_matrix.h"
 #include "debounce.h"
 #endif
 #ifdef JOYSTICK_ENABLE
@@ -37,8 +41,12 @@ analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 
 extern matrix_row_t matrix[MATRIX_ROWS];
-#if DEBOUNCE > 0
+#if ANALOG_DEBOUNCE > 0
 extern matrix_row_t raw_matrix[MATRIX_ROWS];
+//TODO: When analog debounce is enabled, the matrix changes need to happen to raw_matrix instead of the actual matrix. How do I do this efficiently?
+#define SCAN_MATRIX(row) raw_matrix[row]
+#else
+#define SCAN_MATRIX(row) matrix[row]
 #endif
 #ifdef SPLIT_KEYBOARD
 // Row offsets for each hand
@@ -153,6 +161,12 @@ pin_t power_pins[SMAX(POWER_PIN_NUM)] = POWER_PINS;
 #if !defined EQUAL_POWER_PINS
 const pin_t power_pins_r[POWER_PIN_NUM_R] = POWER_PINS_R;
 #endif
+#endif
+
+#ifdef USE_MIXED_MATRIX
+//TODO: Move the normal defs outside of this
+uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX;
+const uint8_t rc_to_matrix_r[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX_R;
 #endif
 
 #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
@@ -322,6 +336,10 @@ __attribute__((weak)) void analog_matrix_init(void) {
     } else if (is_keyboard_left()) switch_num_slave = SWITCH_NUM_L;
     #endif
 
+    #ifdef USE_MIXED_MATRIX
+    mixed_matrix_init();
+    #endif
+
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
 }
@@ -439,7 +457,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
             if(evaluate_value(index, adc_value)) {
                 matrix_has_changed = true;
                 #ifndef DEBUG_SCAN_NO_INPUT
-                matrix[key_config[index].row] ^= 1 << key_config[index].col;
+                SCAN_MATRIX(key_config[index].row) ^= 1 << key_config[index].col;
                 #endif
             }
 
@@ -468,17 +486,19 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
     } else { scan_amt = 0; }
     #endif
 
-    //TODO: Add debounce support, in case some people need it. Currently doesn't work for some reason
-    #if DEBOUNCE > 0
-    #error "Debouncing currently doesn't work with ANALOG_MATRIX, set debounce to 0 or leave the parameter out to disable it!"
+    #ifdef USE_MIXED_MATRIX
+    matrix_has_changed |= mixed_matrix_scan();
+    #endif
+
+    #if ANALOG_DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
-    matrix_has_changed = debounce(raw_matrix, matrix + thisHand, MATRIX_ROWS_PER_HAND, matrix_has_changed) | matrix_post_scan();
+    matrix_has_changed = debounce(raw_matrix + thisHand, matrix + thisHand, MATRIX_ROWS_PER_HAND, matrix_has_changed) | matrix_post_scan();
     #else
     matrix_has_changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     matrix_scan_kb();
     #endif
 
-    #else // if DEBOUNCE > 0
+    #else // if ANALOG_DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
     #if !defined SLAVE_LOW_PRIORITY
     matrix_has_changed |= matrix_post_scan();
@@ -494,7 +514,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
     #else // ifdef SPLIT_KEYBOARD
     matrix_scan_kb();
     #endif // ifdef SPLIT_KEYBOARD
-    #endif // if DEBOUNCE > 0
+    #endif // if ANALOG_DEBOUNCE > 0
 
     return matrix_has_changed;
 }
@@ -1387,6 +1407,17 @@ uint8_t matrix_scan_priority(matrix_row_t current_matrix[]) {
     return matrix_has_changed;
 }
 #endif
+
+//This saves 64 bytes, but would need better guards including in common_features.mk to work properly
+//MARK: Fake debounce
+//TODO: Implement this and the common_features.mk stuff so that debouncing analog matrix and debouncing mixed matrix still works
+// Empty definition to avoid useless none.c definition while satisfying linker
+// #if !defined USE_MIXED_MATRIX && ANALOG_DEBOUNCE == 0
+// bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool changed) {
+//     return true;
+// }
+// void debounce_init(uint8_t num_rows) {}
+// #endif
 
 
 //MARK: Suspend

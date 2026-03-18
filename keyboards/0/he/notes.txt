@@ -106,14 +106,6 @@ Add mode for multiple actions on one key (DKS) somehow
         -Mask, checking it during scan to see if it's a DKS switch, bind DKS(0) as a keycode that triggers the function in that array of DKS structs
     -When a switch with that mode is scanned, send eval to another function
 
-Add option to define normal buttons to immediately jump to calibration/bootloader/reset
-    -Or even mixed matrices, for encoders etc
-    -Change layout mux validation to allow normal keys?
-    -Make it a separate matrix scan function triggered off of a define
-    -Best way would probably be to make the matrix scan task separate, include the needed ones via define
-    -Need separate matrix_size definition for analog matrix though
-    -Also a way to combine both into one complete matrix for the macro
-
 -Allow associating a color with a profile?
     -Or just set them by layer
 
@@ -135,16 +127,6 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
-
-Mixed Matrices:
--Remove the check for the mux parameter.
--Only include keys with a valid mux parameter in the key config
--Set a define if mixed matrices are used
--If that define is set, normal matrix scanning should be included
--Since the normal scanning function resets the matrix each time, adjust to only toggle the state, or make a separate matrix array and combine them after
--The normal keys won't show up in SWITCH_NUM, mux_to_num etc, but will show up in the layout macro if they're included in the LAYOUT object
--Mixed matrix needs debouncing option for mechanical keys
-    -Try to debounce only the mechanical keys
 
 -A very high smoothing value causes keys to get stuck occasionally (shouldn't be the case cuz deadzones, maybe need to increase those?)
 -The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
@@ -204,3 +186,7 @@ Notes:
     -If it doesn't -> ADC problem, unstable reference voltage etc
 
 -What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
+
+Mixed matrix:
+-Allow defining mechanical keys for bootmagic stuff
+    -Check if an init key is mechanical or analog in init key check function

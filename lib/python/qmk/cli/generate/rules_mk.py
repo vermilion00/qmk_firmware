@@ -108,8 +108,9 @@ def generate_rules_mk(cli):
     # Set ANALOG_MATRIX, if needed, without needing to enable it as a feature, since it always needs configuration anyway
     if 'analog_matrix' in kb_info_json and kb_info_json['features'].get('analog_matrix') != False:
         rules_mk_lines.append(generate_rule('ANALOG_MATRIX_ENABLE', 'yes'))
-        #TODO: I think all this does is set -DHAL_USE_ADC and += analog.c, but maybe it does more?
-        # rules_mk_lines.append(generate_rule('ANALOG_DRIVER_REQUIRED', 'yes'))
+        # Enable mixed matrix support
+        if kb_info_json.get('analog_matrix', {}).get('hardware', {}).get('rc_to_matrix', []) != []:
+            rules_mk_lines.append(generate_rule('MIXED_MATRIX_ENABLE', 'yes'))
         # Set JOYSTICK, if needed, without needing to enable it as a feature
         if 'joystick' in kb_info_json['analog_matrix'] and kb_info_json['features'].get('joystick') != False:
             rules_mk_lines.append(generate_rule('JOYSTICK_ENABLE', 'yes'))
