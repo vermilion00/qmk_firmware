@@ -342,8 +342,8 @@ enum qk_keycode_defines {
     AM_CALIBRATE = 0x5820,
     AM_PRINT_CALIBRATION = 0x5821,
     //TODO: Remove this, not needed
-    AM_PRINT_PROFILE = 0x5822,
-    AM_LOCK_PROFILE = 0x5823,
+    AM_LOCK_PROFILE = 0x5822,
+    AM_TOGGLE_PRIORITY = 0x5823,
     // Joystick axes to allow mapping them to analog keys
     JS_LEFT_POSITIVE_X = 0x5840,
     JS_LEFT_NEGATIVE_X = 0x5841,
@@ -1489,8 +1489,8 @@ enum qk_keycode_defines {
     //MARK: AM Aliases
     AM_CLBR    = AM_CALIBRATE,
     AM_PRNT    = AM_PRINT_CALIBRATION,
-    AM_PRPR    = AM_PRINT_PROFILE,
     AM_LOCK    = AM_LOCK_PROFILE,
+    AM_TGPR    = AM_TOGGLE_PRIORITY,
     JS_LPX     = JS_LEFT_POSITIVE_X,
     JS_LNX     = JS_LEFT_NEGATIVE_X,
     JS_LNY     = JS_LEFT_NEGATIVE_Y,

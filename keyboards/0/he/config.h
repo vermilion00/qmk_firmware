@@ -15,6 +15,10 @@
   */
 #pragma once
 
+#define AM_USER_PARAMS \
+uint8_t adc_channel; \
+uint8_t mux_channel;
+
 #define DEBUG_MATRIX_SCAN_RATE
 
 #define STRONG_ADC_FILTER

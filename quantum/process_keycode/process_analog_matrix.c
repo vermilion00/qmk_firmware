@@ -19,9 +19,6 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
         case AM_CALIBRATE:
             if(record->event.pressed) {
                 calibrate_switches(false);
-                for(uint8_t index = 0; index < switch_num; index++) {
-                    key_config[index].pressed = false;
-                }
             }
             return false;
 
@@ -32,18 +29,20 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
-        case AM_PRINT_PROFILE:
-            if(record->event.pressed) {
-                printf("\nActive profile: %u\n", active_profile);
-                break;
-            }
-            return false;
-
         case AM_LOCK_PROFILE:
             if(record->event.pressed) {
                 manual_profile_lock = !manual_profile_lock;
                 break;
             }
+            return false;
+
+        case AM_TOGGLE_PRIORITY:
+            #ifdef USE_PRIORITY_MODE
+            if(record->event.pressed) {
+                priority_mode = !priority_mode;
+                break;
+            }
+            #endif
             return false;
 
         case ANALOG_MATRIX_PROFILE_RANGE:
@@ -62,7 +61,6 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
                     set_active_profile(keycode&0x1F);
                     manual_profile_lock = true;
                 }
-
             }
             return false;
     }
@@ -142,9 +140,9 @@ void print_calibration_data(void) {
     }
 
     #ifndef INVERT_ADC
-    adjustment = ADC_TOP_DEADZONE;
+    adjustment = ADC_BOTTOM_DEADZONE;
     #else
-    adjustment = -ADC_TOP_DEADZONE;
+    adjustment = -ADC_BOTTOM_DEADZONE;
     #endif
     printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value - adjustment);
     if(switch_num > 1) {

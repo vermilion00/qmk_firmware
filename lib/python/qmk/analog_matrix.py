@@ -9,12 +9,12 @@ MODE_NUM = 9
 NO_KEY = [0, "X", "none", "None", "NONE"]
 
 INIT_KEYS = {
-    'CALIBRATION_KEY': 'analog_matrix.config.calibration_key',
-    'CALIBRATION_KEY_RIGHT': 'analog_matrix.config.calibration_key_right',
-    'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_key',
-    'BOOTMAGIC_KEY_RIGHT': 'analog_matrix.config.bootmagic_key_right',
-    'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_key',
-    'BOOTLOADER_KEY_RIGHT': 'analog_matrix.config.bootloader_key_right',
+    'CALIBRATION_KEY': 'analog_matrix.config.calibration_keys',
+    'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_keys',
+    'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_keys',
+    # 'CALIBRATION_KEY_RIGHT': 'analog_matrix.config.calibration_keys_right',
+    # 'BOOTMAGIC_KEY_RIGHT': 'analog_matrix.config.bootmagic_keys_right',
+    # 'BOOTLOADER_KEY_RIGHT': 'analog_matrix.config.bootloader_keys_right',
     # Use normal bootmagic key for mechanical button reset
     # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
     # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
@@ -129,7 +129,9 @@ def _transform_layout(info_data):
             #TODO: Workshop the name a bit -> r/c, and change mux to a/m?
             elif 'rc' in key_data:
                 data = key_data['rc']
-                if type(data) == "<class 'list'>":
+                if type(data) == list:
+                #TODO: This doesn't work
+                # if type(data) == "<class 'list'>":
                     row, col = data
                 else:
                     row, col = [0, data]
@@ -177,6 +179,7 @@ def _transform_layout(info_data):
     info_data['matrix_size']['analog_cols'] = max([i[1] for i in num_to_matrix]) + 1
     if used_rc_positions != []:
         info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix
+        info_data['analog_matrix']['hardware']['rc_switch_num'] = len([key for row in rc_to_matrix for key in row])
 
     return info_data
 
@@ -203,7 +206,6 @@ def _transform_layout_split(info_data):
         mux_to_num_l = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
         num_to_matrix_l = [-1 for _ in range(len(layout_data['layout']))]
         mux_to_num_r = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
-        #Oversize this since we don't know how many keys there are per side, then trim after
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
         rc_to_matrix_l = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
         rc_to_matrix_r = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
@@ -239,7 +241,11 @@ def _transform_layout_split(info_data):
 
             elif 'rc' in key_data:
                 if key_data['matrix'][0] < row_split:
-                    row, col = key_data['rc']
+                    data = key_data['rc']
+                    if type(data) == "<class 'list'>":
+                        row, col = data
+                    else:
+                        row, col = [0, data]
                     if row > row_pins:
                         cli.log.error(f"Row index {row} for key {total_key_num} is too high!")
                     if col > col_pins:
@@ -266,7 +272,6 @@ def _transform_layout_split(info_data):
 
                 total_key_num += 1
 
-            #TODO: When actual mixed matrices will be a thing, remove this check
             else: # No mux definition in key data
                 cli.log.error(f"Missing mux info on key {key_index_l + key_index_r} in layout {layout_name}!")
                 return info_data
@@ -306,17 +311,19 @@ def _transform_layout_split(info_data):
     info_data['matrix_size'] = {}
     info_data['matrix_size']['rows'] = matrix_size[0] + 1
     info_data['matrix_size']['cols'] = matrix_size[1] + 1
-    info_data['matrix_size']['analog_rows'] = max([i[0] for i in num_to_matrix_l]) + 1 + max([i[0] for i in num_to_matrix_r]) + 1
-    info_data['matrix_size']['analog_cols'] = max([i[1] for i in num_to_matrix_l]) + 1 + max([i[1] for i in num_to_matrix_r]) + 1
+    info_data['matrix_size']['analog_rows'] = max([i[0] for i in num_to_matrix_r]) + 1
+    info_data['matrix_size']['analog_cols'] = max(max([i[1] for i in num_to_matrix_l]) + 1, max([i[1] for i in num_to_matrix_r]) + 1)
     if used_rc_positions != []:
         info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix_l
         info_data['analog_matrix']['hardware']['rc_to_matrix_right'] = rc_to_matrix_r
+        info_data['analog_matrix']['hardware']['rc_switch_num'] = len([key for row in rc_to_matrix_l for key in row])
+        info_data['analog_matrix']['hardware']['rc_switch_num_r'] = len([key for row in rc_to_matrix_r for key in row])
 
     return info_data
 
 
-# Generates the row split index and the global to local transformations
 #MARK: Get split config
+# Generates the row split index and the global to local transformations
 def _get_split_config(info_data):
     # Get the row index that splits the two keyboard halves
     for layout_name, layout_data in info_data['layouts'].items():
@@ -363,58 +370,66 @@ def _get_split_config(info_data):
 
 
 #MARK: Matrix_to_mux
-# Generates a reverse matrix transformation array for the initialization keys
+# Generates a reverse matrix transformation array
 def get_matrix_to_mux(info_data, config_h_lines):
-    mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num']
-    num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix']
-    switch_num = info_data['analog_matrix']['hardware']['switch_num']
-    cols = info_data['matrix_size']['analog_cols']
-    if split_keyboard:
-        rows = info_data['matrix_size']['analog_rows'] // 2
-    else:
-        rows = info_data['matrix_size']['analog_rows']
+    hardware = info_data['analog_matrix']['hardware']
+    cols = info_data['matrix_size']['cols']
+    rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
 
-    num_to_mux = [[] for _ in range(switch_num)]
-    for row_idx, row in enumerate(mux_to_num):
-        for col_idx, idx in enumerate(row):
-            if idx < 255:
-                num_to_mux[idx] = [col_idx, row_idx]
-
-    config_h_lines.append(generate_define('NUM_TO_MUX', str(num_to_mux).replace('[', '{').replace(']', '}')))
-    info_data['analog_matrix']['hardware']['num_to_mux'] = num_to_mux
-
-    matrix_to_num = [[255 for _ in range(cols)] for _ in range(rows)]
-
-    for idx, pos in enumerate(num_to_matrix):
-        matrix_to_num[pos[0]][pos[1]] = idx
-
-    config_h_lines.append(generate_define('MATRIX_TO_NUM', str(matrix_to_num).replace('[', '{').replace(']', '}')))
-    info_data['analog_matrix']['hardware']['matrix_to_num'] = matrix_to_num
-
-    if split_keyboard:
-        mux_to_num = info_data['analog_matrix']['hardware']['mux_to_num_right']
-        num_to_matrix = info_data['analog_matrix']['hardware']['num_to_matrix_right']
-        switch_num = info_data['analog_matrix']['hardware']['switch_num_right']
-        rows = info_data['matrix_size']['analog_rows'] // 2
-        cols = info_data['matrix_size']['analog_cols']
-        row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
+    for postfix in ['', '_right'] if split_keyboard else ['']:
+        fix = '_R' if postfix == '_right' else ''
+        row_split = rows if postfix == '_right' else 0
+        mux_to_num = hardware[f'mux_to_num{postfix}']
+        num_to_matrix = hardware[f'num_to_matrix{postfix}']
+        switch_num = hardware[f'switch_num{postfix}']
         num_to_mux = [[] for _ in range(switch_num)]
-
         for row_idx, row in enumerate(mux_to_num):
             for col_idx, idx in enumerate(row):
-                num_to_mux[idx] = [col_idx, row_idx]
+                if idx < 255:
+                    num_to_mux[idx] = [col_idx, row_idx]
 
-        config_h_lines.append(generate_define('NUM_TO_MUX_R', str(num_to_mux).replace('[', '{').replace(']', '}')))
-        info_data['analog_matrix']['hardware']['num_to_mux_right'] = num_to_mux
+        config_h_lines.append(generate_define(f'NUM_TO_MUX{fix}', str(num_to_mux).replace('[', '{').replace(']', '}')))
+        info_data['analog_matrix']['hardware'][f'num_to_mux{postfix}'] = num_to_mux
 
         matrix_to_num = [[255 for _ in range(cols)] for _ in range(rows)]
 
         for idx, pos in enumerate(num_to_matrix):
             matrix_to_num[pos[0] - row_split][pos[1]] = idx
 
-        config_h_lines.append(generate_define('MATRIX_TO_NUM_R', str(matrix_to_num).replace('[', '{').replace(']', '}')))
-        info_data['analog_matrix']['hardware']['matrix_to_num_right'] = matrix_to_num
+        config_h_lines.append(generate_define(f'MATRIX_TO_NUM{fix}', str(matrix_to_num).replace('[', '{').replace(']', '}')))
+        info_data['analog_matrix']['hardware'][f'matrix_to_num{postfix}'] = matrix_to_num
 
+    return info_data
+
+
+# {{{0, 5}, {0, 6}}}
+#MARK: Matrix_to_rc
+def get_matrix_to_rc(info_data, config_h_lines):
+    hardware = info_data['analog_matrix']['hardware']
+    used_rc_pos = []
+    cols = info_data['matrix_size']['cols']
+    if split_keyboard:
+        rows = info_data['matrix_size']['rows'] // 2
+    else:
+        rows = info_data['matrix_size']['rows']
+    for postfix in ['', '_right'] if split_keyboard else ['']:
+        fix = '_R' if postfix == '_right' else ''
+        row_split = rows if postfix == '_right' else 0
+        rc_to_matrix = hardware.get(f'rc_to_matrix{postfix}', [])
+        if rc_to_matrix == []: return info_data
+        matrix_to_rc_num = [[255 for _ in range(cols)] for _ in range(rows)]
+        index = 0
+        num_to_rc = []
+        for row_idx, row in enumerate(rc_to_matrix):
+            for pos_idx, pos in enumerate(row):
+                matrix_to_rc_num[pos[0] - row_split][pos[1]] = index
+                index += 1
+                used_rc_pos.append(pos)
+                num_to_rc.append([row_idx, pos_idx])
+        info_data['analog_matrix']['hardware'][f'matrix_to_rc_num{postfix}'] = matrix_to_rc_num
+        info_data['analog_matrix']['hardware'][f'num_to_rc{postfix}'] = num_to_rc
+        config_h_lines.append(generate_define(f'NUM_TO_RC{fix}', str(num_to_rc).replace('[', '{').replace(']', '}')))
+    info_data['analog_matrix']['hardware']['used_rc_pos'] = used_rc_pos
 
     return info_data
 
@@ -434,7 +449,7 @@ def get_port_def(json, config_h_lines):
         json['analog_matrix']['port_def'] = "PORT"
         return json
 
-    raise Exception("Unknown processor!")\
+    raise Exception("Unknown processor!")
 
 
 #MARK: Debug matrix
@@ -462,49 +477,148 @@ def debug_matrix_position(info_data, config_h_lines):
 
 #MARK: Init keys
 def transform_init_keys(info_data, config_h_lines):
-    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
-    matrix_to_num_r = info_data['analog_matrix']['hardware'].get('matrix_to_num_right', '')
-    num_to_mux = info_data['analog_matrix']['hardware']['num_to_mux']
-    num_to_mux_r = info_data['analog_matrix']['hardware'].get('num_to_mux_right', '')
-    row_split = info_data['analog_matrix']['hardware'].get('row_split', 0)
-    used_pos= []
-    init_functions = []
-    init_functions_r = []
-    init_keys = []
-    init_keys_r = []
-    init_key_num = 0
-    init_key_num_r = 0
+    global split_keyboard
+    use_init_keys = False
+    hardware = info_data['analog_matrix']['hardware']
+    rc_pos = hardware.get('used_rc_pos', [])
+    rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
+    # '_right' postfix is used twice to scan _right key implementation as well
+    repeated_right = False
 
-    for key in INIT_KEYS:
-        path = INIT_KEYS[key]
-        if path in info_data:
-            key_pos = info_data[path]
-            if key_pos in used_pos:
-                cli.log.error(f"Key {key_pos} has multiple initialization functions! Skipping {path}")
-                continue
+    for postfix in ['', '_right', '_right'] if split_keyboard else ['']:
+        used_pos = []
+        init_key_num = 0
+        init_functions = []
+        init_keys = []
+        fix = '_R' if postfix == '_right' else ''
+        matrix_to_num = hardware[f'matrix_to_num{postfix}']
+        num_to_mux = hardware[f'num_to_mux{postfix}']
+        matrix_to_rc_num = hardware.get(f'matrix_to_rc_num{postfix}', [])
+        num_to_rc = hardware.get(f'num_to_rc{postfix}', [])
+        rc_init_key_num = 0
+        rc_init_keys = []
+        rc_init_functions = []
+        low_offset = 0
+        offset = rows
+
+        # Only apply these offsets the second time we scan right half keys
+        if split_keyboard and postfix == '_right':
+            offset = rows * 2
+            low_offset = rows
+
+        for key in INIT_KEYS:
+            if postfix == '_right' and not repeated_right:
+                path = INIT_KEYS[key] + postfix
             else:
-                used_pos.append(key_pos)
-            if len(key) > 6 and key[-6:] == '_RIGHT':
-                key = key[:-6]
-                key_mux = num_to_mux_r[matrix_to_num_r[key_pos[0] - row_split][key_pos[1]]]
-                init_keys_r.append(key_mux)
-                init_key_num_r += 1
-                init_functions_r.append(INIT_FUNCTIONS[key])
-            else:
-                key_mux = num_to_mux[matrix_to_num[key_pos[0]][key_pos[1]]]
-                init_keys.append(key_mux)
-                init_key_num += 1
-                init_functions.append(INIT_FUNCTIONS[key])
+                path = INIT_KEYS[key]
+            if path in info_data:
+                key_data = info_data[path]
+                # If only a single position is given, put it in a list
+                for key_pos in key_data if type(key_data[0]) == list else [key_data]:
+                    if key_pos in used_pos:
+                        cli.log.error(f"Key {key_pos} has multiple initialization functions! Skipping rest of {path}")
+                        break
+                    else:
+                        used_pos.append(key_pos)
 
-    config_h_lines.append(generate_define('AM_INIT_KEY_NUM', init_key_num))
-    if len(init_functions) > 0:
-        config_h_lines.append(generate_define('AM_INIT_KEYS', str(init_keys).replace('[', '{').replace(']', '}')))
-        config_h_lines.append(generate_define('AM_INIT_FUNCTIONS', f'{{ {", ".join(map(str, init_functions))} }}'))
+                    # Skip keys assigned to the opposite half for now
+                    if key_pos[0] < low_offset or key_pos[0] >= offset:
+                        continue
 
-    config_h_lines.append(generate_define('AM_INIT_KEY_NUM_R', init_key_num_r))
-    if len(init_functions_r) > 0:
-        config_h_lines.append(generate_define('AM_INIT_KEYS_R', str(init_keys_r).replace('[', '{').replace(']', '}')))
-        config_h_lines.append(generate_define('AM_INIT_FUNCTIONS_R', f'{{ {", ".join(map(str, init_functions_r))} }}'))
+                    # Check if the position corresponds to a mechanical key
+                    if key_pos in rc_pos:
+                        rc = num_to_rc[matrix_to_rc_num[key_pos[0] - low_offset][key_pos[1]]]
+                        rc_init_keys.append(rc)
+                        rc_init_key_num += 1
+                        rc_init_functions.append(INIT_FUNCTIONS[key])
+
+                    else:
+                        #TODO: Will this work if a mechanical key adds another row that doesn't exist in matrix_to_num? Or does matrix_to_num take it into account
+                        key_mux = num_to_mux[matrix_to_num[key_pos[0] - low_offset][key_pos[1]]]
+                        init_keys.append(key_mux)
+                        init_key_num += 1
+                        init_functions.append(INIT_FUNCTIONS[key])
+
+        if init_key_num > 0:
+            config_h_lines.append(generate_define(f'AM_INIT_KEY_NUM{fix}', init_key_num))
+            config_h_lines.append(generate_define(f'AM_INIT_KEYS{fix}', str(init_keys).replace('[', '{').replace(']', '}')))
+            config_h_lines.append(generate_define(f'AM_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, init_functions))} }}'))
+            use_init_keys = True
+
+        if rc_init_key_num > 0:
+            config_h_lines.append(generate_define(f'RC_INIT_KEY_NUM{fix}', rc_init_key_num))
+            config_h_lines.append(generate_define(f'RC_INIT_KEYS{fix}', str(rc_init_keys).replace('[', '{').replace(']', '}')))
+            config_h_lines.append(generate_define(f'RC_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, rc_init_functions))} }}'))
+            use_init_keys = True
+
+        repeated_right = True if postfix == '_right' else False
+
+    if use_init_keys:
+        config_h_lines.append(generate_define('USE_INIT_KEYS'))
+    else:
+        config_h_lines.append(generate_define('AM_INIT_KEY_NUM', 0))
+
+# def transform_init_keys(info_data, config_h_lines):
+#     use_init_keys = False
+#     hardware = info_data['analog_matrix']['hardware']
+#     rc_pos = hardware.get('used_rc_pos', [])
+#     rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
+#     used_pos = []
+
+
+#     for postfix in ['', '_right'] if split_keyboard else ['']:
+#         init_key_num = 0
+#         init_functions = []
+#         init_keys = []
+#         fix = '_R' if postfix == '_right' else ''
+#         matrix_to_num = hardware[f'matrix_to_num{postfix}']
+#         num_to_mux = hardware[f'num_to_mux{postfix}']
+#         matrix_to_rc_num = hardware.get(f'matrix_to_rc_num{postfix}', [])
+#         num_to_rc = hardware.get(f'num_to_rc{postfix}', [])
+#         rc_init_key_num = 0
+#         rc_init_keys = []
+#         rc_init_functions = []
+#         offset = rows if split_keyboard else 0
+
+#         for key in INIT_KEYS:
+#             path = INIT_KEYS[key] + postfix
+#             if path in info_data:
+#                 key_data = info_data[path]
+#                 # If only a single position is given, put it in a list
+#                 for key_pos in key_data if type(key_data[0]) == list else [key_data]:
+#                     if key_pos in used_pos:
+#                         cli.log.error(f"Key {key_pos} has multiple initialization functions! Skipping rest of {path}")
+#                         break
+#                     else:
+#                         used_pos.append(key_pos)
+
+#                     # Check if the position corresponds to a mechanical key
+#                     if key_pos in rc_pos:
+#                         rc = num_to_rc[matrix_to_rc_num[key_pos[0] - offset][key_pos[1]]]
+#                         rc_init_keys.append(rc)
+#                         rc_init_key_num += 1
+#                         rc_init_functions.append(INIT_FUNCTIONS[key])
+
+#                     else:
+#                         #TODO: Will this work if a mechanical key adds another row that doesn't exist in matrix_to_num? Or does matrix_to_num take it into account
+#                         key_mux = num_to_mux[matrix_to_num[key_pos[0] - offset][key_pos[1]]]
+#                         init_keys.append(key_mux)
+#                         init_key_num += 1
+#                         init_functions.append(INIT_FUNCTIONS[key])
+
+#         config_h_lines.append(generate_define(f'AM_INIT_KEY_NUM{fix}', init_key_num))
+#         if init_key_num > 0:
+#             config_h_lines.append(generate_define(f'AM_INIT_KEYS{fix}', str(init_keys).replace('[', '{').replace(']', '}')))
+#             config_h_lines.append(generate_define(f'AM_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, init_functions))} }}'))
+#             use_init_keys = True
+
+#         if rc_init_key_num > 0:
+#             config_h_lines.append(generate_define(f'RC_INIT_KEY_NUM{fix}', rc_init_key_num))
+#             config_h_lines.append(generate_define(f'RC_INIT_KEYS{fix}', str(rc_init_keys).replace('[', '{').replace(']', '}')))
+#             config_h_lines.append(generate_define(f'RC_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, rc_init_functions))} }}'))
+#             use_init_keys = True
+
+#     if use_init_keys: config_h_lines.append(generate_define('USE_INIT_KEYS'))
 
 
 #MARK: Profile config
@@ -873,6 +987,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     # Get the reverse transform arrays
     info_data = get_matrix_to_mux(info_data, config_h_lines)
+    info_data = get_matrix_to_rc(info_data, config_h_lines)
 
     # Transform init key matrix positions to mux combinations
     transform_init_keys(info_data, config_h_lines)
@@ -934,10 +1049,8 @@ def check_pins(info_data, config_h_lines):
     # Check ADC Pins
     am_json = info_data['analog_matrix']
     hardware = am_json['hardware']
-    mixed_matrix = False
 
     #TODO: This is already set in info.py, no need for it here, except it doesn't work without it, why not?
-    #TODO: When separate mixed pins are definable, add them here
     #TODO: Instead of defining some pins via the auto system, just put them all into the lower loop to consolidate everything into one
     # Check right side pins
     if split_keyboard:
@@ -968,10 +1081,6 @@ def check_pins(info_data, config_h_lines):
 
     if 'power_pins' in hardware:
         config_h_lines.append(generate_define('POWER_BEFORE_SCAN'))
-
-    # if 'direct_pins' in hardware or ('row_pins' in hardware and 'col_pins' in hardware):
-    #     # config_h_lines.append(generate_define('USE_MIXED_MATRIX'))
-    #     info_data['analog_matrix']['use_mixed_matrix'] = True
 
     if info_data['processor'] == 'RP2040':
         pre = 2
@@ -1058,7 +1167,6 @@ def generate_joystick_config(info_data, config_h_lines):
     config_h_lines.append(generate_define('AM_JOYSTICK_AXIS_CONFIG', f'{str(resolutions).replace('[', '{').replace(']', '}')}'))
 
 
-
 def get_priority_features(info_data, config_h_lines):
     global use_priority_mode
     if 'priority_keys' in info_data['analog_matrix']['config']:
@@ -1075,6 +1183,38 @@ def get_priority_features(info_data, config_h_lines):
     if use_priority_mode:
         config_h_lines.append(generate_define("USE_PRIORITY_MODE"))
 
+
+#MARK: Priority idx
+def get_priority_keys(info_data, config_h_lines):
+    if 'priority_keys' not in info_data['analog_matrix']['config']:
+        return info_data
+
+    switch_num = info_data['analog_matrix']['hardware']['switch_num']
+    switch_num_r = info_data['analog_matrix']['hardware'].get('switch_num_r', 0)
+    priority_keys = info_data['analog_matrix']['config']['priority_keys']
+    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
+    rows = info_data['matrix_size']['rows']
+    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
+    priority_idx = [0 for _ in range(switch_num)]
+    priority_idx_r = [0 for _ in range(switch_num_r)]
+    if split_keyboard:
+        matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
+
+    for key in priority_keys:
+        if key[0] < row_split:
+            priority_idx[matrix_to_num[key[0]][key[1]]] = 1
+        else:
+            priority_idx_r[matrix_to_num_r[key[0] - row_split][key[1]]] = 1
+
+    config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", priority_idx.count(1)))
+
+    if row_split != rows:
+        config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
+        config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", priority_idx_r.count(1)))
+        # Assume the slave is the half with no priority keys
+        if priority_idx.count(1) == 0 or priority_idx_r.count(1) == 0:
+            config_h_lines.append(generate_define("SLAVE_LOW_PRIORITY"))
 
 
 #MARK: Priority keys
@@ -1118,39 +1258,6 @@ def get_priority_features(info_data, config_h_lines):
 #     if priority_muxes_r != []:
 #         config_h_lines.append(generate_define("PRIORITY_MUXES_R", f'{str(priority_muxes_r).replace('[', '{').replace(']', '}')}'))
 #         config_h_lines.append(generate_define("PRIORITY_MUX_NUM_R", len(priority_muxes_r)))
-
-
-#MARK: Priority idx
-def get_priority_keys(info_data, config_h_lines):
-    if 'priority_keys' not in info_data['analog_matrix']['config']:
-        return info_data
-
-    switch_num = info_data['analog_matrix']['hardware']['switch_num']
-    switch_num_r = info_data['analog_matrix']['hardware'].get('switch_num_r', 0)
-    priority_keys = info_data['analog_matrix']['config']['priority_keys']
-    matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
-    rows = info_data['matrix_size']['rows']
-    row_split = info_data['analog_matrix']['hardware'].get('row_split', rows)
-    priority_idx = [0 for _ in range(switch_num)]
-    priority_idx_r = [0 for _ in range(switch_num_r)]
-    if split_keyboard:
-        matrix_to_num_r = info_data['analog_matrix']['hardware']['matrix_to_num_right']
-
-    for key in priority_keys:
-        if key[0] < row_split:
-            priority_idx[matrix_to_num[key[0]][key[1]]] = 1
-        else:
-            priority_idx_r[matrix_to_num_r[key[0] - row_split][key[1]]] = 1
-
-    config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
-    config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", priority_idx.count(1)))
-
-    if row_split != rows:
-        config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
-        config_h_lines.append(generate_define("PRIORITY_INDEX_NUM_R", priority_idx_r.count(1)))
-        # Assume the slave is the half with no priority keys
-        if priority_idx.count(1) == 0 or priority_idx_r.count(1) == 0:
-            config_h_lines.append(generate_define("SLAVE_LOW_PRIORITY"))
 
 
 #MARK: Height layout

@@ -514,6 +514,7 @@ void create_midi_mask(uint8_t current_layer) {
         for(uint8_t col = 0; col < MATRIX_COLS; col++) {
             const uint16_t keycode = keymaps[current_layer][row][col];
             const uint8_t key_index = matrix_to_num[row - thisHand][col];
+            if(key_index == 255) continue;
 
             if(IS_MIDI_NOTE(keycode)) {
                 midi_layer = true;

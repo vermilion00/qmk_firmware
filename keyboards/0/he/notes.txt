@@ -29,13 +29,6 @@ ADC optimizations:
     -Starting the conversion manually would make it easier to manage
 -Enable interleaved mode for supported chips
 
-Current Issues:
--Calibration doesn't seem to give perfectly accurate values, they appear to be further apart than during actual matrix scanning
-    -Requires more testing tho
-    -Deadzones help with that but not consistently
-    -Find out why that is, I'm assuming it's because the calibration doesn't have the QMK overhead, so it needs to do more than just a single dummy eval
-        -Slow it down more to match speeds
-
 Split calibration:
 -Put init key checking into some kind of post_init function, since current one happens before slave is connected
 
@@ -185,8 +178,16 @@ Notes:
     -If it does    -> Sensor/connection/interference problem
     -If it doesn't -> ADC problem, unstable reference voltage etc
 
--What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
+Custom matrix:
+-Full replacement is done, but I can also add a mode where the scanning part is called via a function that just returns the new matrix state,
+ while the split sync and debouncing is handled by my implementation
 
-Mixed matrix:
--Allow defining mechanical keys for bootmagic stuff
-    -Check if an init key is mechanical or analog in init key check function
+Adjustment function:
+-This would be very high effort, but what I could do is add a mode to output raw values using RawHID, then read those values in a desktop app and plot them
+-Have the user press a key down several times, chart the graph, and show them to let them redo as much as needed
+-Also show a reference graph
+-Then use the values to calculate a LUT for that keyboard
+
+Remove unnecessary 0 defines for stuff that is guarded anyways (clutter in info_config)
+
+-What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into

@@ -140,9 +140,22 @@
 #define PRIORITY_MUX_NUM PRIORITY_MUX_NUM_R
 #endif
 
+#ifdef RC_INIT_KEYS_R
+#undef RC_INIT_KEYS
+#define RC_INIT_KEYS RC_INIT_KEYS_R
+#undef RC_INIT_FUNCTIONS
+#define RC_INIT_FUNCTIONS_R
+#undef RC_INIT_KEY_NUM
+#undef RC_INIT_KEY_NUM RC_INIT_KEY_NUM_R
+#endif
+
 #else // SPLIT_KEYBOARD defined but side is unknown at init
 #define SPLIT_MUTABLE
 #define CONFIG_MUTABLE
+#endif // ifdef SPLIT_KEYBOARD && KEYBOARD_SIDE != UNKNOWN else
+
+#ifndef RC_INIT_KEY_NUM_R
+#define RC_INIT_KEY_NUM_R 0
 #endif
 
 #define DEFAULT_PROFILE 0
@@ -173,6 +186,11 @@ gpio_write_pin_low(LED_PIN)
 #else
 #define LED_ON
 #define LED_OFF
+#endif
+
+// User-definable option to add extra parameters
+#ifndef AM_USER_PARAMS
+#   define AM_USER_PARAMS
 #endif
 
 #if (COL_PIN_NUM <= 8)
@@ -240,6 +258,8 @@ typedef struct analog_key_t {
     #endif
     uint8_t row;
     uint8_t col;
+    // Can be defined in config.h to add extra parameters
+    AM_USER_PARAMS
 } analog_key_t;
 
 #if defined MCU_STM32
@@ -306,6 +326,10 @@ typedef at32_gpio_t gpio_port_t;
 //      -> I need to make sure that the resulting mux position exists on the other half, or else it will always count as triggered
 #ifndef AM_INIT_KEY_NUM_R
 #define AM_INIT_KEY_NUM_R AM_INIT_KEY_NUM
+#endif
+
+#ifndef CAL_THRESHOLD
+#   define CAL_THRESHOLD 7
 #endif
 
 /* Profile switching stuff */
@@ -419,6 +443,14 @@ layer_state_t layer_state_set_am(layer_state_t state);
 void delay_ns(uint16_t delay);
 #else
 #define delay_ns(delay)
+#endif
+#ifdef CUSTOM_MATRIX_LITE
+bool matrix_scan_custom(matrix_row_t current_matrix[]);
+#endif
+#ifdef USE_INIT_KEYS
+// Init key helpers
+void _bootmagic(bool init);
+void _bootloader_jump(bool init);
 #endif
 
 //TODO: Remove

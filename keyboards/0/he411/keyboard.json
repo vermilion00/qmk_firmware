@@ -22,7 +22,7 @@
         "console": true,
         "joystick": false
     },
-    "debounce": 60,
+    "debounce": 5,
     "analog_matrix": {
         "hardware": {
             "force_calibrate": false,
@@ -30,10 +30,12 @@
             "direct_pins": ["B12", "B13"],
             "travel_distance": 4.0,
             "smoothing": 60,
-            "deadzone": 100
+            "deadzone": 100,
+            "custom_matrix_lite": true
         },
         "config": {
-            "calibration_key": [0, 0],
+            "bootloader_keys": [0, 5],
+            "calibration_keys": [[0, 0], [0, 6]],
             "scans_without_change": 6000,
             "debug_calibration": false,
             "debug_scan_values": false,

@@ -44,9 +44,9 @@ extern matrix_row_t matrix[MATRIX_ROWS];
 #if ANALOG_DEBOUNCE > 0
 extern matrix_row_t raw_matrix[MATRIX_ROWS];
 //TODO: When analog debounce is enabled, the matrix changes need to happen to raw_matrix instead of the actual matrix. How do I do this efficiently?
-#define SCAN_MATRIX(row) raw_matrix[row]
+#define SCAN_MATRIX raw_matrix
 #else
-#define SCAN_MATRIX(row) matrix[row]
+#define SCAN_MATRIX matrix
 #endif
 #ifdef SPLIT_KEYBOARD
 // Row offsets for each hand
@@ -59,11 +59,12 @@ bool calibration_started = false;
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
 #endif
 
-#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
+#if SMAX(AM_INIT_KEY_NUM) > 0
 // Initialize the keys to be checked at initialization
 void _bootloader_jump(bool init);
+void _bootmagic(bool init);
 SPLIT_MUTABLE uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
-init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
+SPLIT_MUTABLE init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
 #endif
 
 #if defined DEBUG_MUX_POSITION
@@ -169,7 +170,8 @@ uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX;
 const uint8_t rc_to_matrix_r[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX_R;
 #endif
 
-#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
+//TODO: Remove this and only add them in keymap_introspection if defined
+#if SMAX(AM_INIT_KEY_NUM) > 0
 const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
 const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
 #endif
@@ -261,6 +263,10 @@ SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 
 //MARK: Init
 __attribute__((weak)) void analog_matrix_init(void) {
+    #ifdef USE_MIXED_MATRIX
+    mixed_matrix_init();
+    #endif
+
     // Determine keyboard half, and assign heights if keymap config is used
     #if (KEYBOARD_SIDE == UNKNOWN && defined SPLIT_KEYBOARD) || defined KEYMAP_CONFIG
     assign_config(is_keyboard_left());
@@ -300,18 +306,18 @@ __attribute__((weak)) void analog_matrix_init(void) {
 
     get_switch_data();
 
-    //TODO: Add mode to check init keys based on deviation larger than the avg diff between them + some value
+    //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth)
 
     // Get the min/max values of each switch
     if(!get_calibration_data()) {
-    // If loading the calibration data fails, start calibration
+        // If loading the calibration data fails, start calibration
         calibrate_switches(false);
     }
 
     //TODO: Make sure only having keys for one half defined doesn't cause problems
     //      If only keys for one half are defined, they should be used for both halves
     // Check keys like the calibration or bootmagic key before scanning begins
-    #if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
+    #if SMAX(AM_INIT_KEY_NUM) > 0
     scan_init_keys();
     #endif
 
@@ -320,13 +326,9 @@ __attribute__((weak)) void analog_matrix_init(void) {
         translate_mm_to_value(index);
     }
 
-    //TODO: Run layer_state_set here to get potential masks etc
-
-    //TODO: Once this is actually important, enable it
     profile_state_changed(active_profile);
 
     #if defined SPLIT_LAYER_SYNC
-    // #if defined SPLIT_LAYER_SYNC || defined PRIORITY_INDICES
     change_layer_settings(highest_layer);
     #endif
 
@@ -336,17 +338,13 @@ __attribute__((weak)) void analog_matrix_init(void) {
     } else if (is_keyboard_left()) switch_num_slave = SWITCH_NUM_L;
     #endif
 
-    #ifdef USE_MIXED_MATRIX
-    mixed_matrix_init();
-    #endif
-
     // This *must* be called for correct keyboard behavior
     matrix_init_kb();
 }
 
 
 //MARK: Init keys
-#if AM_INIT_KEY_NUM > 0 || AM_INIT_KEY_NUM_R > 0
+#if SMAX(AM_INIT_KEY_NUM) > 0
 void scan_init_keys(void) {
     uint16_t adc_value;
     // Dummy read, as first read is always way off
@@ -384,7 +382,7 @@ void scan_init_keys(void) {
         #else
         if(adc_value > key_config[matrix_index].bottom_value - 4 * ADC_BOTTOM_DEADZONE) {
             LED_ON;
-            (*init_functions[idx])(true);
+            init_functions[idx](true);
         }
         #endif
     }
@@ -395,17 +393,24 @@ void scan_init_keys(void) {
 
 
 //MARK: Scan
+// Weak definition to allow overwriting the full scan function
 __attribute__((weak)) uint8_t analog_matrix_scan(void) {
     bool matrix_has_changed = false;
-    uint16_t adc_value;
-    uint8_t index;
 
-    #ifdef PRIORITY_MUXES
-    if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
-        scan_amt += 1;
-        return matrix_scan_priority(current_matrix);
-    } else { scan_amt = 0; }
+    #ifdef USE_MIXED_MATRIX
+    matrix_has_changed |= mixed_matrix_scan();
     #endif
+
+    // For custom matrix lite implementations, we skip the analog matrix scanning, but keep debouncing and split synchronisation
+    #ifdef CUSTOM_MATRIX_LITE
+    matrix_has_changed |= matrix_scan_custom(SCAN_MATRIX);
+    #else
+    // #ifdef PRIORITY_MUXES
+    // if(profiles[active_profile].priority_profile && scan_amt < PRIORITY_LEVEL) {
+    //     scan_amt += 1;
+    //     return matrix_scan_priority(current_matrix);
+    // } else { scan_amt = 0; }
+    // #endif
 
     for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
         #if defined POWER_BEFORE_SCAN
@@ -419,7 +424,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
 
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             // Translate matrix mux and adc channels to matrix position
-            index = mux_to_num[mux_channel][adc_channel];
+            const uint8_t index = mux_to_num[mux_channel][adc_channel];
             // Check if a switch is at the position (matrix index < 255), and scan if so
             if(index == 255) {
                 #ifdef DEBUG_SCAN_VALUES
@@ -436,7 +441,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
             }
             #endif
 
-            adc_value = adc_read(adc_pin_mux[adc_channel]);
+            uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]);
 
             // Simple IIR filter with 1/4 alpha by default
             ADC_FILTER(adc_value, index);
@@ -457,7 +462,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
             if(evaluate_value(index, adc_value)) {
                 matrix_has_changed = true;
                 #ifndef DEBUG_SCAN_NO_INPUT
-                SCAN_MATRIX(key_config[index].row) ^= 1 << key_config[index].col;
+                SCAN_MATRIX[key_config[index].row] ^= 1 << key_config[index].col;
                 #endif
             }
 
@@ -486,9 +491,7 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
     } else { scan_amt = 0; }
     #endif
 
-    #ifdef USE_MIXED_MATRIX
-    matrix_has_changed |= mixed_matrix_scan();
-    #endif
+    #endif // ifdef CUSTOM_MATRIX_LITE
 
     #if ANALOG_DEBOUNCE > 0
     #ifdef SPLIT_KEYBOARD
@@ -635,25 +638,58 @@ bool get_calibration_data(void) {
 
 #   else //ifdef AM_NO_EEPROM
 
+    // In case of data corruption, use the hardcoded value instead (if available)
+    #if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
+    SPLIT_MUTABLE uint16_t top_values[SMAX(SWITCH_NUM)] = AM_TOP_VALUES;
+    SPLIT_MUTABLE uint16_t bottom_values[SMAX(SWITCH_NUM)] = AM_BOTTOM_VALUES;
+    //TODO: Check the pointer config
+    SPLIT_MUTABLE uint16_t* top_value = &top_values[0];
+    SPLIT_MUTABLE uint16_t* bottom_value = &bottom_values[0];
+    #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+    if(!is_keyboard_left()) {
+        #if defined AM_TOP_VALUES_R && defined AM_BOTTOM_VALUES_R
+        uint16_t top_values_r[SWITCH_NUM_R] = AM_TOP_VALUES_R;
+        uint16_t bottom_values_r[SWITCH_NUM_R] = AM_BOTTOM_VALUES_R;
+        top_value = &top_values_r[0];
+        bottom_value = &bottom_values_r[0];
+        #endif
+    }
+    #endif
+    #endif
+
     // Read the calibration data from EEPROM
     eeconfig_read_keyboard((analog_switch_t*)&calibration_data);
 
+    //TODO: Should I only save the bottom values and get top values via scanning at init?
+    //      Would conflict with current init key impl, but if I can get the avg method to work then it might be doable and save a lot of space
     for(uint8_t key = 0; key < switch_num; key++) {
+        bool valid = true;
         uint16_t adjustment = 0;
-        // Check if the switch data makes sense, start calibration if not
+        // Check if the switch data makes sense, start calibration or fallback values if not
         // A fake mixed matrix will have top/bottom values of 4095 and 0
-        if(calibration_data[key].top_value < 5 && calibration_data[key].bottom_value < 5)  return false;
-        if(calibration_data[key].top_value > 4000 && calibration_data[key].bottom_value > 4000)  return false;
+        if(calibration_data[key].top_value < 5 && calibration_data[key].bottom_value < 5)  valid = false;
+        if(calibration_data[key].top_value > 4000 && calibration_data[key].bottom_value > 4000)  valid = false;
         // No switch can have a valid value above 4095 due to the 12 bit ADC resolution
-        if(calibration_data[key].top_value > 4096 || calibration_data[key].bottom_value > 4096) return false;
+        if(calibration_data[key].top_value > 4096 || calibration_data[key].bottom_value > 4096) valid = false;
 
         #ifndef INVERT_ADC
-        if(calibration_data[key].top_value <= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].top_value - calibration_data[key].bottom_value < 7 * ADC_TOP_DEADZONE) return false;
+        if(calibration_data[key].top_value <= calibration_data[key].bottom_value) valid = false;
+        if(calibration_data[key].top_value - calibration_data[key].bottom_value < CAL_THRESHOLD * ADC_TOP_DEADZONE) valid = false;
+
+        if(!valid) {
+            #if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
+            LED_ON;  // If enabled, turn on the debug LED to signify problems with the data
+            calibration_data[key].top_value = top_value[key];
+            calibration_data[key].bottom_value = bottom_value[key];
+            #else
+            return false;
+            #endif
+        }
+
         #ifdef DYNAMIC_CALIBRATION
         adjustment = AM_DC_FACTOR * (calibration_data[key].top_value - calibration_data[key].bottom_value);
         #endif
-        // As we already scanned each key once before this, we can use that value to skip the recalculation
+        // As we already scanned each key once before this, we can use that value to skip the recalculation if a DC factor is used
         uint16_t top_val = calibration_data[key].top_value - ADC_TOP_DEADZONE - adjustment;
         if(key_config[key].top_value < top_val) {
             key_config[key].top_value = top_val;
@@ -663,7 +699,7 @@ bool get_calibration_data(void) {
 
         #else
         if(calibration_data[key].top_value >= calibration_data[key].bottom_value) return false;
-        if(calibration_data[key].bottom_value - calibration_data[key].top_value < 7 * ADC_TOP_DEADZONE) return false;
+        if(calibration_data[key].bottom_value - calibration_data[key].top_value < CAL_THRESHOLD * ADC_TOP_DEADZONE) return false;
         #ifdef DYNAMIC_CALIBRATION
         adjustment = AM_DC_FACTOR * (calibration_data[key].bottom_value - calibration_data[key].top_value);
         #endif
@@ -773,7 +809,7 @@ void calibrate_switches(bool init) {
                     dprintf("key %i: new bottom value %i\n", matrix_index, adc_value);
                     #endif
 
-                } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < 7 * ADC_TOP_DEADZONE) {
+                } else if(key_config[matrix_index].bottom_value - key_config[matrix_index].top_value < CAL_THRESHOLD * ADC_TOP_DEADZONE) {
                     scans_without_change = 0;
                 }
 
@@ -793,7 +829,7 @@ void calibrate_switches(bool init) {
                     #endif
 
                 // Check if new valid calibration values have been saved for this key
-                } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < (7 * ADC_TOP_DEADZONE)) {
+                } else if(key_config[matrix_index].top_value - key_config[matrix_index].bottom_value < CAL_THRESHOLD * ADC_TOP_DEADZONE) {
                     scans_without_change = 0;
                 }
                 #endif // ifdef INVERT_ADC else
