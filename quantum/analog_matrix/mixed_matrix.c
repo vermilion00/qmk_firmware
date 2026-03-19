@@ -7,31 +7,29 @@
 #include "util.h"
 #include "debounce.h"
 #include "atomic_util.h"
+#include "_wait.h"
 
 #include "print.h"
 
 #ifdef SPLIT_KEYBOARD
 #    include "split_common/split_util.h"
 #    include "split_common/transactions.h"
-//TODO: Currently, there's no point in using ROW_PIN_NUM, as we never use the actual row count of the mech matrix
-//      The distinction is important in normal QMK because row_pins != MATRIX_ROWS, but here we don't use the actual amount of matrix rows
-//TODO: Go through and check if it's true, if yes then use row_pin_num everywhere
-// #   define SPLIT_ROW_PIN_NUM (ROW_PIN_NUM / 2)
-#   define SPLIT_ROW_PIN_NUM ROW_PIN_NUM
-#else
-#   define SPLIT_ROW_PIN_NUM ROW_PIN_NUM
 #endif
 
 #ifndef DIODE_DIRECTION
 #   define DIODE_DIRECTION COL2ROW
 #endif
 
+#ifndef BOOTMAGIC_DEBOUNCE
+#   define BOOTMAGIC_DEBOUNCE 30
+#endif
+
 mech_row_t mech_matrix[ROW_PIN_NUM] = {0};
 #if ANALOG_DEBOUNCE > 0
-#   define MECH_MATRIX(row) mech_matrix[row]
+#   define MECH_MATRIX mech_matrix
 #else
 mech_row_t raw_mech_matrix[ROW_PIN_NUM] = {0};
-#   define MECH_MATRIX(row) raw_mech_matrix[row]
+#   define MECH_MATRIX raw_mech_matrix
 #endif
 
 //TODO: Add redefines for -s r
@@ -43,6 +41,12 @@ static SPLIT_MUTABLE pin_t col_pins[COL_PIN_NUM] = AM_COL_PINS;
 #endif
 
 SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX;
+#ifdef RC_INIT_KEYS
+//TODO: Adjust this for different _R sizes
+SPLIT_MUTABLE uint8_t rc_init_keys[SMAX(RC_INIT_KEY_NUM)][2] = RC_INIT_KEYS;
+static SPLIT_MUTABLE init_func_t rc_init_functions[SMAX(RC_INIT_KEY_NUM)] = RC_INIT_FUNCTIONS;
+SPLIT_MUTABLE uint8_t rc_init_key_num = RC_INIT_KEY_NUM;
+#endif
 
 static inline uint8_t readMatrixPin(pin_t pin) {
     if (pin != NO_PIN) {
@@ -231,6 +235,28 @@ __attribute__((weak)) void matrix_read_rows_on_col(mech_row_t current_matrix[], 
 #    error DIODE_DIRECTION is not defined!
 #endif
 
+#if SMAX(RC_INIT_KEY_NUM) > 0
+void scan_rc_init_keys(void) {
+    // We need multiple scans because debouncing can't be turned off.
+    mixed_matrix_scan();
+    wait_ms(BOOTMAGIC_DEBOUNCE);
+    mixed_matrix_scan();
+
+    // Check all keys for an associated init function
+    for(uint8_t idx = 0; idx < rc_init_key_num; idx++) {
+        const uint8_t row = rc_init_keys[idx][0];
+        const uint8_t col = rc_init_keys[idx][1];
+
+        const uint8_t matrix_row = rc_to_matrix[row][col][0];
+        const uint8_t matrix_col = rc_to_matrix[row][col][1];
+        if(matrix[matrix_row] & 1 << matrix_col) {
+            rc_init_functions[idx](true);
+        }
+    }
+}
+#endif
+
+
 //MARK: Matrix init
 void mixed_matrix_init(void) {
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
@@ -245,24 +271,25 @@ void mixed_matrix_init(void) {
 #    endif
 #    ifdef AM_ROW_PINS_R
         const pin_t row_pins_right[ROW_PIN_NUM] = AM_ROW_PINS_R;
-        // for (uint8_t i = 0; i < ROW_PIN_NUM; i++) {
-        //     row_pins[i] = row_pins_right[i];
-        // }
-        //TODO: Isn't memcpy faster?
         memcpy(&row_pins, &row_pins_right, sizeof(row_pins));
 #    endif
 #    ifdef AM_COL_PINS_R
         const pin_t col_pins_right[AM_COL_PINS] = AC_COL_PINS_R;
-        // for (uint8_t i = 0; i < AM_COL_PINS; i++) {
-        //     col_pins[i] = col_pins_right[i];
-        // }
         memcpy(&col_pins, &col_pins_right, sizeof(col_pins));
 #    endif
+#   ifdef RC_INIT_KEYS_R
+        const uint8_t rc_init_keys_r[RC_INIT_KEY_NUM_R][2] = RC_INIT_KEYS_R;
+        memcpy(&rc_init_keys, &rc_init_keys_r, sizeof(rc_init_keys));
+        const init_funct_t rc_init_functions_r[RC_INIT_KEY_NUM] = RC_INIT_FUNCTIONS_R;
+        memcpy(&rc_init_functions, &rc_init_functions_r, sizeof(rc_init_functions));
+        rc_init_key_num = RC_INIT_KEY_NUM_R;
+#   endif
     }
-
-    // thisMechHand = isLeftHand ? 0 : (ROW_PIN_NUM);
-    // thatMechHand = ROW_PIN_NUM - thisMechHand;
 #endif // ifdef SPLIT_KEYBOARD
+
+    #if SMAX(RC_INIT_KEY_NUM) > 0
+    scan_rc_init_keys();
+    #endif
 
     // initialize key pins
     matrix_init_pins();
@@ -282,8 +309,6 @@ uint8_t mixed_matrix_scan(void) {
     // Set row, read cols
     for (uint8_t row = 0; row < ROW_PIN_NUM; row++) {
         matrix_read_cols_on_row(curr_mech_matrix, row);
-        // uint8_t state = curr_mech_matrix[0];
-        // printf("%u\n", state);
     }
 #elif (DIODE_DIRECTION == ROW2COL)
     // Set col, read rows
@@ -294,8 +319,8 @@ uint8_t mixed_matrix_scan(void) {
 #endif
 
     // MECH_MATRIX becomes mech_matrix if no debouncing is used, and raw_mech_matrix if it is used, to avoid using superflous arrays
-    bool changed = memcmp(MECH_MATRIX(0), curr_mech_matrix, sizeof(curr_mech_matrix)) != 0;
-    if (changed) memcpy(MECH_MATRIX(0), curr_mech_matrix, sizeof(curr_mech_matrix));
+    bool changed = memcmp(MECH_MATRIX, curr_mech_matrix, sizeof(curr_mech_matrix)) != 0;
+    if (changed) memcpy(MECH_MATRIX, curr_mech_matrix, sizeof(curr_mech_matrix));
 
     // Debounce only the smaller mech matrix. If the full matrix is debounced, skip this step
     #if ANALOG_DEBOUNCE == 0
@@ -308,6 +333,7 @@ uint8_t mixed_matrix_scan(void) {
     // Convert the mech matrix position to the actual matrix position
     for(uint8_t row = 0; row < ROW_PIN_NUM; row++) {
         for(uint8_t col = 0; col < COL_PIN_NUM; col++) {
+            // If the matrix row index is 255, it means that the position is not used
             const uint8_t matrix_row = rc_to_matrix[row][col][0];
             if(matrix_row == 255) continue;
 

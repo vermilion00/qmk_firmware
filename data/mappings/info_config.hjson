@@ -48,6 +48,7 @@
     "TOTAL_SWITCH_NUM": {"info_key": "analog_matrix.hardware.total_switch_num", "value_type": "int"},
     "INVERT_ADC": {"info_key": "analog_matrix.hardware.invert_adc", "value_type": "flag"},
     "AM_STARTUP_DELAY": {"info_key": "analog_matrix.hardware.startup_delay", "value_type": "int"},
+    "CUSTOM_MATRIX_LITE": {"info_key": "analog_matrix.hardware.custom_matrix_lite", "value_type": "flag"},
 
     "ADC_SCAN_DELAY": {"info_key": "analog_matrix.config.adc_scan_delay", "value_type": "int"},
     "MUX_SELECT_DELAY": {"info_key": "analog_matrix.config.mux_select_delay", "value_type": "int"},

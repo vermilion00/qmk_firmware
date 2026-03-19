@@ -546,7 +546,8 @@
                         "smoothing": {"$ref": "./definitions.jsonschema#/unsigned_int_8"},
                         "deadzone": {"type": "integer"},
                         "top_deadzone": {"type": "integer"},
-                        "bottom_deadzone": {"type": "integer"}
+                        "bottom_deadzone": {"type": "integer"},
+                        "custom_matrix_lite": {"type": "boolean"}
                     }
                 },
                 "config": {
@@ -560,12 +561,60 @@
                         },
                         "priority_level": {"type": "integer"},
                         "slave_low_priority": {"type": "boolean"},
-                        "bootmagic_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
-                        "bootmagic_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
-                        "bootloader_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
-                        "bootloader_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
-                        "calibration_key": {"$ref": "./definitions.jsonschema#/matrix_position"},
-                        "calibration_key_right": {"$ref": "./definitions.jsonschema#/matrix_position"},
+                        "bootmagic_keys": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "bootmagic_keys_right": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "bootloader_keys": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "bootloader_keys_right": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "calibration_keys": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "calibration_keys_right": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
                         "adc_scan_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
                         "mux_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
                         "power_select_delay": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
