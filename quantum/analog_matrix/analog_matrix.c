@@ -306,7 +306,8 @@ __attribute__((weak)) void analog_matrix_init(void) {
 
     get_switch_data();
 
-    //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth)
+    //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth like that), because right now init keys don't work without top values
+    //      Also being unable to save cali values properly, due to a small difference between top & bottom values or a misconfigured storage, means that the keyboard keeps looping endlessly
 
     // Get the min/max values of each switch
     if(!get_calibration_data()) {
@@ -375,12 +376,12 @@ void scan_init_keys(void) {
         // If the key is activated, call the respective function
         // These functions are set in the INIT_FUNCTIONS dict at the top of analog_matrix.py
         #ifndef INVERT_ADC
-        if(adc_value < key_config[matrix_index].bottom_value + 4 * ADC_BOTTOM_DEADZONE) {
+        if(adc_value < key_config[matrix_index].bottom_value + INIT_THRESHOLD * ADC_BOTTOM_DEADZONE) {
             LED_ON;
             init_functions[idx](true);
         }
         #else
-        if(adc_value > key_config[matrix_index].bottom_value - 4 * ADC_BOTTOM_DEADZONE) {
+        if(adc_value > key_config[matrix_index].bottom_value - INIT_THRESHOLD * ADC_BOTTOM_DEADZONE) {
             LED_ON;
             init_functions[idx](true);
         }
