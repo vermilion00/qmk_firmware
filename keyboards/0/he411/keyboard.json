@@ -4,6 +4,7 @@
 	"manufacturer": "vermilion00",
 	"bootloader_instructions": "Hold down the ESC key (top left) for the left side, or the backspace key (top right) for the right side. To start calibration, hold down either of the keys below the bootloader keys.",
     "url": "https://github.com/vermilion00/qmk_firmware",
+    "bootloader": "tinyuf2",
     "development_board": "blackpill_f411",
     "usb": {
         "pid": "0x3536",
@@ -11,7 +12,7 @@
         "device_version": "2.0.0"
     },
 	"build": {
-		"firmware_format": "bin",
+		"firmware_format": "uf2",
 		"lto": true
 	},
     "features": {

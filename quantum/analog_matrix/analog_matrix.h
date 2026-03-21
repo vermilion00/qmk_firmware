@@ -331,6 +331,9 @@ typedef at32_gpio_t gpio_port_t;
 #ifndef CAL_THRESHOLD
 #   define CAL_THRESHOLD 7
 #endif
+#ifndef INIT_THRESHOLD
+#   define INIT_THRESHOLD 4
+#endif
 
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more

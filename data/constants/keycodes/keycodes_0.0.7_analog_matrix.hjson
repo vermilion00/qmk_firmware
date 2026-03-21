@@ -1,0 +1,97 @@
+{
+    "ranges": {
+        "0x7900/0x001F": {
+            "define": "AM_PROFILE_RANGE"
+        },
+        "0x7920/0x001F": {
+            "define": "AM_KEYCODE_RANGE"
+        },
+        "0x7940/0x000B": {
+            "define": "AM_JOYSTICK_RANGE"
+        }
+    },
+    "keycodes": {
+        // The range between 0x7900 and 0x791F is used by the profile change keycodes, which work like MO(layer)
+        "0x7920": {
+            "group": "analog_matrix",
+            "key": "AM_CALIBRATE",
+            "aliases": ["AM_CLBR"]
+        },
+        "0x7921": {
+            "group": "analog_matrix",
+            "key": "AM_PRINT_CALIBRATION",
+            "aliases": ["AM_PRNT"]
+        },
+        "0x7922": {
+            "group": "analog_matrix",
+            "key": "AM_LOCK_PROFILE",
+            "aliases": ["AM_LOCK"]
+        },
+        "0x7923": {
+            "group": "analog_matrix",
+            "key": "AM_TOGGLE_PRIORITY",
+            "aliases": ["AM_TGPR"]
+        },
+        //"0x7924/0x001B" - UNUSED
+        "0x7940": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_POSITIVE_X",
+            "aliases": ["JS_LPX"]
+        },
+        "0x7941": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_NEGATIVE_X",
+            "aliases": ["JS_LNX"]
+        },
+        "0x7942": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_NEGATIVE_Y",
+            "aliases": ["JS_LNY"]
+        },
+        "0x7943": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_POSITIVE_Y",
+            "aliases": ["JS_LPY"]
+        },
+        "0x7944": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_POSITIVE_Z",
+            "aliases": ["JS_LPZ"]
+        },
+        "0x7945": {
+            "group": "analog_joystick",
+            "key": "JS_LEFT_NEGATIVE_Z",
+            "aliases": ["JS_LNZ"]
+        },
+        "0x7946": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_POSITIVE_X",
+            "aliases": ["JS_RPX"]
+        },
+        "0x7947": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_NEGATIVE_X",
+            "aliases": ["JS_RNX"]
+        },
+        "0x7948": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_NEGATIVE_Y",
+            "aliases": ["JS_RNY"]
+        },
+        "0x7949": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_POSITIVE_Y",
+            "aliases": ["JS_RPY"]
+        },
+        "0x794A": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_POSITIVE_Z",
+            "aliases": ["JS_RPZ"]
+        },
+        "0x794B": {
+            "group": "analog_joystick",
+            "key": "JS_RIGHT_NEGATIVE_Z",
+            "aliases": ["JS_RNZ"]
+        }
+    }
+}

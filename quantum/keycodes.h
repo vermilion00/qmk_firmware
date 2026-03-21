@@ -1,4 +1,4 @@
-// Copyright 2025 QMK
+// Copyright 2026 QMK
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /*******************************************************************************
@@ -26,7 +26,6 @@
 #pragma once
 // clang-format off
 
-#include "keycodes.h"
 #define QMK_KEYCODES_VERSION "0.0.7"
 #define QMK_KEYCODES_VERSION_BCD 0x00000007
 #define QMK_KEYCODES_VERSION_MAJOR 0
@@ -65,13 +64,6 @@ enum qk_keycode_ranges {
     QK_SWAP_HANDS_MAX              = 0x56FF,
     QK_TAP_DANCE                   = 0x5700,
     QK_TAP_DANCE_MAX               = 0x57FF,
-    //MARK: Range
-    QK_AM_PROFILE                  = 0x5800,
-    QK_AM_PROFILE_MAX              = 0x581F,
-    QK_ANALOG_MATRIX               = 0x5820,
-    QK_ANALOG_MATRIX_MAX           = 0x583F,
-    QK_AM_JOYSTICK_AXIS            = 0x5840,
-    QK_AM_JOYSTICK_AXIS_MAX        = 0x584B,
     QK_MAGIC                       = 0x7000,
     QK_MAGIC_MAX                   = 0x70FF,
     QK_MIDI                        = 0x7100,
@@ -94,6 +86,12 @@ enum qk_keycode_ranges {
     QK_COMMUNITY_MODULE_MAX        = 0x77FF,
     QK_LIGHTING                    = 0x7800,
     QK_LIGHTING_MAX                = 0x78FF,
+    AM_PROFILE_RANGE               = 0x7900,
+    AM_PROFILE_RANGE_MAX           = 0x791F,
+    AM_KEYCODE_RANGE               = 0x7920,
+    AM_KEYCODE_RANGE_MAX           = 0x793F,
+    AM_JOYSTICK_RANGE              = 0x7940,
+    AM_JOYSTICK_RANGE_MAX          = 0x794B,
     QK_QUANTUM                     = 0x7C00,
     QK_QUANTUM_MAX                 = 0x7DFF,
     QK_KB                          = 0x7E00,
@@ -337,27 +335,6 @@ enum qk_keycode_defines {
     QK_SWAP_HANDS_OFF = 0x56F4,
     QK_SWAP_HANDS_ON = 0x56F5,
     QK_SWAP_HANDS_ONE_SHOT = 0x56F6,
-    //MARK: AM Keycodes
-    //TODO: Added here since there's a gap
-    AM_CALIBRATE = 0x5820,
-    AM_PRINT_CALIBRATION = 0x5821,
-    //TODO: Remove this, not needed
-    AM_LOCK_PROFILE = 0x5822,
-    AM_TOGGLE_PRIORITY = 0x5823,
-    // Joystick axes to allow mapping them to analog keys
-    JS_LEFT_POSITIVE_X = 0x5840,
-    JS_LEFT_NEGATIVE_X = 0x5841,
-    // The Y axis is inverted, with the negative Y axis mapping to forward movement in games
-    JS_LEFT_NEGATIVE_Y = 0x5842,
-    JS_LEFT_POSITIVE_Y = 0x5843,
-    JS_LEFT_POSITIVE_Z = 0x5844,
-    JS_LEFT_NEGATIVE_Z = 0x5845,
-    JS_RIGHT_POSITIVE_X = 0x5846,
-    JS_RIGHT_NEGATIVE_X = 0x5847,
-    JS_RIGHT_NEGATIVE_Y = 0x5848,
-    JS_RIGHT_POSITIVE_Y = 0x5849,
-    JS_RIGHT_POSITIVE_Z = 0x584A,
-    JS_RIGHT_NEGATIVE_Z = 0x584B,
     QK_MAGIC_SWAP_CONTROL_CAPS_LOCK = 0x7000,
     QK_MAGIC_UNSWAP_CONTROL_CAPS_LOCK = 0x7001,
     QK_MAGIC_TOGGLE_CONTROL_CAPS_LOCK = 0x7002,
@@ -726,6 +703,22 @@ enum qk_keycode_defines {
     QK_RGB_MATRIX_VALUE_DOWN = 0x784A,
     QK_RGB_MATRIX_SPEED_UP = 0x784B,
     QK_RGB_MATRIX_SPEED_DOWN = 0x784C,
+    AM_CALIBRATE = 0x7920,
+    AM_PRINT_CALIBRATION = 0x7921,
+    AM_LOCK_PROFILE = 0x7922,
+    AM_TOGGLE_PRIORITY = 0x7923,
+    JS_LEFT_POSITIVE_X = 0x7940,
+    JS_LEFT_NEGATIVE_X = 0x7941,
+    JS_LEFT_NEGATIVE_Y = 0x7942,
+    JS_LEFT_POSITIVE_Y = 0x7943,
+    JS_LEFT_POSITIVE_Z = 0x7944,
+    JS_LEFT_NEGATIVE_Z = 0x7945,
+    JS_RIGHT_POSITIVE_X = 0x7946,
+    JS_RIGHT_NEGATIVE_X = 0x7947,
+    JS_RIGHT_NEGATIVE_Y = 0x7948,
+    JS_RIGHT_POSITIVE_Y = 0x7949,
+    JS_RIGHT_POSITIVE_Z = 0x794A,
+    JS_RIGHT_NEGATIVE_Z = 0x794B,
     QK_BOOTLOADER = 0x7C00,
     QK_REBOOT = 0x7C01,
     QK_DEBUG_TOGGLE = 0x7C02,
@@ -1415,6 +1408,22 @@ enum qk_keycode_defines {
     RM_VALD    = QK_RGB_MATRIX_VALUE_DOWN,
     RM_SPDU    = QK_RGB_MATRIX_SPEED_UP,
     RM_SPDD    = QK_RGB_MATRIX_SPEED_DOWN,
+    AM_CLBR    = AM_CALIBRATE,
+    AM_PRNT    = AM_PRINT_CALIBRATION,
+    AM_LOCK    = AM_LOCK_PROFILE,
+    AM_TGPR    = AM_TOGGLE_PRIORITY,
+    JS_LPX     = JS_LEFT_POSITIVE_X,
+    JS_LNX     = JS_LEFT_NEGATIVE_X,
+    JS_LNY     = JS_LEFT_NEGATIVE_Y,
+    JS_LPY     = JS_LEFT_POSITIVE_Y,
+    JS_LPZ     = JS_LEFT_POSITIVE_Z,
+    JS_LNZ     = JS_LEFT_NEGATIVE_Z,
+    JS_RPX     = JS_RIGHT_POSITIVE_X,
+    JS_RNX     = JS_RIGHT_NEGATIVE_X,
+    JS_RNY     = JS_RIGHT_NEGATIVE_Y,
+    JS_RPY     = JS_RIGHT_POSITIVE_Y,
+    JS_RPZ     = JS_RIGHT_POSITIVE_Z,
+    JS_RNZ     = JS_RIGHT_NEGATIVE_Z,
     QK_BOOT    = QK_BOOTLOADER,
     QK_RBT     = QK_REBOOT,
     DB_TOGG    = QK_DEBUG_TOGGLE,
@@ -1486,23 +1495,6 @@ enum qk_keycode_defines {
     QK_REP     = QK_REPEAT_KEY,
     QK_AREP    = QK_ALT_REPEAT_KEY,
     QK_LLCK    = QK_LAYER_LOCK,
-    //MARK: AM Aliases
-    AM_CLBR    = AM_CALIBRATE,
-    AM_PRNT    = AM_PRINT_CALIBRATION,
-    AM_LOCK    = AM_LOCK_PROFILE,
-    AM_TGPR    = AM_TOGGLE_PRIORITY,
-    JS_LPX     = JS_LEFT_POSITIVE_X,
-    JS_LNX     = JS_LEFT_NEGATIVE_X,
-    JS_LNY     = JS_LEFT_NEGATIVE_Y,
-    JS_LPY     = JS_LEFT_POSITIVE_Y,
-    JS_LPZ     = JS_LEFT_POSITIVE_Z,
-    JS_LNZ     = JS_LEFT_NEGATIVE_Z,
-    JS_RPX     = JS_RIGHT_POSITIVE_X,
-    JS_RNX     = JS_RIGHT_NEGATIVE_X,
-    JS_RNY     = JS_RIGHT_NEGATIVE_Y,
-    JS_RPY     = JS_RIGHT_POSITIVE_Y,
-    JS_RPZ     = JS_RIGHT_POSITIVE_Z,
-    JS_RNZ     = JS_RIGHT_NEGATIVE_Z,
 };
 
 // Range Helpers
@@ -1532,16 +1524,15 @@ enum qk_keycode_defines {
 #define IS_QK_CONNECTION(code) ((code) >= QK_CONNECTION && (code) <= QK_CONNECTION_MAX)
 #define IS_QK_COMMUNITY_MODULE(code) ((code) >= QK_COMMUNITY_MODULE && (code) <= QK_COMMUNITY_MODULE_MAX)
 #define IS_QK_LIGHTING(code) ((code) >= QK_LIGHTING && (code) <= QK_LIGHTING_MAX)
+#define IS_AM_PROFILE_RANGE(code) ((code) >= AM_PROFILE_RANGE && (code) <= AM_PROFILE_RANGE_MAX)
+#define IS_AM_KEYCODE_RANGE(code) ((code) >= AM_KEYCODE_RANGE && (code) <= AM_KEYCODE_RANGE_MAX)
+#define IS_AM_JOYSTICK_RANGE(code) ((code) >= AM_JOYSTICK_RANGE && (code) <= AM_JOYSTICK_RANGE_MAX)
 #define IS_QK_QUANTUM(code) ((code) >= QK_QUANTUM && (code) <= QK_QUANTUM_MAX)
 #define IS_QK_KB(code) ((code) >= QK_KB && (code) <= QK_KB_MAX)
 #define IS_QK_USER(code) ((code) >= QK_USER && (code) <= QK_USER_MAX)
 #define IS_QK_UNICODEMAP(code) ((code) >= QK_UNICODEMAP && (code) <= QK_UNICODEMAP_MAX)
 #define IS_QK_UNICODE(code) ((code) >= QK_UNICODE && (code) <= QK_UNICODE_MAX)
 #define IS_QK_UNICODEMAP_PAIR(code) ((code) >= QK_UNICODEMAP_PAIR && (code) <= QK_UNICODEMAP_PAIR_MAX)
-//MARK: Helpers
-#define IS_QK_AM_PROFILE(code) ((code) >= QK_AM_PROFILE && (code) <= QK_AM_PROFILE_MAX)
-#define IS_QK_ANALOG_MATRIX(code) ((code) >= QK_ANALOG_MATRIX && (code) <= QK_ANALOG_MATRIX_MAX)
-#define IS_QK_JOYSTICK_AXIS(code) ((code) >= QK_AM_JOYSTICK_AXIS && (code) <= QK_AM_JOYSTICK_AXIS_MAX)
 
 // Group Helpers
 #define IS_INTERNAL_KEYCODE(code) ((code) >= KC_NO && (code) <= KC_TRANSPARENT)
@@ -1553,7 +1544,6 @@ enum qk_keycode_defines {
 #define IS_SWAP_HANDS_KEYCODE(code) ((code) >= QK_SWAP_HANDS_TOGGLE && (code) <= QK_SWAP_HANDS_ONE_SHOT)
 #define IS_MAGIC_KEYCODE(code) ((code) >= QK_MAGIC_SWAP_CONTROL_CAPS_LOCK && (code) <= QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK)
 #define IS_MIDI_KEYCODE(code) ((code) >= QK_MIDI_ON && (code) <= QK_MIDI_PITCH_BEND_UP)
-#define IS_MIDI_NOTE(code) ((code) >= QK_MIDI_NOTE_C_0 && (code) <= QK_MIDI_NOTE_B_5)
 #define IS_SEQUENCER_KEYCODE(code) ((code) >= QK_SEQUENCER_ON && (code) <= QK_SEQUENCER_STEPS_CLEAR)
 #define IS_JOYSTICK_KEYCODE(code) ((code) >= QK_JOYSTICK_BUTTON_0 && (code) <= QK_JOYSTICK_BUTTON_31)
 #define IS_PROGRAMMABLE_BUTTON_KEYCODE(code) ((code) >= QK_PROGRAMMABLE_BUTTON_1 && (code) <= QK_PROGRAMMABLE_BUTTON_32)
@@ -1566,11 +1556,11 @@ enum qk_keycode_defines {
 #define IS_UNDERGLOW_KEYCODE(code) ((code) >= QK_UNDERGLOW_TOGGLE && (code) <= QK_UNDERGLOW_SPEED_DOWN)
 #define IS_RGB_KEYCODE(code) ((code) >= RGB_MODE_PLAIN && (code) <= RGB_MODE_TWINKLE)
 #define IS_RGB_MATRIX_KEYCODE(code) ((code) >= QK_RGB_MATRIX_ON && (code) <= QK_RGB_MATRIX_SPEED_DOWN)
+#define IS_ANALOG_MATRIX_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_TOGGLE_PRIORITY)
+#define IS_ANALOG_JOYSTICK_KEYCODE(code) ((code) >= JS_LEFT_POSITIVE_X && (code) <= JS_RIGHT_NEGATIVE_Z)
 #define IS_QUANTUM_KEYCODE(code) ((code) >= QK_BOOTLOADER && (code) <= QK_LAYER_LOCK)
 #define IS_KB_KEYCODE(code) ((code) >= QK_KB_0 && (code) <= QK_KB_31)
 #define IS_USER_KEYCODE(code) ((code) >= QK_USER_0 && (code) <= QK_USER_31)
-#define IS_AM_KEYCODE(code) ((code) >= AM_CALIBRATE && (code) <= AM_LOCK_PROFILE)
-#define IS_AM_JOYSTICK_AXIS(code) ((code) >= JS_LEFT_POSITIVE_X && (code) <= JS_RIGHT_NEGATIVE_Z)
 
 // Switch statement Helpers
 #define INTERNAL_KEYCODE_RANGE              KC_NO ... KC_TRANSPARENT
@@ -1582,7 +1572,6 @@ enum qk_keycode_defines {
 #define SWAP_HANDS_KEYCODE_RANGE            QK_SWAP_HANDS_TOGGLE ... QK_SWAP_HANDS_ONE_SHOT
 #define MAGIC_KEYCODE_RANGE                 QK_MAGIC_SWAP_CONTROL_CAPS_LOCK ... QK_MAGIC_TOGGLE_ESCAPE_CAPS_LOCK
 #define MIDI_KEYCODE_RANGE                  QK_MIDI_ON ... QK_MIDI_PITCH_BEND_UP
-#define MIDI_NOTE_RANGE                     QK_MIDI_NOTE_C_0 ... QK_MIDI_NOTE_B_5
 #define SEQUENCER_KEYCODE_RANGE             QK_SEQUENCER_ON ... QK_SEQUENCER_STEPS_CLEAR
 #define JOYSTICK_KEYCODE_RANGE              QK_JOYSTICK_BUTTON_0 ... QK_JOYSTICK_BUTTON_31
 #define PROGRAMMABLE_BUTTON_KEYCODE_RANGE   QK_PROGRAMMABLE_BUTTON_1 ... QK_PROGRAMMABLE_BUTTON_32
@@ -1595,9 +1584,8 @@ enum qk_keycode_defines {
 #define UNDERGLOW_KEYCODE_RANGE             QK_UNDERGLOW_TOGGLE ... QK_UNDERGLOW_SPEED_DOWN
 #define RGB_KEYCODE_RANGE                   RGB_MODE_PLAIN ... RGB_MODE_TWINKLE
 #define RGB_MATRIX_KEYCODE_RANGE            QK_RGB_MATRIX_ON ... QK_RGB_MATRIX_SPEED_DOWN
+#define ANALOG_MATRIX_KEYCODE_RANGE         AM_CALIBRATE ... AM_TOGGLE_PRIORITY
+#define ANALOG_JOYSTICK_KEYCODE_RANGE       JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Z
 #define QUANTUM_KEYCODE_RANGE               QK_BOOTLOADER ... QK_LAYER_LOCK
 #define KB_KEYCODE_RANGE                    QK_KB_0 ... QK_KB_31
 #define USER_KEYCODE_RANGE                  QK_USER_0 ... QK_USER_31
-#define ANALOG_MATRIX_KEYCODE_RANGE         QK_ANALOG_MATRIX ... QK_ANALOG_MATRIX_MAX
-#define ANALOG_MATRIX_PROFILE_RANGE         QK_AM_PROFILE ... QK_AM_PROFILE_MAX
-#define JOYSTICK_AXIS_RANGE                 JS_LEFT_POSITIVE_X ... JS_RIGHT_NEGATIVE_Z

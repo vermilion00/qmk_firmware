@@ -45,7 +45,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             #endif
             return false;
 
-        case ANALOG_MATRIX_PROFILE_RANGE:
+        case AM_PROFILE_RANGE ... AM_PROFILE_RANGE_MAX:
             if (record->event.pressed) {
                 // Sanity check that the profile exists
                 if((keycode & 0x1F) >= AM_PROFILE_NUM) {

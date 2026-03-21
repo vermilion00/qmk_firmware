@@ -15,22 +15,24 @@ This is a list of tested microcontrollers:
 | RP2040<sup>3</sup> | :heavy_check_mark: | :heavy_check_mark: |
 | Any AVR chip    | :x:                | :x:             |
 
-1: Persistent storage works only with an external chip <br>
+1: Persistent storage only works with an external chip <br>
 2: EEPROM/Flash is reset when flashing firmware, can be fixed by using a different bootloader (e.g. tinyuf2) or an external chip <br>
-3: While the RP2040 works without issues, it only has four usable ADC channels per chip. <br>
+3: While the RP2040 works without issues, it only has four usable ADC channels per chip, and the ADC has worse performance than STMs offerings <br>
 
 ## What works?
 
 This feature is in a beta state. This means that, while it is fully functional, configuration is more clunky than I'd like, and not everything is guaranteed to be bug-free (or even tested properly.) What I can say is that my personal split analog keyboard has seen a lot of use over the last ~3 months, both for work and video games (Valorant mainly, Immortal rank), so I can attest that the main functions all work perfectly fine (on my setup at least).
 
 Working features are:
+* [Adjustable heights](analog_matrix.md#height-configuration)
+* [Rapid trigger](analog_matrix.md#height-configuration)
+    * Standard, Continuous and Constant modes are available
 * [Calibration](analog_matrix.md#calibration)
     * Save calibration data to persistent storage
     * Automatic adjusting of calibration data during use (as an optional mode)
 * [Split communication](analog_matrix.md#split-keyboards)
     * Split profile and calibration synchronisation
 * [Automatic](analog_matrix.md#profile-objects) and manual profile switching
-* Rapid trigger
 * [Analog joystick](analog_matrix.md#analog-joystick) mode
     * Axes only work on the main half for split keyboards
     * While the keyboard is detected as a gamepad on windows, many games don't automatically pick up inputs. I've found success in using steam input to bind the buttons as a workaround.
@@ -51,11 +53,14 @@ Working features are:
 * Predefined [filter](analog_matrix.md#filtering) options + [debouncing](analog_matrix.md#debouncing)
     * Choose between several predefined filter strengths, or use your own filter
     * Standard timer-based debouncing is disabled by default, but can be enabled
+* [SOCD / Snap Tap / Input Cleaner](analog_matrix.md#SOCD)*
+    * This functionality is available as a separate module in QMK
+    * A height-based priority can't be set, however.
 * and more
 
 ## What doesn't work?
 
-* GUI
+* GUI configurator
     * VIAL support is in the early stages of development.
 * Joystick axes on the slave half
 * Controlling the sensor power via gpio pins<sup>1</sup>
@@ -70,17 +75,15 @@ Working features are:
 ## Current TO-DO list
 
 Roughly in descending order of priority:
-* Mechanical keys as bootmagic
-    * Also allow multiple keys to do one function
 * Velocity-sensitive MIDI keys
 * DKS
-* GUI (VIAL)
+* GUI confugurator (VIAL)
 * Joystick axes on slave half
 * Higher USB polling rates (> 1kHz)
 * Controlling sensor power via GPIO*
     * Support for two different modes exists but hasn't been fully tested yet
     * Supported modes are:
-        * A single pin controlling a FET, to cut off power to all sensors in case of a hibernation mode
+        * A single pin controlling a transistor, to cut off power to all sensors in case of a hibernation mode, to reduce power usage
         * One power pin controlling power to all sensors on one mux channel, to toggle every time the mux channel changes
             * This way, only the sensors being scanned will be powered
         * User defined callback functions also exist, to allow for a custom powering logic
@@ -90,9 +93,14 @@ Roughly in descending order of priority:
 <!--MARK: Calibration -->
 # Calibration
 
-If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a calibration key and hold that during startup (more info in the config section.) If the keyboard doesn't yet have any calibration values saved, it will automatically enter calibration mode.
+If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a [calibration key](analog_matrix.md#config) and hold that during startup. If the keyboard can't access any calibration values, it will automatically enter calibration mode during startup.
 
-While calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. How these values are saved depends on the configuration:
+While calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. If the calibration doesn't finish after pressing every key down, it might mean that the keyboard is expecting a larger difference between the top and bottom values than your sensors are providing. In that case, you can use the following define to lower the threshold:
+```c
+#define CAL_THRESHOLD 7
+```
+CAL_THRESHOLD is multiplied by the top deadzone value of the ADC to get the absolute difference in value. Defaults to 7, while the top deadzone defaults to 100. Keep in mind that the ADC is configured to use a 12 bit resolution.  
+How these values are saved depends on the configuration:
 
 ## Persistent Storage
 
@@ -185,7 +193,8 @@ You can find these values in the reference manual of your chip.
 # RP2040 configuration
 
 While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys.
-You'd either have to use 32 channel multiplexers, which are a lot more expensive than 16 channels, or make a split keyboard, to get access to more keys than that.
+You'd either have to use 32 channel multiplexers, which are a lot more expensive than 16 channels, or make a split keyboard, to get access to more keys than that.  
+Another (minor) problem is that the ADC performs poorly compared to STMs offerings, with a fairly slow sample rate of 500ksps, and a lower accuracy. This means that stronger filtering and/or debouncing might need to be enabled to use a sensitive configuration.
 
 ## halconf.h
 
@@ -999,6 +1008,51 @@ Overwriting this function can break all functionality VERY easily, in many more 
 <!--MARK: Features -->
 # Other Features
 
+<!--MARK: SOCD-->
+## SOCD
+
+While SOCD isn't implemented as part of the analog matrix feature specifically, it is available as a separate module.  
+a. To install it manually, you need to download them from [here](https://github.com/getreuer/qmk-modules), and put the socd_cleaner folder into the modules/getreuer directory (or into a subfolder).  
+b. To install it through the terminal, navigate to the qmk_firmware directory on your Computer, then run the following two commands: 
+```
+git submodule add https://github.com/getreuer/qmk-modules.git modules/getreuer
+git submodule update --init --recursive
+```
+This will install all modules in that directory through the git submodule system.
+
+To use it in a keyboard, you need to enable the module in its keyboard.json through the top level "modules" object. The specified path is relative to the qmk_firmware/modules directory, and needs to point to the <module>.c file. Assuming that the module is installed in the modules/getreuer/socd_cleaner directory, the path will look like this:
+```json
+{
+    "modules": ["getreuer/socd_cleaner"]
+}
+
+```
+If you want to use more than one module, put all of the paths into the array, and separate them by a comma (,).
+
+The key pairs are configured inside your keymap.c file:
+```c
+#include "modules/getreuer/socd_cleaner/socd_cleaner.h"
+
+socd_cleaner_t socd_opposing_pairs[] = {
+	{{KC_A, KC_D}, <RESOLUTION_METHOD>},
+};
+```
+
+The <RESOLUTION_METHOD> option defines the conflict resolution method. The available options are:
+```c
+  // Last input priority with reactivation. You most likely want this option.
+  SOCD_CLEANER_LAST,
+  // Neutral resolution. When both keys are pressed, they cancel.
+  SOCD_CLEANER_NEUTRAL,
+  // Key 0 always wins.
+  SOCD_CLEANER_0_WINS,
+  // Key 1 always wins.
+  SOCD_CLEANER_1_WINS
+```
+
+Many thanks to [@getreuer](https://getreuer.info/posts) for this module!
+
+<!--MARK: Dynamic Cali-->
 ## Dynamic Calibration
 
 This feature will automatically update the calibration values of a switch based on several parameters:
@@ -1011,7 +1065,7 @@ This feature will automatically update the calibration values of a switch based 
 The basic functionality is enabled by setting "dynamic_calibration" to true. This will simply monitor the switch boundaries and update them if they've been exceeded.  
 If the boundaries have changed, the height values for that switch will be updated automatically according to the new bounds.  
 You can also set a factor that is applied to the calibration values at initialization. This means that the bounds are moved slightly closer together (a factor of 0.1 will move the top value down and the bottom value up by 10% of the travel range).  
-The new values for a switch are only saved, if the bounds have been moved due to a switch activation. To make sure that the flash isn't being written to too often, you have several options. The new boundary value needs to be higher or lower than the old calibration value by at least "dynamic_calibration_delta", and the values are only saved to storage while a layer is being changed, if the amount of switches with new values is equal or higher than "recalibrated_switches". If you don't wish to save the new values to storage automatically, you can set "recalibrated_switches" to a higher number than the amount of switches you have. This will disable the check completely.  
+The new values for a switch are only saved, if the bounds have been moved due to a switch activation. To make sure that the flash isn't being written to too often, you have several options. The new boundary value needs to be higher or lower than the old calibration value by at least "dynamic_calibration_delta", and the values are only saved to storage while a layer is being changed, if the amount of switches with new values is equal or higher than "recalibrated_switches". By default, the new values are not saved to storage automatically. To enable this, set the "recalibrated_switches" parameter to a value that is less than the amount of switches (per half).
 
 If the no_eeprom option is used, this check is also disabled automatically.
 
@@ -1021,7 +1075,7 @@ While the boundary check is very efficient, you nevertheless have the option of 
 ```
 inside the profile_n object. This will disable the boundary checks on that profile.
 
-
+<!--MARK: Debugging-->
 ## Debugging
 
 There are several settings you can use to help you debug issues with the analog matrix. These print out the status to the console, so make sure debugging and the console feature is enabled, and that you have access to the console (QMK CLI or QMK Toolbox for example).
@@ -1055,6 +1109,7 @@ If you have a split keyboard and the slave half suddenly updates slowly, make su
 On split keyboards, enabling debug_scan_no_input on one half will not disable inputs on the other half.  
 :::
 
+<!--MARK: Prio Keys-->
 ## Priority keys
 
 You can force the firmware to scan some keys more often, thereby increasing the scan rate for situations in which only some keys are important. This is done by setting these options:
@@ -1105,6 +1160,7 @@ This is automatically defined when no priority keys appear on the slave matrix h
 On my setup (split STM32F446 with 61 keys total, RGB underglow and slave half trackball) I usually get a scanrate of ~3850, but with 6 important keys that are all on the master half, and a priority level of 5, I get a scanrate of >13000.
 
 This feature is not very useful currently, as USB polling rates above 1k aren't supported, but this is work in progress.
+
 
 <!--MARK: Joystick -->
 ## Analog Joystick
@@ -1286,9 +1342,15 @@ Another reason this could happen is that you're using the bootmagic function to 
 
 3. If a calibration key is set to an invalid value, it will falsely trigger the associated function. Double check all your matrix positions, and keep in mind that the matrix positions defined in the [layout object](analog_matrix.md#layout) might not match up with the physical key location you see on the keyboard. For split keyboards, you should also keep in mind that the right half sits underneath the left half in the matrix definition. This means that a split keyboard with 5 rows and 6 columns per half will have a matrix size of 10 rows and 6 columns, instead of the expected 5 rows and 12 columns.
 
+4. If you're using the no_eeprom option, the difference between the top and bottom values that your sensor reads might be lower than the threshold that the keyboard expects for a valid value. In that case, you can use the following define to lower the threshold:
+```c
+#define CAL_THRESHOLD 7
+```
+CAL_THRESHOLD is multiplied by the top deadzone value of the ADC to get the absolute difference in value. Defaults to 7, while the top deadzone defaults to 100. Keep in mind that the ADC is configured to use a 12 bit resolution.  
+
 If your keyboard has a visible simple LED somewhere, you can use it to get visual feedback about the calibration state. The LED will be on while calibration is in progress, and turn off once it's finished and the new values have been saved. You can enable this like so:
 
-config.h
+In config.h:
 ```c
 // This doesn't work with smart LEDs like WS2812 etc
 #define LED_PIN B2 // This is the pin that the LED is connected to. It has to be a simple LED connected to a gpio pin.
@@ -1329,6 +1391,9 @@ For normal keyboards:
         * Reasonable value but doesn't change, or changes together with another key -> missing sensor connection to mux
 * An entire section of keys close together doesn't work:
     * This likely means that the connection between multiplexer output and ADC pin is severed.
+* One or more keys activate randomly on sensitive settings:
+    * Increase the [filter strength](analog_matrix.md#filtering), or enable [debouncing](analog_matrix.md#debouncing)
+
 
 <!-- 
 TODO: Add this when it's more fleshed out
