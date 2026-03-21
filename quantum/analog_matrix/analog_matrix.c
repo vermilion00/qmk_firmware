@@ -19,7 +19,6 @@
 #include "print.h"
 #include "suspend.h"
 #include "math.h"
-//TODO: Debouncing doesn't work currently, fix it just in case
 #if ANALOG_DEBOUNCE > 0
 #include "debounce.h"
 #endif
@@ -43,7 +42,6 @@ analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
 extern matrix_row_t matrix[MATRIX_ROWS];
 #if ANALOG_DEBOUNCE > 0
 extern matrix_row_t raw_matrix[MATRIX_ROWS];
-//TODO: When analog debounce is enabled, the matrix changes need to happen to raw_matrix instead of the actual matrix. How do I do this efficiently?
 #define SCAN_MATRIX raw_matrix
 #else
 #define SCAN_MATRIX matrix
@@ -176,7 +174,6 @@ const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
 const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
 #endif
 
-//TODO: Does this even work? Has it been tested?
 #ifdef PRIORITY_INDICES_R
 const uint8_t priority_indices_r[SMAX(SWITCH_NUM)] = PRIORITY_INDICES_R;
 const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
@@ -204,7 +201,6 @@ SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
 // Split keyboards still need to set trigger_height_config etc instead of defining trigger_height directly
 __attribute__((weak)) CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
 #else
-//TODO: How do I fix declaration before definiton?
 //      I hope I don't need to put the side assign function into keymap introspection, too many issues with declarations
 __attribute__((weak)) CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... SWITCH_NUM-1] = 0} };
 // __attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
@@ -218,10 +214,6 @@ __attribute__((weak)) CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH
 #else
 __attribute__((weak)) float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
 __attribute__((weak)) float release_height[AM_PROFILE_NUM][SWITCH_NUM];
-//TODO: Either add release height config or check some other way
-// __attribute__((weak)) const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... TOTAL_SWITCH_NUM-1] = 0} };
-// __attribute__((weak)) const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... TOTAL_SWITCH_NUM-1] = 0} };
-//TODO: Alias and release height still needs testing
 __attribute__((weak)) const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak, alias("trigger_height_config"))) extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
@@ -234,7 +226,6 @@ __attribute__((weak)) CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][S
 #else
 __attribute__((weak)) float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-// __attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak)) const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak, alias("rt_press_distance_config"))) extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif

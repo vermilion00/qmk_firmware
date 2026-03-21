@@ -34,6 +34,12 @@
 #include "version.h" // for QMK_BUILDDATE used in EEPROM magic
 #include "quantum/nvm/eeprom/nvm_eeprom_eeconfig_internal.h"
 #include "quantum/nvm/eeprom/nvm_eeprom_via_internal.h"
+//TODO: Manually included stuff
+#include "matrix.h"
+#include "_wait.h"
+#include "wait.h"
+#include "info_config.h"
+#include "bootloader.h"
 
 #ifdef VIAL_ENABLE
 #include "vial.h"

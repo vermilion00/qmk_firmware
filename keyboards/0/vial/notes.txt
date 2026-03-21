@@ -1,0 +1,193 @@
+Adjustment function:
+-Try this one first, adjusts values upward. This one should help if I'm leaving the scan values alone and adjust config heights. Worked well with the test setup
+    *: -pow(e, ((-x)+1265)/170) + 650
+-This one should adjust the scan values to be more linear, but makes stuff worse if I use it to adjust heights:
+    *: 1.5*pow(e, (x+370)/170) + 200
+-Try doing piecewise interpolation instead of static functions, since every switch has different bounds anywhere
+    -Would need to interpolate all scan values to a range every scan though I think
+-Should probably make the adjustment a special mode where:
+    1. all switches get adjusted linearily to 0 - 1023
+    2. Resulting value is adjusted via a piecewise lut
+        -The lut saves a mapping for adjusted adc value vs adjusted height value
+        -Find the points above and below, get their values, then run linear interp
+        -Then I can offer that lut up as a define, for others to replace
+            -If the LUT has n sections, that means that the needed section y can be obtained via (value) / (1023 / n) = y
+            -The bounds of the interp are then found via LUT(y) and LUT(y + 1)
+            -This hasn't been tested yet
+        -Could also try a function that subtracts value the closer the value is to the middlepoint of the line between top and bottom
+            -So at the start and end no value is subtracted, towards the middle to highest amount is subtracted
+            -Then use that to scale heights at init (and maybe rt during new height setting?)
+
+ADC optimizations:
+-Is the current implementation actually just blocking?
+-I should try to add support for the ADC_NUM_CHANNELS define, that sets the amount of channels scanned per operation.
+    -It is set in the analog.c driver, so maybe there's something there already?
+    -While a variable is configured, there's an ifdef erroring a value other than 1 channel
+-When multiple channel support is done, I should use the multi conversion mode to read all adc pins on a single mux channel, then use the buffer full callback isr to switch mux channels
+    -Keep checking the buffer after conversion start, if one value is available then we can grab it and start evaluation on it
+    -Reset the buffer to zero in the callback isr
+    -Starting the conversion manually would make it easier to manage
+-Enable interleaved mode for supported chips
+
+Split calibration:
+-Put init key checking into some kind of post_init function, since current one happens before slave is connected
+
+-Check for cause of occasional slave half lag
+    -Since it only happens occasionally, it's likely a forced synchronisation of something briefly blocking the line
+
+-Check /data/constants/keycodes, what is it for? Do I need to add my keycodes there somewhere?
+
+-Add profile_change function that triggers on profile changes, same as layer_state_change
+
+-Add mux and power pin optimizations for RP2040
+    -mux stuff needs to be tested
+
+-Allow toggling priority key mode, with options to enable it on certain profiles automatically
+
+-Take a look at bootmagic to turn on RGB stuff when calibrating, and turn it off when finished?
+
+-Check if setting a larger amount of adc pins than necessary is a problem
+-What if one half needs more mux/adc pins than the other?
+
+-Allow setting stuff in config.h directly again
+    -To disable config checking, for analog_matrix: true in json->features
+
+Joystick:
+-Currently, the slave side seems to not work, probs because the stuff is just not synced
+-Sync the state of the slave axis_values array to master, and evaluate there
+    -Possible collisions when both halves write to one axis, but shouldn't be an issue otherwise
+-Add option to choose between 4-way and 8-way reporting of DPAD
+-If multiple keys have the same axis keycode, |= their results? The first one should set, the second one should |?
+-Profile switching is only broken with enabled joystick?
+    -Joystick feature, or key_mode on the profile?
+-To support multiple keys, the first one should set, the second one should +
+    -Or reset state to 0 before and + all of them, pressing multiple keys of the same axis at once is unlikely
+-Slave side axes will only work if the master has access to the slave matrix_to_num at least
+
+-Why is the slave joystick not updating?
+    -Do the slave joystick matrix positions show as updated?
+    -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
+
+-Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
+    -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
+    -Also means that I'd need to either have extra space in the switch config for the joystick diff, or calculate it every update
+
+
+MIDI:
+-Basically the same logic as the joystick stuff
+-Also use a mask with all the notes
+-Allow triggering the midi send command off of the trigger height/rt setting
+    -When the switch is triggered, the software looks at the change in value between now and the last scan(?) or over multiple and calculates the velocity off of that
+    -Maybe even have different modes for how many values it should save to calculate a more precise velocity
+-Use a defined multiplier to change the scaling of the velocity, so a difference of 10 could mean 127 or 56 vel
+-Use a process_* function similar to the joystick to catch the values
+
+-Currently, a 12 bit ADC resolution is hardcoded
+
+-Change -s flag to force recompilation of config.h instead of deleting build dir
+    -Or at least only delete the keyboard folder
+    -Can probably just touch config.h
+    -Will that work when other files are also dependent on the flag?
+
+-Try a higher buffer depth and circular buffer?
+-Add always inline stuff
+
+Add mode for multiple actions on one key (DKS) somehow
+    -Use switch mode >= 10
+    -switch mode - 10 gives us the index in an array of dks structs, where up to 4 heights are mapped to 4 actions
+    -Instead of actually setting the switch mode, use the same logic as joystick
+        -Mask, checking it during scan to see if it's a DKS switch, bind DKS(0) as a keycode that triggers the function in that array of DKS structs
+    -When a switch with that mode is scanned, send eval to another function
+
+-Allow associating a color with a profile?
+    -Or just set them by layer
+
+-Make sure no conflicts happen with other features using the ADC somehow
+    -Might not be possible on chips with one ADC, if the other feature needs different settings compared to analog matrix
+
+-Go through all changed files and make sure that all new includes are actually necessary, and gate them if possible
+
+Dynamic calibration:
+-A stronger mode might have a per switch counter that slightly moves the bounds together if x updates occurred without the bound being reached
+
+Height assignment through layout macro:
+-Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
+-Need to put in the USE_* defines somehow
+-MATRIX macro needs to be extracted
+I shouldn't even need the fillers, I should be able to define TRIGGER_HEIGHT as {} and then copy into the normal definition, as long as it's not const
+Instead of making a separate gate for every height, it would be cleaner to assume that either all or none of the configs are defined through the keymap, and set a define
+that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
+
+-If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
+    -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
+
+-A very high smoothing value causes keys to get stuck occasionally (shouldn't be the case cuz deadzones, maybe need to increase those?)
+-The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
+-The joystick layer registers weird keys occasionally, like ctrl when I've unbound it from that position
+    -Also specifically the rnx and rpx keys are spammed
+    -The joystick layer problems disappear when right y axes keys aren't in the keymap
+    -Not a problem with the specific location they're in
+-I need to have one more joystick axis than I use in my keymap (or at least I need 6 axes to be able to use RY)
+-The value for LPX is updated binarily (not the axis at key T)
+    -Is it cuz that's the first index?
+        -Try moving another axis there temporarily
+
+-Having no calibration values in when NO_EEPROM is enabled means it's impossible to reset the keyboard without mechanical bootmagic keys or reset keys
+    -Calibration values are checked before init keys for obvious reasons, but it means that calibration will always start first
+    -Maybe run a sophisticated check where the init key is counted as pressed if it is a certain value below the avg scan value of the matrix?
+-Calibration key doesn't start calibration on slave, likely because split communication is initialized after
+    -Do post init checking for pressed calibration keys
+    -Instead of checking init keys in post, just check a calibration flag?
+
+
+Notes:
+-Current code doesn't work with AVR, palSetLineMode etc isn't a thing (but can be fixed, high effort low prio)
+-Debug output works better with qhe than qhed
+-info_defaults don't work?
+-Pins are set to input by default -> QMK sets unused pins to output high (Why not low?)
+-LED on B2 is active high
+-Button on C13 is active high
+-When doing transactions stuff, make sure that the registration is correct! trans_initiator2target_initializer stuff needs to be correct to function!
+-Using dynamic side assignment costs about 50 scans per second
+    -Is that because of less const, or something else?
+-Keychron polynomial: f(x)=-2.99368*e^(-8)*x^(3)+2.04637*e^(-4)*x^(2)-0.48358*x+426.88962
+
+-Make a mode where the init key function scans all keys, and checks if one value is lower than the average deviation to be counted as pressed
+    -This can be checked before calibration data is loaded -> They still work even without valid values
+-I should be able to only save bottom values, and get the top values by simply scanning
+    -Since it makes sense to get the top values by scanning once anyway before going into the full scan, I don't really need to save them
+    -Scanning early makes sense with DC, to get rid of the top offset before saving
+    -Or just check AM_DC_DELTA in the save function before overwriting, instead of in the update function
+-For DC, I could slightly bring the bottom value up every time the switch was triggered without fully bottoming out
+-Should I change the distance to not take deadzones into account, and just let deadzone take prio?
+-Could also have a separate deadzone that is just the jitter at the top/bottom position, and use the closest value of those by default
+    -And the adc deadzone is just a user defined region around the top/bottom where the other stuff doesn't apply
+-Could even do a thing where each half has it's own deadzone based on if it's master/slave, and apply them after init?
+-Add a hack to define a default height/distance, then apply the actual one over, with 0s being ignored
+
+-Setting the key_mode by default fails the height config validation, move it down
+
+-Lower deadzone and higher smoothing works wayyyyyy better -> like 100 deadzone, 60 smoothing
+
+-Looks like keys occasionally tick up by like 35 for some reason
+-The keys that register randomly on the slave seem to all be the lower left MUX, near the thumb cluster
+
+-Try a RC lowpass filter (1.5kR, 100nF / 10nF) at the sensors
+-Try a 100nF bypass cap at the ADC pins to GND
+-Use Opamp at input pins to amplify signal, check if noise level increases too -> INA333 or 317?
+    -If it does    -> Sensor/connection/interference problem
+    -If it doesn't -> ADC problem, unstable reference voltage etc
+
+Custom matrix:
+-Full replacement is done, but I can also add a mode where the scanning part is called via a function that just returns the new matrix state,
+ while the split sync and debouncing is handled by my implementation
+
+Adjustment function:
+-This would be very high effort, but what I could do is add a mode to output raw values using RawHID, then read those values in a desktop app and plot them
+-Have the user press a key down several times, chart the graph, and show them to let them redo as much as needed
+-Also show a reference graph
+-Then use the values to calculate a LUT for that keyboard
+
+Remove unnecessary 0 defines for stuff that is guarded anyways (clutter in info_config)
+
+-What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
