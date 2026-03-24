@@ -90,7 +90,20 @@ STATIC_ASSERT(DYNAMIC_KEYMAP_EEPROM_MAX_ADDR <= 65535, "DYNAMIC_KEYMAP_EEPROM_MA
 #define VIAL_ALT_REPEAT_KEY_SIZE 0
 #endif
 
+//MARK: AM address
+// Analog Matrix
+// #define VIAL_AM_EEPROM_ADDR (VIAL_ALT_REPEAT_KEY_EEPROM_ADDR + VIAL_ALT_REPEAT_KEY_SIZE)
+// #ifdef ANALOG_MATRIX_ENABLE
+// #   include "analog_matrix.h"
+// #   define VIAL_AM_EEPROM_SIZE ()
+// #else
+// #   define VIAL_AM_EEPROM_SIZE 0
+// #endif
+
 // Dynamic macro
+// #ifndef DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR
+// #    define DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR (VIAL_AM_EEPROM_ADDR + VIAL_AM_EEPROM_SIZE)
+// #endif
 #ifndef DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR
 #    define DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR (VIAL_ALT_REPEAT_KEY_EEPROM_ADDR + VIAL_ALT_REPEAT_KEY_SIZE)
 #endif
@@ -382,6 +395,15 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 
     void *address = (void*)(VIAL_ALT_REPEAT_KEY_EEPROM_ADDR + index * sizeof(vial_alt_repeat_key_entry_t));
     eeprom_write_block(entry, address, sizeof(vial_alt_repeat_key_entry_t));
+
+    return 0;
+}
+#endif
+
+//MARK: AM functions
+//TODO: Add getter and setter functions here, to store the stuff properly, also set EEPROM_ADDRESS blocks
+#ifdef ANALOG_MATRIX_ENABLE
+int nvm_get_analog_matrix_config(uint8_t index) {
 
     return 0;
 }

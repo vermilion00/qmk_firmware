@@ -442,7 +442,7 @@ void keyboard_post_init_user(void) {
     rgblight_disable_noeeprom(); // Enables RGB, without saving settings
     rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
 
-    debug_enable = false;
+    debug_enable = true;
     // debug_matrix = true;
     // debug_keyboard = true;
     // debug_mouse = true;

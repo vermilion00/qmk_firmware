@@ -17,8 +17,9 @@
 
 #define DEBUG_MATRIX_SCAN_RATE
 
-#define STRONG_ADC_FILTER
-// #define EXTREME_ADC_FILTER
+#define ADC_FILTER_STRENGTH 3
+// #define ADC_SLAVE_FILTER_STRENGTH 4
+// #define ADC_FILTER_STRENGTH 3
 
 // This doesn't make it more precise, and costs 300 sps. Next step up from ADC_SAMPLE_3
 // #define ADC_SAMPLING_RATE ADC_SAMPLE_15
@@ -36,7 +37,7 @@
 #define POINTING_DEVICE_ACCEL_OFFSET 1.3       // lower/higher value = acceleration kicks in earlier/later
 #define POINTING_DEVICE_ACCEL_LIMIT 0.12       // lower limit of accel curve (minimum acceleration factor)
 
-/* serial.c configuration for split keyboard */
+/* serial.c configuration */
 #define SERIAL_USART_FULL_DUPLEX  // Enable full duplex operation mode.
 #define SERIAL_USART_TX_PIN      A9
 #define SERIAL_USART_RX_PIN      A10
@@ -64,7 +65,7 @@
 //TODO: I don't think this calls layer_state_set, so no point in having this in?
 #define SPLIT_LAYER_STATE_ENABLE
 
-// /* SPI config for pmw3360 sensor */
+/* SPI config for pmw3360 sensor */
 #define SPI_DRIVER                           SPID1
 #define SPI_SCK_PIN                          B3
 #define SPI_SCK_PAL_MODE                     5

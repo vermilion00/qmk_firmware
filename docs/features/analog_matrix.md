@@ -49,7 +49,7 @@ Working features are:
 * [Mixed matrix](analog_matrix.md#mixed-matrix)
     * Both mechanical and analog keys can be used together
     * Choose between debouncing only the mechanical keys, or all keys
-    * Mechanical keys with bootmagic function
+    * Mechanical and analog keys with bootmagic function
 * Predefined [filter](analog_matrix.md#filtering) options + [debouncing](analog_matrix.md#debouncing)
     * Choose between several predefined filter strengths, or use your own filter
     * Standard timer-based debouncing is disabled by default, but can be enabled
@@ -97,9 +97,9 @@ If you've just finished building your keyboard, or some keys have stopped actuat
 
 While calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. If the calibration doesn't finish after pressing every key down, it might mean that the keyboard is expecting a larger difference between the top and bottom values than your sensors are providing. In that case, you can use the following define to lower the threshold:
 ```c
-#define CAL_THRESHOLD 7
+#define CAL_THRESHOLD (5 * ADC_TOP_DEADZONE)
 ```
-CAL_THRESHOLD is multiplied by the top deadzone value of the ADC to get the absolute difference in value. Defaults to 7, while the top deadzone defaults to 100. Keep in mind that the ADC is configured to use a 12 bit resolution.  
+This is the minimum absolute difference in value between top and bottom, for a switch to be seen as calibrated. As the calibration only stops once all keys are counted as calibrated, setting this value too high will cause the calibration to never finish, while setting this value to low will cancel calibration prematurely. Keep in mind that the ADC is configured to use a 12 bit resolution.  
 How these values are saved depends on the configuration:
 
 ## Persistent Storage
@@ -366,6 +366,11 @@ If the initialization keys aren't registered properly during startup, you can tr
 "startup_delay": 20
 ```
 This the amount of time, in milliseconds, that the MCU waits before reading the initialization keys, as scanning them too early causes them to not be registered. Defaults to 20.
+If that doesn't help, you can also set the following define:
+```c
+#define INIT_THRESHOLD (4 * ADC_BOTTOM_DEADZONE)
+```
+The init keys are only counted as pressed if the read value falls below bottom_value + INIT_THRESHOLD, so increasing this might help when keys aren't detected, while decreasing it helps if keys are detected too easily. 
 
 If general matrix scanning doesn't work correctly, you can also try adding various delays to this section:
 ```json
@@ -624,37 +629,22 @@ inside of your keyboards config.h. This will cause a minor performance penalty.
 <!--MARK: Filtering -->
 # Filtering
 
-By default, the feature implements the following predefined filters, to reduce noise in the ADC readings:
-```c
-#if defined STRONG_ADC_FILTER // 1/2 new, 1/2 old
-#   define ADC_FILTER(value, index) value = (value >> 1) + (key_config[index].scan_value >> 1)
-#elif defined WEAK_ADC_FILTER // 7/8 new, 1/8 old
-#   define ADC_FILTER(value, index) value = ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
-#elif defined NO_ADC_FILTER  // The filter is disabled
-#   define ADC_FILTER(value, index)
-#else // Medium filter, default  3/4 new, 1/4 old
-#   define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
-#endif
-```
+The feature implements predefined filters, with selectable strength values from 0 (disabled) to 4 (maximum filtering)
 You can select the predefined filter by defining one of the following:
 ```c
 // In config.h
-#define STRONG_ADC_FILTER
-// or
-#define WEAK_ADC_FILTER
-// or, to disable the filter entirely
-#define NO_ADC_FILTER
+#define ADC_FILTER_STRENGTH 3
 ```
 You can use a custom filter implementation by defining it in config.h:
 ```c
 // In config.h
-#define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 2
-// #define ADC_FILTER(value, index) value = ((value * 2) / 3) + (key_config[index].scan_value / 3)
+#define ADC_FILTER(value, index) (value - (value - key_config[index].scan_value) >> 2)
+// #define ADC_FILTER(value, index) ((value * 2) / 3) + (key_config[index].scan_value / 3)
 ```
 The filter gets called like this:
 ```c
 // In analog_matrix.c
-ADC_FILTER(adc_value, matrix_index);
+adc_value = ADC_FILTER(adc_value, matrix_index); // adc_value is uint16_t
 ```
 This means that any filter implementation needs to assign the adc value, which you can access via the 'value' parameter. To access the previously scanned value of that switch, you can use key_config[index].scan_value.
 
@@ -1344,9 +1334,9 @@ Another reason this could happen is that you're using the bootmagic function to 
 
 4. If you're using the no_eeprom option, the difference between the top and bottom values that your sensor reads might be lower than the threshold that the keyboard expects for a valid value. In that case, you can use the following define to lower the threshold:
 ```c
-#define CAL_THRESHOLD 7
+#define CAL_THRESHOLD 5 * ADC_TOP_DEADZONE
 ```
-CAL_THRESHOLD is multiplied by the top deadzone value of the ADC to get the absolute difference in value. Defaults to 7, while the top deadzone defaults to 100. Keep in mind that the ADC is configured to use a 12 bit resolution.  
+Keep in mind that the ADC is configured to use a 12 bit resolution.  
 
 If your keyboard has a visible simple LED somewhere, you can use it to get visual feedback about the calibration state. The LED will be on while calibration is in progress, and turn off once it's finished and the new values have been saved. You can enable this like so:
 

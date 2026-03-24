@@ -10,6 +10,7 @@
 		"lto": false
     },
     "debounce": 5,
+    "diode_direction": "COL2ROW",
     "usb": {
         "pid": "0x3536",
         "device_version": "2.1.0",
@@ -31,7 +32,6 @@
         "console": false
     },
 	"modules": ["getreuer/socd_cleaner", "drashna/pointing_device_accel"],
-    "diode_direction": "COL2ROW",
     "matrix_pins": {
         "cols": ["A15", "B3", "B4", "A2", "B8", "B9"],
         "rows": ["B12", "B13", "B14", "B15", "A8", "A10"]

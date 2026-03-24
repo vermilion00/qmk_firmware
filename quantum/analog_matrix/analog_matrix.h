@@ -10,149 +10,41 @@
 #include "util.h"
 #include "multiplexer.h"
 
+typedef void (* init_func_t)(bool init);
+typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
+
 #define SMAX(var) MAX(var, var##_R)
+
+#define RIGHT 0
+#define LEFT 1
+#define UNKNOWN 2
+
+#if defined SIDE_LEFT || defined SIDE_RIGHT
+#include "side_define.h"
+#endif
 
 #define NONE 0
 #define RAPID_TRIGGER 1
 #define CONTINUOUS_RAPID_TRIGGER 2
 #define CONSTANT_RAPID_TRIGGER 3
 
-#define RIGHT 0
-#define LEFT 1
-#define UNKNOWN 2
-
-// Override KEYBOARD_SIDE if -s flag is used
-#if defined SIDE_LEFT
-#undef KEYBOARD_SIDE
-#define KEYBOARD_SIDE LEFT
-
-#elif defined SIDE_RIGHT
-#undef KEYBOARD_SIDE
-#define KEYBOARD_SIDE RIGHT
-#endif
-
 #ifndef KEYBOARD_SIDE
 #   define KEYBOARD_SIDE UNKNOWN
 #endif
 
-// This is set up so that the normal definitions can be used, only need to assign if the side is set at init
-#if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
-#if !defined KEYMAP_CONFIG
-#define CONFIG_MUTABLE const
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+#   define SPLIT_MUTABLE
+#   define CONFIG_MUTABLE
 #else
-#define CONFIG_MUTABLE
-#endif
-#define SPLIT_MUTABLE const
-
-#elif KEYBOARD_SIDE == RIGHT
-#if !defined KEYMAP_CONFIG
-#define CONFIG_MUTABLE const
-#else
-#define CONFIG_MUTABLE
-#endif
-#define SPLIT_MUTABLE const
-
-#undef ADC_PINS
-#define ADC_PINS ADC_PINS_R
-#ifdef MUX_PINS
-#undef MUX_PINS
-#define MUX_PINS MUX_PINS_R
-#endif
-#undef MUX_CHANNELS
-#define MUX_CHANNELS MUX_CHANNELS_R
-#ifndef MUX_PINS_RIGHT_CONTINUOUS
-#undef MUX_PINS_CONTINUOUS
-#else
-#undef MUX_PIN_OFFSET
-#define MUX_PIN_OFFSET MUX_PIN_RIGHT_OFFSET
-#undef CONTINUOUS_MUX_PORT
-#define CONTINUOUS_MUX_PORT CONTINUOUS_MUX_PORT_RIGHT
+#   if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
+    #   define CONFIG_MUTABLE const
+#   endif
+#   define SPLIT_MUTABLE const
 #endif
 
-#ifdef POWER_PINS
-#undef POWER_PINS
-#define POWER_PINS POWER_PINS_R
+#ifndef SLAVE_DEADZONE_MULT
+#   define SLAVE_DEADZONE_MULT 2.5
 #endif
-#ifdef MATRIX_POWER_PIN_R
-#undef MATRIX_POWER_PIN
-#define MATRIX_POWER_PIN MATRIX_POWER_PIN_R
-#endif
-
-#undef SWITCH_NUM
-#define SWITCH_NUM SWITCH_NUM_R
-#undef MUX_TO_NUM
-#define MUX_TO_NUM MUX_TO_NUM_R
-#undef NUM_TO_MATRIX
-#define NUM_TO_MATRIX NUM_TO_MATRIX_R
-#undef MATRIX_TO_NUM
-#define MATRIX_TO_NUM MATRIX_TO_NUM_R
-#undef NUM_TO_MUX
-#define NUM_TO_MUX NUM_TO_MUX_R
-
-#if AM_INIT_KEY_NUM_R > 0
-#undef AM_INIT_KEY_NUM
-#define AM_INIT_KEY_NUM AM_INIT_KEY_NUM_R
-#undef AM_INIT_KEYS
-#define AM_INIT_KEYS AM_INIT_KEYS_R
-#undef AM_INIT_FUNCTIONS
-#define AM_INIT_FUNCTIONS AM_INIT_FUNCTIONS_R
-#endif
-
-#ifndef KEYMAP_CONFIG
-#undef TRIGGER_HEIGHT
-#define TRIGGER_HEIGHT TRIGGER_HEIGHT_R
-#undef RELEASE_HEIGHT
-#define RELEASE_HEIGHT RELEASE_HEIGHT_R
-#undef RT_PRESS_DISTANCE
-#define RT_PRESS_DISTANCE RT_PRESS_DISTANCE_R
-#undef RT_RELEASE_DISTANCE
-#define RT_RELEASE_DISTANCE RT_RELEASE_DISTANCE_R
-#undef KEY_MODES
-#define KEY_MODES KEY_MODES_R
-#endif
-
-#ifdef AM_TOP_VALUES_R
-#undef AM_TOP_VALUES
-#define AM_TOP_VALUES AM_TOP_VALUES_R
-#endif
-#ifdef AM_BOTTOM_VALUES_R
-#undef AM_BOTTOM_VALUES
-#define AM_BOTTOM_VALUES AM_BOTTOM_VALUES_R
-#endif
-
-#ifdef DEBUG_MUX_POSITION_R
-#undef DEBUG_MUX_POSITION
-#define DEBUG_MUX_POSITION DEBUG_MUX_POSITION_R
-#endif
-
-//TODO: Remove one of the following when I've decided
-#ifdef PRIORITY_INDICES
-#undef PRIORITY_INDICES
-#define PRIORITY_INDICES PRIORITY_INDICES_R
-#undef PRIORITY_INDEX_NUM
-#define PRIORITY_INDEX_NUM PRIORITY_INDEX_NUM_R
-#endif
-
-#ifdef PRIORITY_MUXES
-#undef PRIORITY_MUXES
-#define PRIORITY_MUXES PRIORITY_MUXES_R
-#undef PRIORITY_MUX_NUM
-#define PRIORITY_MUX_NUM PRIORITY_MUX_NUM_R
-#endif
-
-#ifdef RC_INIT_KEYS_R
-#undef RC_INIT_KEYS
-#define RC_INIT_KEYS RC_INIT_KEYS_R
-#undef RC_INIT_FUNCTIONS
-#define RC_INIT_FUNCTIONS_R
-#undef RC_INIT_KEY_NUM
-#undef RC_INIT_KEY_NUM RC_INIT_KEY_NUM_R
-#endif
-
-#else // SPLIT_KEYBOARD defined but side is unknown at init
-#define SPLIT_MUTABLE
-#define CONFIG_MUTABLE
-#endif // ifdef SPLIT_KEYBOARD && KEYBOARD_SIDE != UNKNOWN else
 
 #ifndef RC_INIT_KEY_NUM_R
 #define RC_INIT_KEY_NUM_R 0
@@ -162,13 +54,12 @@
 #define LAST_PROFILE 1
 #define MANUAL_PROFILE 2
 
-#if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
+#ifdef USE_PRIORITY_MODE
 #ifndef PRIORITY_LEVEL
 #define PRIORITY_LEVEL 5
 #endif
 #endif
 
-//TODO: Remove this before upload
 #ifdef LED_PIN
 #   ifndef LED_INVERTED
 #define LED_ON \
@@ -188,11 +79,12 @@ gpio_write_pin_low(LED_PIN)
 #define LED_OFF
 #endif
 
-// User-definable option to add extra parameters
+// User-definable option to add extra parameters to the key struct
 #ifndef AM_USER_PARAMS
 #   define AM_USER_PARAMS
 #endif
 
+//MARK: Structs
 #if (COL_PIN_NUM <= 8)
 typedef uint8_t mech_row_t;
 #elif (COL_PIN_NUM <= 16)
@@ -214,11 +106,24 @@ typedef enum _key_mode_t: uint8_t {
 typedef struct Profile {
     layer_state_t layers;
     //TODO: When the priority mode define is fully implemented, update this
-    #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY || defined USE_PRIORITY_MODE
+    #ifdef USE_PRIORITY_MODE
     bool priority_profile;
     #endif
 } Profile;
 
+// #ifdef VIA_ENABLE
+// // Switch data for one profile stored in EEPROM
+// // Heights are multiplied by 100 -> 2.5 mm becomes 250
+// typedef struct height_data_t {
+//     uint8_t mode;
+//     uint16_t trigger_height;
+//     uint16_t release_height;
+//     uint16_t rt_press_distance;
+//     uint16_t rt_release_distance;
+// } height_data_t;
+// #endif
+
+//MARK: Key struct
 typedef struct analog_key_t {
     uint8_t pressed;
     // 0 = None, 1-3 = RT, 4-9 = Reserved, 10-255 = Special keys (Gamepad etc)
@@ -269,6 +174,7 @@ typedef at32_gpio_t gpio_port_t;
 //TODO: How do I do this for RP2040?
 #endif
 
+//MARK: Defaults
 /* Configuration defaults */
 #if defined ADC_RESOLUTION && ADC_RESOLUTION < 12
 #   warning "ADC_RESOLUTION will be forced to 12 bits for the analog matrix!"
@@ -278,10 +184,10 @@ typedef at32_gpio_t gpio_port_t;
 #define MAX_ADC_VALUE 4095
 
 #ifndef ADC_DEADZONE
-#   define ADC_DEADZONE 100
+#   define ADC_DEADZONE 140
 #endif
 #ifndef ADC_SMOOTHING
-#   define ADC_SMOOTHING 60
+#   define ADC_SMOOTHING 80
 #endif
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
@@ -290,19 +196,10 @@ typedef at32_gpio_t gpio_port_t;
 #   define ADC_BOTTOM_DEADZONE ADC_DEADZONE
 #endif
 #ifndef SCANS_WITHOUT_CHANGE
-#   define SCANS_WITHOUT_CHANGE 5000
+#   define SCANS_WITHOUT_CHANGE 3000
 #endif
 #ifndef AM_STARTUP_DELAY
-#   define AM_STARTUP_DELAY 20 // In ms
-#endif
-#ifdef ADC_SCAN_DELAY
-#   define ADC_SCAN_CYCLES ADC_SCAN_DELAY
-#endif
-#ifdef MUX_SELECT_DELAY
-#   define MUX_SELECT_CYCLES MUX_SELECT_DELAY
-#endif
-#ifdef POWER_SELECT_DELAY
-#   define POWER_SELECT_CYCLES POWER_SELECT_DELAY
+#   define AM_STARTUP_DELAY 20
 #endif
 #ifdef DYNAMIC_CALIBRATION
 // Absolute distance in adc counts
@@ -324,15 +221,19 @@ typedef at32_gpio_t gpio_port_t;
 //TODO: RM this once it's set by the script
 //      Also use the same indexes and funcions for both halves if only one is set
 //      -> I need to make sure that the resulting mux position exists on the other half, or else it will always count as triggered
-#ifndef AM_INIT_KEY_NUM_R
+#if !defined AM_INIT_KEY_NUM_R && defined AM_INIT_KEY_NUM
 #define AM_INIT_KEY_NUM_R AM_INIT_KEY_NUM
+#define AM_INIT_KEYS_R AM_INIT_KEYS
+#define AM_INIT_FUNCTIONS_R AM_INIT_FUNCTIONS
 #endif
 
+// The minimum absolute difference in values for the switch to count as calibrated
 #ifndef CAL_THRESHOLD
-#   define CAL_THRESHOLD 7
+#   define CAL_THRESHOLD (5 * ADC_TOP_DEADZONE)
 #endif
+// If the switch reads a value below bottom_value + INIT_THRESHOLD, it is counted as pressed during initialization
 #ifndef INIT_THRESHOLD
-#   define INIT_THRESHOLD 4
+#   define INIT_THRESHOLD (4 * ADC_BOTTOM_DEADZONE)
 #endif
 
 /* Profile switching stuff */
@@ -344,30 +245,30 @@ extern bool manual_profile_lock;
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
 
-// Guarded to allow overwriting the filter with a different implementation
-#ifndef ADC_FILTER
-// This filter seems more efficient than value -= (value - key_config[index].scan_value) >> 1
-#if defined EXTREME_ADC_FILTER  // 1/4 new, 3/4 old
-#   define ADC_FILTER(value, index) value = (value >> 2) + ((key_config[index].scan_value * 3) >> 2)
-#elif defined STRONG_ADC_FILTER // 1/2 new, 1/2 old
-#   define ADC_FILTER(value, index) value = (value >> 1) + (key_config[index].scan_value >> 1)
-#elif defined WEAK_ADC_FILTER   // 7/8 new, 1/8 old
-#   define ADC_FILTER(value, index) value = ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
-#elif defined NO_ADC_FILTER
-#   define ADC_FILTER(value, index)
-#else // Medium filter             3/4 new, 1/4 old
-#   define ADC_FILTER(value, index) value = ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
+//MARK: Filters
+#ifndef ADC_FILTER_STRENGTH
+#   define ADC_FILTER_STRENGTH 3
 #endif
-// #define ADC_FILTER(value, index) value -= (value - key_config[index].scan_value) >> 2
+#ifndef ADC_SLAVE_FILTER_STRENGTH
+#   define ADC_SLAVE_FILTER_STRENGTH ADC_FILTER_STRENGTH
 #endif
 
+#if ADC_FILTER_STRENGTH != 0
+uint16_t adc_filter_function(uint16_t value, uint8_t index);
+#if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+uint16_t adc_slave_filter_function(uint16_t value, uint8_t index);
+#endif
+#else
+#   define adc_filter(value, index) value
+#endif
+
+//MARK: Variables
 #ifdef DYNAMIC_CALIBRATION
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 extern uint8_t recalibrated_switches;
 // Check if the switch boundaries need updating, and update them if necessary.
 bool update_switch_bounds(uint8_t index, uint16_t value);
 #endif
-
 volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 extern matrix_row_t matrix[MATRIX_ROWS];
 extern analog_key_t key_config[];
@@ -408,6 +309,7 @@ extern uint8_t switch_num_slave;
 #endif
 #endif
 
+//MARK: Functions
 /* Global Functions */
 // Readies the keyboard state before scanning begins
 void analog_matrix_init(void);
@@ -443,9 +345,9 @@ void set_profile_lock(bool value);
 layer_state_t layer_state_set_am(layer_state_t state);
 // Empty loop for short delays
 #ifdef AM_USE_DELAY
-void delay_ns(uint16_t delay);
+void wait_cycles(uint16_t delay);
 #else
-#define delay_ns(delay)
+#   define wait_cycles(delay)
 #endif
 #ifdef CUSTOM_MATRIX_LITE
 bool matrix_scan_custom(matrix_row_t current_matrix[]);
@@ -458,9 +360,6 @@ void _bootloader_jump(bool init);
 
 //TODO: Remove
 void _sync_cal(void);
-
-
-typedef void (* init_func_t)(bool init);
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

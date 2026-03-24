@@ -20,9 +20,6 @@
 #define STRONG_ADC_FILTER
 // #define EXTREME_ADC_FILTER
 
-// This doesn't make it more precise, and costs 300 sps. Next step up from ADC_SAMPLE_3
-// #define ADC_SAMPLING_RATE ADC_SAMPLE_15
-
 // #define ADJUST_TRAVEL
 
 #define LED_PIN B2

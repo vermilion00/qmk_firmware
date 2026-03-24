@@ -15,7 +15,7 @@
 extern SPLIT_MUTABLE uint8_t mux_offset;
 //TODO: Add typedef for gpio port
 #ifndef MCU_RP
-extern SPLIT_MUTABLE gpio_port_t* mux_port;
+extern gpio_port_t* mux_port;
 #endif
 #endif
 
@@ -566,6 +566,8 @@ void set_mux_channel(uint8_t channel) {
 #   endif //if MUX_PIN_NUM > 2
 #   endif //if MUX_PIN_NUM > 1
     }
-#endif // if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT else
+    #endif // if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT else
+    // If a delay is needed, wait for the defined amount of cycles
+    wait_cycles(MUX_SELECT_DELAY);
 }
 #endif // if MUX_CHANNELS > 1
