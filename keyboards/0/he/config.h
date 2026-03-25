@@ -104,9 +104,6 @@
 #define POINTING_DEVICE_TASK_THROTTLE_MS 1
 #define POINTING_DEVICE_RIGHT
 
-//TODO: Find out what this does, and If I need it
-#define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC
-
 #define NO_ACTION_TAPPING
 #define NO_ACTION_ONESHOT
 

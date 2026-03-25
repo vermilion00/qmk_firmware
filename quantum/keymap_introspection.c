@@ -426,7 +426,6 @@ void assign_config(bool side) {
 // Analog Matrix Joystick
 
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
-// #include "analog_matrix.h"
 #include "analog_joystick.h"
 bool joystick_layer = false;
 
@@ -438,53 +437,54 @@ extern uint8_t thisHand;
 #else
 const uint8_t thisHand = 0;
 #endif
-bool master;
 
-//TODO:
-// The switch states of some keys appears to get stuck after switching to the joystick layer/profile, if the joystick stuff is on the slave side
-//TODO: keymap timers seem to not work (mouse layer etc) after switching to joystick stuff (only if joystick is on slave?) Specifically mouse layer gets stuck
-
-//TODO: Is the reason for the issues perhaps me trying to read the wrong keys when I'm checking the right half joystick axes on the main half? (In the process_joystick thingy)
-
+//TODO: Something is turning off debugging when switching to the joystick layer specifically
 //MARK: joystick mask
 // Creates a mask of all joystick keycodes in the layer
 void create_joystick_mask(uint8_t current_layer) {
-    master = is_keyboard_master();
+    // const bool master = is_keyboard_master();
     joystick_layer = false;
     //TODO: Do I even need the joystick mask if I save the axis to the key config directly?
     // Still useful for resetting only the joystick keys, but can be used for other things
-    memset(joystick_mask, 0, sizeof(joystick_mask));
+    memset(&joystick_mask, 0, sizeof(joystick_mask));
 
     //TODO: Make sure this doesn't cause issues when the joystick layer state is different
     // The master needs to check every keycode, the slave only the keycodes for the slave half
-    for(uint8_t row = 0; row < MATRIX_ROWS_PER_HAND; row++) {
-    // for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
-        for(uint8_t col = 0; col < MATRIX_COLS; col++) {
-            //TODO: Check if this is the correct row offset in all regards
-            //      If this is the only important spot then I can just count to MATRIX_ROWS_PER_HAND here on the slave
-            //TODO: This still doesn't work correctly because matrix_to_num only has the info for its half
-            //      Current fix is to only check master half for axes
-            //      One way of fixing it is to use the row/col info saved to each switch instead of matrix_to_num, and have the key_config array saved to the master, instead of just its half
-            uint8_t key_index = matrix_to_num[row][col];
-            // uint8_t key_index = matrix_to_num[row - thisHand][col];
+    // for(uint8_t row = 0; row < MATRIX_ROWS_PER_HAND; row++) {
+    // // for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
+    //     for(uint8_t col = 0; col < MATRIX_COLS; col++) {
+    //         uint8_t key_index = matrix_to_num[row][col];
+    //         // uint8_t key_index = matrix_to_num[row - thisHand][col];
+    //         if(key_index == 255) continue;
 
-            if(key_index == 255) continue;
+    //         //TODO: When the master checks every row instead of just the master half, fix this
+    //         const uint16_t keycode = keymaps[current_layer][row + thisHand][col];
+    //         if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
+    //             joystick_layer = true;
+    //             joystick_mask[row] |= 1 << col;
+    //             key_config[key_index].axis_index = keycode - AM_JOYSTICK_RANGE;
+    //         } else {
+    //             key_config[key_index].axis_index = -1;
+    //         }
+    //         printf("%u\n", key_config[key_index].axis_index);
+    //     }
+    // }
 
-            //TODO: When the master checks every row instead of just the master half, fix this
-            const uint16_t keycode = keymaps[current_layer][row + thisHand][col];
-            if(IS_AM_JOYSTICK_AXIS(keycode)) {
-                joystick_layer = true;
-                joystick_mask[row] |= 1 << col;
-                //TODO: Test to make sure this doesn't overflow or smth
-                key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
-            } else {
-                key_config[key_index].axis_index = -1;
-            }
-            // printf("K: %u, A: %i\n", key_index, key_config[key_index].axis_index);
+    //TODO: This way only works if no slave keys need to be checked to know if it's a joystick layer
+    for(uint8_t key = 0; key < switch_num; key++) {
+        const uint8_t row = key_config[key].row;
+        const uint8_t col = key_config[key].col;
+
+        const uint16_t keycode = keymaps[current_layer][row][col];
+        if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
+            joystick_layer = true;
+            joystick_mask[row] |= 1 << col;
+            key_config[key].axis_index = keycode - AM_JOYSTICK_RANGE;
+        } else {
+            key_config[key].axis_index = 255;
         }
     }
 }
-
 #endif // defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

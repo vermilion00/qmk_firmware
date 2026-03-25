@@ -1,11 +1,9 @@
 #include <stdint.h>
 #include "action.h"
 #include "info_config.h"
-#include "joystick.h"
 #include "keycodes.h"
 #include "keymap_introspection.h"
 #include "print.h"
-#include "debug.h"
 #include "analog_matrix.h"
 #include "matrix.h"
 #include "process_analog_matrix.h"
@@ -49,7 +47,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 // Sanity check that the profile exists
                 if((keycode & 0x1F) >= AM_PROFILE_NUM) {
-                    dprintf("Profile %u doesn't exist! Remember that profiles are 0-indexed.", active_profile);
+                    printf("Profile %u doesn't exist! Remember that profiles are 0-indexed.", active_profile);
                     return false;
                 }
 
@@ -80,40 +78,13 @@ bool process_analog_joystick(uint16_t keycode) {
     if(!joystick_state.dirty || !joystick_layer) return true;
 
     switch (keycode) {
-        case JOYSTICK_AXIS_RANGE:
-            // LED_ON;
-            // const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
+        case ANALOG_JOYSTICK_KEYCODE_RANGE:
             // Subtract the first axis keycode to get the axis index
-            #ifndef USE_JOYSTICK
-            // update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
-            evaluate_joystick_axis(keycode - QK_AM_JOYSTICK_AXIS);
-            #else
-            update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
-            #endif
+            evaluate_joystick_axis(keycode - AM_JOYSTICK_RANGE);
             return false;
     }
     return true;
 }
-
-// bool process_analog_joystick(keyrecord_t* record) {
-//     if(!joystick_state.dirty) return false;
-//     // LED_ON;
-
-//     uint16_t keycode = get_record_keycode(record, true);
-
-//     switch (keycode) {
-//         case JOYSTICK_AXIS_RANGE:
-//             const uint8_t index = matrix_to_num[record->event.key.row - thisHand][record->event.key.col] - 1;
-//             // Subtract the first axis keycode to get the axis index
-//             #ifndef USE_JOYSTICK
-//             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].joystick_value);
-//             #else
-//             update_joystick_value(keycode - JS_LEFT_POSITIVE_X, key_config[index].trigger_value[active_profile]);
-//             #endif
-//             return false;
-//     }
-//     return false;
-// }
 #endif
 
 

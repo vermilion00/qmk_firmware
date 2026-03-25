@@ -75,13 +75,13 @@
         },
         "0x7948": {
             "group": "analog_joystick",
-            "key": "JS_RIGHT_NEGATIVE_Y",
-            "aliases": ["JS_RNY"]
+            "key": "JS_RIGHT_POSITIVE_Y",
+            "aliases": ["JS_RPY"]
         },
         "0x7949": {
             "group": "analog_joystick",
-            "key": "JS_RIGHT_POSITIVE_Y",
-            "aliases": ["JS_RPY"]
+            "key": "JS_RIGHT_NEGATIVE_Y",
+            "aliases": ["JS_RNY"]
         },
         "0x794A": {
             "group": "analog_joystick",

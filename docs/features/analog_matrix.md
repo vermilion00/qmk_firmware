@@ -766,7 +766,7 @@ Importantly, you should NOT add CUSTOM_MATRIX = yes or CUSTOM_MATRIX = lite to y
 
 ### General information
 
-An analog switch is represented with the analog_switch_t struct in the firmware. The definition of this struct looks like this:
+An analog switch is represented with the analog_key_t struct in the firmware. The definition of this struct looks like this:
 ```c
 typedef struct analog_key_t {
     uint8_t pressed;

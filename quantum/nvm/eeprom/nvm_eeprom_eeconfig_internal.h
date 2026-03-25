@@ -32,9 +32,9 @@ typedef struct PACKED {
     uint8_t  connection;
     //TODO: Should I leave this in at all times, with SWITCH_NUM being defaulted to 0 somehow?
     #ifdef ANALOG_MATRIX_ENABLE
-    uint32_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    uint16_t calibration_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
     #else
-    uint32_t calibration_data;
+    uint16_t calibration_data;
     #endif
 } eeprom_core_t;
 
@@ -56,7 +56,7 @@ typedef struct PACKED {
 #define EECONFIG_HAPTIC (uint32_t *)(offsetof(eeprom_core_t, haptic))
 #define EECONFIG_RGBLIGHT_EXTENDED (uint8_t *)(offsetof(eeprom_core_t, rgblight_ext))
 #define EECONFIG_CONNECTION (uint8_t *)(offsetof(eeprom_core_t, connection))
-#define EECONFIG_ANALOG_MATRIX (uint32_t *)(offsetof(eeprom_core_t, calibration_data))
+#define EECONFIG_ANALOG_MATRIX (uint16_t *)(offsetof(eeprom_core_t, calibration_data))
 
 // Size of EEPROM being used for core data storage
 #define EECONFIG_BASE_SIZE ((uint8_t)sizeof(eeprom_core_t))

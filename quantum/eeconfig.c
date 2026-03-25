@@ -228,16 +228,16 @@ void eeconfig_update_keymap(const keymap_config_t *keymap_config) {
 }
 
 #ifdef ANALOG_MATRIX_ENABLE
-void eeconfig_read_switch(analog_switch_t *switch_data, uint8_t key_idx) {
+void eeconfig_read_switch(uint16_t *switch_data, uint8_t key_idx) {
     nvm_eeconfig_read_switch(switch_data, key_idx);
 }
-void eeconfig_read_keyboard(analog_switch_t *keyboard_data) {
+void eeconfig_read_keyboard(uint16_t *keyboard_data) {
     nvm_eeconfig_read_keyboard(keyboard_data);
 }
-void eeconfig_update_switch(const analog_switch_t *switch_data, uint8_t key_idx) {
+void eeconfig_update_switch(const uint16_t *switch_data, uint8_t key_idx) {
     nvm_eeconfig_update_switch(switch_data, key_idx);
 }
-void eeconfig_update_keyboard(const analog_switch_t *keyboard_data) {
+void eeconfig_update_keyboard(const uint16_t *keyboard_data) {
     nvm_eeconfig_update_keyboard(keyboard_data);
 }
 #endif

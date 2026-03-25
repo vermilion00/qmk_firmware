@@ -38,8 +38,6 @@ Split calibration:
 -Add mux and power pin optimizations for RP2040*
     -mux stuff needs to be tested
 
--Allow toggling priority key mode, with options to enable it on certain profiles automatically
-
 -Take a look at bootmagic to turn on RGB stuff when calibrating, and turn it off when finished?
 
 -Check if setting a larger amount of adc pins than necessary is a problem
@@ -49,24 +47,24 @@ Split calibration:
     -To disable config checking, check for analog_matrix: true in json->features?
 
 Joystick:
--Currently, the slave side seems to not work, probs because the stuff is just not synced
--Sync the state of the slave axis_values array to master, and evaluate there
-    -Possible collisions when both halves write to one axis, but shouldn't be an issue otherwise
--Add option to choose between 4-way and 8-way reporting of DPAD
 -If multiple keys have the same axis keycode, |= their results? The first one should set, the second one should |?
--Profile switching is only broken with enabled joystick?
-    -Joystick feature, or key_mode on the profile?
--To support multiple keys, the first one should set, the second one should +
-    -Or reset state to 0 before and + all of them, pressing multiple keys of the same axis at once is unlikely
--Slave side axes will only work if the master has access to the slave matrix_to_num at least
+-Once VIAL support is done, I can remove the eval keymap checking, and just set the key mode automatically in VIAL
+-Specifically the R key is updated much less frequently with a smoothing value set?
+    -Is it because the joystick value is calculated fairly choppily, and sending less frequent updates compounds that?
+-Once the 0x7948 keycode is in an active keymap, the layers get fucked
+    -This is currently JS_RNY, but swapping RPY into there makes it fucked and RNY fine
+-Update joystick docs
+-Joystick layer turns off debugging? Either layer_change or joystick mask function likely
+    -Also maybe 1 key rollover somehow? Even after going back, only the first key was registered. Endpoint issue?`
+    -It's not on layer switch, but rather at all times. Binding a toggle key on the layer prints the message, but it's immediately disabled after
+-Now backspace is being spammed? What if its the first index of every axis pair somehow?
+    -Backspace is JS_RPX
+    -Backspace is also KeyCode 8 according to the qmk configurator, but not the qmk keycodes file???
+    -Having moved JS_RPX to A instead, A and 3 are being spammed (RPX and RPY -> Is it really spamming the first index of every axis?)
+-Running out of stack somehow? Seems like memory corruption
+-When 0x7948 is used:
+    -am_highest_layer remains at 2 when switching to joystick_layer, but get_highest_layer(layer_state) immediately falls back to 0
 
--Why is the slave joystick not updating?
-    -Do the slave joystick matrix positions show as updated?
-    -Try setting the key mode to be the actual axis, so that I can set the value there directly instead of saving it to a middleman
-
--Since the scan value is now saved to the switch, I can update the joystick values in process_* instead of the scan eval function
-    -The problem there is that process_* is only triggered when the matrix state changes, so need to set rt and a low distance automatically?
-    -Also means that I'd need to either have extra space in the switch config for the joystick diff, or calculate it every update
 
 
 MIDI:
@@ -115,17 +113,6 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
 
--A very high smoothing value causes keys to get stuck occasionally (shouldn't be the case cuz deadzones, maybe need to increase those?)
--The joystick layer doesn't switch off, it goes back to base layer immediately, the update function just doesn't register that
--The joystick layer registers weird keys occasionally, like ctrl when I've unbound it from that position
-    -Also specifically the rnx and rpx keys are spammed
-    -The joystick layer problems disappear when right y axes keys aren't in the keymap
-    -Not a problem with the specific location they're in
--I need to have one more joystick axis than I use in my keymap (or at least I need 6 axes to be able to use RY)
--The value for LPX is updated binarily (not the axis at key T)
-    -Is it cuz that's the first index?
-        -Try moving another axis there temporarily
-
 -Having no calibration values in when NO_EEPROM is enabled means it's impossible to reset the keyboard without mechanical bootmagic keys or reset keys
     -Calibration values are checked before init keys for obvious reasons, but it means that calibration will always start first
     -Maybe run a sophisticated check where the init key is counted as pressed if it is a certain value below the avg scan value of the matrix?
@@ -172,15 +159,12 @@ Notes:
     -If it does    -> Sensor/connection/interference problem
     -If it doesn't -> ADC problem, unstable reference voltage etc
 
-Custom matrix:
--Full replacement is done, but I can also add a mode where the scanning part is called via a function that just returns the new matrix state,
- while the split sync and debouncing is handled by my implementation
-
 Adjustment function:
 -This would be very high effort, but what I could do is add a mode to output raw values using RawHID, then read those values in a desktop app and plot them
 -Have the user press a key down several times, chart the graph, and show them to let them redo as much as needed
 -Also show a reference graph
 -Then use the values to calculate a LUT for that keyboard
+-Joystick function already sorta does that, when read by a gamepad tester
 
 Remove unnecessary 0 defines for stuff that is guarded anyways (clutter in info_config)
 
@@ -195,11 +179,16 @@ Break out the scanning function into another file called analog_scanning or smth
 When VIA_ENABLED is set, define all USE_* height defines
     -Allow disabling specific ones in config though
 
+VIA makes init keys take forever, check if bootmagic is called before then and scan keys there?
+Since the bottom mux has problems on slave, check if that is actually the cause?
+    -Maybe I don't need larger slave deadzones after all?
+
+Use multiple scans for top value in init, then take the lowest one/avg one?
+
+Allow using a left/right setup as well as a master/slave setup for deadzones and filter functions
+    -This helps more, because if only one side is master then it will also be calibrated for that
+    -Or my right half just has that fucked mux and it's actually not a problem
+
 Can the layout macro be reworked, so that the mux param replaces the matrix parameter completely, since technically only the order matters?
     -automatically place all keys in a row until it has 8 keys, then go to the next one
     -Make sure it also works with mixed matrix, which it should
-
-Remove top deadzone from calibration, using the scan value seems like a better way
-VIA makes init keys take forever, check if bootmagic is called before then and scan keys there?
-Since the bottom mux has problems on slave, check if that is actually just the cause?
-    -Maybe I don't need larger slave deadzones after all?

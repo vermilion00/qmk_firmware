@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "analog_joystick.h"
+#include "joystick.h"
 #include "analog_matrix.h"
 #include "joystick_aliases.h"
 #include "matrix.h"
@@ -14,7 +14,8 @@ typedef enum axis_name_t {
     LEFT_Y_AXIS,
     TRIGGER_AXIS,
     RIGHT_X_AXIS,
-    RIGHT_Y_AXIS
+    RIGHT_Y_AXIS,
+    RIGHT_Z_AXIS
 } axis_name_t;
 
 // typedef enum axis_index_t {
@@ -28,6 +29,8 @@ typedef enum axis_name_t {
 //     RIGHT_NEGATIVE_X_INDEX,
 //     RIGHT_NEGATIVE_Y_INDEX,
 //     RIGHT_POSITIVE_Y_INDEX
+//     RIGHT_POSITIVE_Z_INDEX
+//     RIGHT_NEGATIVE_Z_INDEX
 // } axis_component_t;
 
 typedef uint8_t axis_component_t;
@@ -51,7 +54,7 @@ extern const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 extern uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #endif
 
-extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
+extern uint16_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
 
 void analog_joystick_init(void);

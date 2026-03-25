@@ -4,7 +4,7 @@
 #include "analog_joystick.h"
 #include "analog_matrix.h"
 #include "info_config.h"
-#include "joystick.h"
+// #include "joystick.h"
 #include "keyboard.h"
 #include "keycodes.h"
 #include "matrix.h"
@@ -24,7 +24,7 @@ const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM
 #endif
 
 // Double the amount of axes, since every axis is represented by two keys
-uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
+uint16_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT] = AM_JOYSTICK_AXIS_CONFIG;
 
 //MARK: Init
@@ -32,24 +32,20 @@ void analog_joystick_init(void) {
     memset(&axis_values, 0, sizeof(axis_values));
 
     for (uint8_t index = 0; index < switch_num; index++) {
+        #ifndef INVERT_ADC
+        const uint16_t travel = key_config[index].top_value - key_config[index].bottom_value;
+        #else
+        const uint16_t travel = key_config[index].bottom_value - key_config[index].top_value;
+        #endif
         #ifdef USE_JOYSTICK
         for (uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             if(key_config[index].mode[profile] == joystick) {
                 // If the key mode is set to joystick, repurpose the release_value to hold the travel distance instead to avoid calculating every update
-                //TODO: Apply JS_TOP_DEADZONE etc here as well
-                #ifndef INVERT_ADC
-                key_config[index].release_value[profile] = key_config[index].top_value - JS_TOP_DEADZONE - key_config[index].bottom_value - JS_BOTTOM_DEADZONE;
-                #else
-                key_config[index].release_value[profile] = key_config[index].bottom_value - JS_TOP_DEADZONE - key_config[index].top_value - JS_BOTTOM_DEADZONE;
-                #endif
+                key_config[index].release_value = travel;
             }
         }
         #else // ifdef USE_JOYSTICK
-        #ifndef INVERT_ADC
-        key_config[index].joystick_travel = key_config[index].top_value - JS_TOP_DEADZONE - key_config[index].bottom_value - JS_BOTTOM_DEADZONE;
-        #else
-        key_config[index].joystick_travel = key_config[index].bottom_value - JS_TOP_DEADZONE - key_config[index].top_value - JS_BOTTOM_DEADZONE;
-        #endif
+        key_config[index].joystick_travel = travel;
         #endif // ifdef USE_JOYSTICK
     }
 
@@ -76,38 +72,39 @@ bool translate_joystick_axis(uint8_t index) {
     const uint16_t scan_value = key_config[index].scan_value;
     #ifdef USE_JOYSTICK
     uint16_t* const travel_diff = &key_config[index].release_value[active_profile];
-    uint16_t* const axis_value = &key_config[index].trigger_value[active_profile];
+    //TODO: Make sure that the axis index is saved to the trigger value
+    uint16_t* const axis_value = &axis_values[key_config[index].trigger_value[active_profile]];
     #else
     uint16_t* const travel_diff = &key_config[index].joystick_travel;
-    uint8_t* const axis_value = &axis_values[key_config[index].axis_index];
+    uint16_t* const axis_value = &axis_values[key_config[index].axis_index];
     #endif
 
     uint8_t prev_value = *axis_value;
 
     #ifndef INVERT_ADC
+    //TODO: Would it be faster to just let clamping handle it, since it now kinda tests twice?
     if(scan_value > key_config[index].top_value - JS_TOP_DEADZONE) { *axis_value = 0; }
     else if(scan_value < key_config[index].bottom_value + JS_BOTTOM_DEADZONE) { *axis_value = 127; }
-    else { *axis_value = clamp_axis((((float)(key_config[index].top_value - scan_value - JS_TOP_DEADZONE)) / *travel_diff) * 127); }
+    else { *axis_value = clamp_axis(((float)(key_config[index].top_value - scan_value) * 127) / (float)*travel_diff); }
 
     #else
     if(scan_value < key_config[index].top_value + JS_TOP_DEADZONE) { *axis_value = 0; }
     else if(scan_value > key_config[index].bottom_value - JS_BOTTOM_DEADZONE) { *axis_value = 127; }
-    else { *axis_value = clamp_axis((((float)(scan_value - key_config[index].top_value - JS_TOP_DEADZONE)) / *travel_diff) * 127); }
+    else { *axis_value = clamp_axis(((float)(scan_value - key_config[index].top_value) * 127) / (float)*travel_diff); }
     #endif
 
+    // Return true if the value has changed
     return (prev_value == *axis_value);
 }
 
 
 //MARK: Update axis
-// Same as joystick_set_axis except the boundary check
 bool joystick_update_axis(uint8_t axis, int16_t value) {
     if (value != joystick_state.axes[axis]) {
         joystick_state.axes[axis] = value;
         joystick_state.dirty      = true;
         return true;
     }
-    // joystick_state.axes[axis] = value;
     return false;
 }
 
@@ -115,17 +112,15 @@ bool joystick_update_axis(uint8_t axis, int16_t value) {
 //MARK: Eval axis
 bool evaluate_joystick_axis(axis_name_t axis) {
     int16_t joystick_value = 0;
-    uint8_t axis_index = axis * 2;
+    const uint8_t axis_index = axis * 2;
 
     // If both keys are pressed:
     switch(axis_config[axis].resolution) {
-        case DIFFERENCE:
-            // Set the output to be the difference between them; default option
+        case DIFFERENCE: // Set the output to be the difference between them; default option
             joystick_value = axis_values[axis_index] - axis_values[axis_index + 1];
             break;
 
-        case LOWEST:
-            // Ignore the component that isn't pressed as far
+        case LOWEST: // Ignore the component that isn't pressed as far
             if(axis_values[axis_index] > axis_values[axis_index + 1]) {
                 joystick_value = axis_values[axis_index];
             } else if (axis_values[axis_index] <= axis_values[axis_index + 1]) {
@@ -133,8 +128,7 @@ bool evaluate_joystick_axis(axis_name_t axis) {
             }
             break;
 
-        case POSITIVE_DOMINANT:
-            // Ignore the negative component
+        case POSITIVE_DOMINANT: // Ignore the negative component
             if(axis_values[axis_index] > 0) {
                 joystick_value = axis_values[axis_index];
             } else {
@@ -142,8 +136,7 @@ bool evaluate_joystick_axis(axis_name_t axis) {
             }
             break;
 
-        case NEGATIVE_DOMINANT:
-            // Ignore the positive component
+        case NEGATIVE_DOMINANT: // Ignore the positive component
             if(axis_values[axis_index + 1] > 0) {
                 joystick_value = -axis_values[axis_index + 1];
             }
@@ -152,8 +145,7 @@ bool evaluate_joystick_axis(axis_name_t axis) {
             }
             break;
 
-        case CANCEL:
-            // Don't output anything
+        case CANCEL: // Don't output anything if both are non-zero
             if(axis_values[axis_index] > 0 && axis_values[axis_index + 1] > 0) {
                 joystick_value = 0;
             } else {

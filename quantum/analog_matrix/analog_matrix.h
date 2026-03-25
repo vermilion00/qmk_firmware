@@ -141,7 +141,7 @@ typedef struct analog_key_t {
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
     uint16_t joystick_travel;
     uint8_t joystick_value;
-    int8_t axis_index;
+    uint8_t axis_index;
     #endif
     #if defined MIDI_ENABLE && !defined USE_MIDI
     uint8_t midi_velocity;
@@ -284,7 +284,7 @@ extern SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
 // Set the sensor power pins and delay, if defined
 void set_sensor_power(uint8_t index);
 #endif
-extern uint8_t highest_layer;
+extern uint8_t am_highest_layer;
 extern PROFILE_MUTABLE uint8_t active_profile;
 
 #ifdef USE_PRIORITY_MODE
@@ -293,7 +293,7 @@ extern bool priority_mode;
 
 #ifndef AM_NO_EEPROM
 #include "nvm_eeconfig.h"
-extern analog_switch_t calibration_data[SMAX(SWITCH_NUM)];
+extern uint16_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
 
 #ifdef ADJUSTMENT_FUNCTION
@@ -358,8 +358,11 @@ void _bootmagic(bool init);
 void _bootloader_jump(bool init);
 #endif
 
-//TODO: Remove
+#if defined SPLIT_KEYBOARDR && defined AM_NO_EEPROM
 void _sync_cal(void);
+#else
+#   define _sync_cal();
+#endif
 
 volatile void sensor_power_init_kb(void);
 volatile void sensor_power_init_user(void);

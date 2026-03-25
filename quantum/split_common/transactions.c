@@ -971,10 +971,10 @@ static bool am_data_manual_handler(void) {
 
     #if defined SPLIT_LAYER_SYNC
     static uint8_t last_layer = 0;
-    if (highest_layer != last_layer) {
-        last_layer = highest_layer;
+    if (am_highest_layer != last_layer) {
+        last_layer = am_highest_layer;
         // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
-        data = data << 5 | highest_layer;
+        data = data << 5 | am_highest_layer;
         changed = true;
     }
     #endif
@@ -994,7 +994,7 @@ bool am_data_manual_transaction(void) {
 //MARK: Cal Master
 //Called by the master when calibration finishes
 bool calibration_data_master_manual_handler(void) {
-    cal_data_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = {0, 0}};
+    uint16_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = 0};
 
     if(!transport_read(GET_CAL_DATA, &split_shmem->cal_data, sizeof(split_shmem->cal_data))) return false;
 
@@ -1008,14 +1008,9 @@ bool calibration_data_master_manual_handler(void) {
         memcpy(&side, &right, sizeof(right));
     }
 
-    printf("\"top_values%s\":    [ %u", side, split_shmem->cal_data[0].top_value);
+    printf("bottom_values%s\": [ %u", side, split_shmem->cal_data[0]);
     for(uint8_t index = 1; index < switch_num_slave; index++){
-        printf(", %u", split_shmem->cal_data[index].top_value);
-    }
-
-    printf(" ],\n\"bottom_values%s\": [ %u", side, split_shmem->cal_data[0].bottom_value);
-    for(uint8_t index = 1; index < switch_num_slave; index++){
-        printf(", %u", split_shmem->cal_data[index].bottom_value);
+        printf(", %u", split_shmem->cal_data[index]);
     }
     print(" ],\n");
 
@@ -1028,8 +1023,7 @@ bool calibration_data_master_manual_handler(void) {
 bool calibration_data_slave_manual_handler(void) {
     split_shared_memory_lock();
     for(uint8_t key = 0; key < switch_num; key++) {
-        split_shmem->cal_data[key].top_value = key_config[key].top_value + ADC_TOP_DEADZONE;
-        split_shmem->cal_data[key].bottom_value = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+        split_shmem->cal_data[key] = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
     }
     split_shared_memory_unlock();
 
@@ -1081,7 +1075,7 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     //TODO: Make sure this is correct
     static uint8_t last_layer = 0;
     //TODO: Check if this mask actually works properly
-    highest_layer = data & (am_data_t)0b00011111;
+    am_highest_layer = data & (am_data_t)0b00011111;
     data >>= 5;
     #endif
 
@@ -1108,9 +1102,9 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
 
     // Create a joystick mask for the slave
     #ifdef SPLIT_LAYER_SYNC
-    if(last_layer != highest_layer) {
-        last_layer = highest_layer;
-        change_layer_settings(highest_layer);
+    if(last_layer != am_highest_layer) {
+        last_layer = am_highest_layer;
+        change_layer_settings(am_highest_layer);
     }
     #endif
 }
@@ -1131,49 +1125,55 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
 ////////////////////////////////////////////////////
 // Analog Matrix Joystick synchronisation
 
-#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
-#include "analog_joystick.h"
+// #if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
+// #include "analog_joystick.h"
 
-static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    // If we're not on a layer with joystick keys, we don't need to sync
-    if(!joystick_layer) return true;
+// static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+//     // If we're not on a layer with joystick keys, we don't need to sync
+//     if(!joystick_layer) return true;
 
-    static uint32_t last_update = 0;
-    uint8_t slave_axis_values[JOYSTICK_AXIS_COUNT * 2];
+//     static uint32_t last_update = 0;
+//     uint8_t slave_axis_values[JOYSTICK_AXIS_COUNT * 2];
 
-    // memset(slave_axis_values, 0, sizeof(slave_axis_values));
-    bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, slave_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
-    if (okay) {
-        for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
-            // printf("B%u: %u, ", index, axis_values[index]);
-            // Only assign the values if the master array at that index is 0, to avoid overwriting the values
-            if(axis_values[index] == 0) {
-                axis_values[index] = slave_axis_values[index];
-                // printf("C: %u, ", slave_axis_values[index]);
-            }
-            // printf("A%u: %u\n", index, axis_values[index]);
-        }
-    }
-    return okay;
-}
+//     // memset(slave_axis_values, 0, sizeof(slave_axis_values));
+//     bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, slave_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
+//     if (okay) {
+//         for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
+//             // printf("B%u: %u, ", index, axis_values[index]);
+//             // Only assign the values if the master array at that index is 0, to avoid overwriting the values
+//             if(axis_values[index] == 0) {
+//                 axis_values[index] = slave_axis_values[index];
+//                 // printf("C: %u, ", slave_axis_values[index]);
+//             }
+//             // printf("A%u: %u\n", index, axis_values[index]);
+//         }
+//     }
+//     return okay;
+// }
 
-static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
-    split_shmem->axis_data.checksum = crc8(split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
-}
+// static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+//     memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
+//     split_shmem->axis_data.checksum = crc8(split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
+// }
 
-// clang-format off
-#define TRANSACTIONS_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
-#define TRANSACTIONS_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE_AUTOLOCK(joystick)
+// // clang-format off
+// #define TRANSACTIONS_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
+// #define TRANSACTIONS_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE_AUTOLOCK(joystick)
+/*
 #define TRANSACTIONS_JOYSTICK_REGISTRATIONS \
     [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum), \
     [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values),
-// clang-format on
-#else
+*/
+// // clang-format on
+// #else
+// #   define TRANSACTIONS_JOYSTICK_MASTER()
+// #   define TRANSACTIONS_JOYSTICK_SLAVE()
+// #   define TRANSACTIONS_JOYSTICK_REGISTRATIONS
+// #endif
+//TODO: Remove this when slave joystick is being worked on again
 #   define TRANSACTIONS_JOYSTICK_MASTER()
 #   define TRANSACTIONS_JOYSTICK_SLAVE()
 #   define TRANSACTIONS_JOYSTICK_REGISTRATIONS
-#endif
 
 ////////////////////////////////////////////////////
 

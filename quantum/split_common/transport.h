@@ -134,12 +134,6 @@ typedef struct _split_slave_activity_sync_t {
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
 #if defined(ANALOG_MATRIX_ENABLE)
-#if defined(AM_NO_EEPROM)
-typedef struct _cal_data_t {
-    uint16_t top_value;
-    uint16_t bottom_value;
-} cal_data_t;
-#endif
 #if defined SPLIT_LAYER_SYNC
 typedef uint16_t am_data_t;
 #else
@@ -245,14 +239,13 @@ typedef struct _split_shared_memory_t {
 #endif // defined(SPLIT_ACTIVITY_ENABLE)
 
 #if defined(ANALOG_MATRIX_ENABLE)
-    uint16_t test_data;
     am_data_t am_data;
 #   if defined(AM_NO_EEPROM)
-    // cal_data_t cal_data;
-    cal_data_t cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    uint16_t cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #   endif
 #   if defined(JOYSTICK_ENABLE)
-    joystick_slave_axis_sync_t axis_data;
+//TODO: Reenable this
+    // joystick_slave_axis_sync_t axis_data;
 #   endif // defined(JOYSTICK_ENABLE)
 #endif // defined(ANALOG_MATRIX_ENABLE)
 

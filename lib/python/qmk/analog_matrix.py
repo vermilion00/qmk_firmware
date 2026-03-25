@@ -12,9 +12,6 @@ INIT_KEYS = {
     'CALIBRATION_KEY': 'analog_matrix.config.calibration_keys',
     'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_keys',
     'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_keys',
-    # 'CALIBRATION_KEY_RIGHT': 'analog_matrix.config.calibration_keys_right',
-    # 'BOOTMAGIC_KEY_RIGHT': 'analog_matrix.config.bootmagic_keys_right',
-    # 'BOOTLOADER_KEY_RIGHT': 'analog_matrix.config.bootloader_keys_right',
     # Use normal bootmagic key for mechanical button reset
     # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
     # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
