@@ -548,7 +548,10 @@
                         "deadzone": {"type": "integer"},
                         "top_deadzone": {"type": "integer"},
                         "bottom_deadzone": {"type": "integer"},
-                        "custom_matrix_lite": {"type": "boolean"}
+                        "right_multiplier": {"$ref": "./definitions.jsonschema#/unsigned_decimal"},
+                        "slave_multiplier": {"$ref": "./definitions.jsonschema#/unsigned_decimal"},
+                        "custom_matrix_lite": {"type": "boolean"},
+                        "custom_matrix_full": {"type": "boolean"}
                     }
                 },
                 "config": {

@@ -141,10 +141,10 @@ typedef uint8_t am_data_t;
 #endif
 
 #if defined(JOYSTICK_ENABLE)
-typedef struct _joystick_slave_axis_sync_t {
-    uint8_t checksum;
-    uint8_t values[JOYSTICK_AXIS_COUNT * 2];
-} joystick_slave_axis_sync_t;
+// typedef struct _joystick_slave_axis_sync_t {
+//     uint8_t checksum;
+//     uint8_t values[JOYSTICK_AXIS_COUNT * 2];
+// } joystick_slave_axis_sync_t;
 #endif // defined(JOYSTICK_ENABLE)
 #endif // defined(ANALOG_MATRIX_ENABLE)
 

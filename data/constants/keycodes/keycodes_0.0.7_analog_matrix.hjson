@@ -36,22 +36,22 @@
         "0x7940": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_X",
-            "aliases": ["JS_LPX"]
+            "aliases": ["JS_LPX", "JS_LSR"]
         },
         "0x7941": {
             "group": "analog_joystick",
             "key": "JS_LEFT_NEGATIVE_X",
-            "aliases": ["JS_LNX"]
+            "aliases": ["JS_LNX", "JS_LSL"]
         },
         "0x7942": {
             "group": "analog_joystick",
             "key": "JS_LEFT_NEGATIVE_Y",
-            "aliases": ["JS_LNY"]
+            "aliases": ["JS_LNY", "JS_LSD"]
         },
         "0x7943": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_Y",
-            "aliases": ["JS_LPY"]
+            "aliases": ["JS_LPY", "JS_LSU"]
         },
         "0x7944": {
             "group": "analog_joystick",
@@ -66,22 +66,22 @@
         "0x7946": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_POSITIVE_X",
-            "aliases": ["JS_RPX"]
+            "aliases": ["JS_RPX", "JS_RSR"]
         },
         "0x7947": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_NEGATIVE_X",
-            "aliases": ["JS_RNX"]
+            "aliases": ["JS_RNX", "JS_RSL"]
         },
         "0x7948": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_POSITIVE_Y",
-            "aliases": ["JS_RPY"]
+            "aliases": ["JS_RPY", "JS_RSU"]
         },
         "0x7949": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_NEGATIVE_Y",
-            "aliases": ["JS_RNY"]
+            "aliases": ["JS_RNY", "JS_RSD"]
         },
         "0x794A": {
             "group": "analog_joystick",

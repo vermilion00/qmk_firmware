@@ -9,3 +9,6 @@ USE_FPU = yes
 EEPROM_DRIVER = wear_leveling
 WEAR_LEVELING_DRIVER = spi_flash
 FLASH_DRIVER = spi
+
+#This doesn't seem to help with the joystick issue(s)
+USE_PROCESS_STACKSIZE = 0x2000

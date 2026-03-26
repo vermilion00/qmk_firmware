@@ -16,6 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdint.h>
+#include <string.h>
 #include "keyboard.h"
 #include "keycode_config.h"
 #include "quantum.h"
@@ -497,6 +498,13 @@ void keyboard_init(void) {
     encoder_init();
 #endif
     matrix_init();
+//MARK: Init call
+#ifdef ANALOG_MATRIX_ENABLE
+    analog_matrix_init();
+#   ifdef JOYSTICK_ENABLE
+    analog_joystick_init();
+#   endif
+#endif
     quantum_init();
 #ifdef CONNECTION_ENABLE
     connection_init();
@@ -571,13 +579,6 @@ void keyboard_init(void) {
 #ifdef HAPTIC_ENABLE
     haptic_init();
 #endif
-//MARK: Init call
-#ifdef ANALOG_MATRIX_ENABLE
-    analog_matrix_init();
-#   ifdef JOYSTICK_ENABLE
-    analog_joystick_init();
-#   endif
-#endif
 
 #if defined(DEBUG_MATRIX_SCAN_RATE) && defined(CONSOLE_ENABLE)
     debug_enable = true;
@@ -631,16 +632,11 @@ static bool matrix_task(void) {
 
     static matrix_row_t matrix_previous[MATRIX_ROWS];
 
-    #ifdef ANALOG_MATRIX_ENABLE
-    bool matrix_changed = analog_matrix_scan();
-    #else
     matrix_scan();
     bool matrix_changed = false;
     for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
-        //TODO: Why isn't this a break?
         matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
     }
-    #endif
 
     matrix_scan_perf_task();
 
@@ -660,13 +656,7 @@ static bool matrix_task(void) {
 
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         const matrix_row_t current_row = matrix_get_row(row);
-
-        //TODO: Probably not necessary to force checking all axis positions
-        // #ifdef JOYSTICK_ENABLE
-        // const matrix_row_t row_changes = (current_row ^ matrix_previous[row]) | joystick_mask[row];
-        // #else
         const matrix_row_t row_changes = current_row ^ matrix_previous[row];
-        // #endif
 
         //TODO: Test performance without ghost function
         if (!row_changes || has_ghost_in_row(row, current_row)) {
@@ -687,7 +677,7 @@ static bool matrix_task(void) {
                 #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
                 // // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
                 //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
-                if (joystick_layer) {
+                if (joystick_layer && joystick_state.dirty) {
                     keyrecord_t record = {.event = MAKE_KEYEVENT(row, col, true)};
                     uint16_t keycode = get_record_keycode(&record, true);
                     process_analog_joystick(keycode);

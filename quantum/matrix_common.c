@@ -156,9 +156,7 @@ __attribute__((weak)) void matrix_init(void) {
         matrix[i]     = 0;
     }
 
-    // #ifndef ANALOG_MATRIX_ENABLE
     debounce_init(MATRIX_ROWS_PER_HAND);
-    // #endif
 
     matrix_init_kb();
 }

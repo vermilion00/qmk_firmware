@@ -1,6 +1,7 @@
 //TODO: Go through these and check which ones are needed
 
 #include "analog_matrix.h"
+#include "config.h"
 #include "matrix.h"
 #include <math.h>
 #include <stdbool.h>
@@ -283,7 +284,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
 
     get_switch_data();
 
-    //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth like that), because right now init keys don't work without top values
+    //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth like that), because right now init keys don't work without saved bottom values
     //      Also being unable to save cali values properly, due to a small difference between top & bottom values or a misconfigured storage, means that the keyboard keeps looping endlessly
 
     // Get the min/max values of each switch
@@ -291,13 +292,6 @@ __attribute__((weak)) void analog_matrix_init(void) {
         // If loading the calibration data fails, start calibration
         calibrate_switches(false);
     }
-
-    //TODO: Make sure only having keys for one half defined doesn't cause problems
-    //      If only keys for one half are defined, they should be used for both halves
-    // Check keys like the calibration or bootmagic key before scanning begins
-    #if SMAX(AM_INIT_KEY_NUM) > 0
-    scan_init_keys();
-    #endif
 
     // Translate the trigger height etc into the equivalent ADC value
     for(uint8_t index = 0; index < switch_num; index++) {
@@ -310,6 +304,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
     change_layer_settings(am_highest_layer);
     #endif
 
+    // This is only needed to print the calibration data
     #if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
     if (is_keyboard_master()) {
         if (!is_keyboard_left()) switch_num_slave = SWITCH_NUM_L;
@@ -320,14 +315,11 @@ __attribute__((weak)) void analog_matrix_init(void) {
 }
 
 
+//TODO: Rework this so that it's done at bootmagic stage, before VIA(L) init, because those make it so it takes ages to register init keys
 //MARK: Init keys
 #if SMAX(AM_INIT_KEY_NUM) > 0
-void scan_init_keys(void) {
+bool scan_init_keys(void) {
     uint16_t adc_value;
-    // Dummy read, as first read is always way off
-    adc_value = adc_read(adc_pin_mux[init_keys[0][0]]);
-    // Long-ish delay needed for correct init key reading after being plugged in
-    wait_ms(AM_STARTUP_DELAY);
 
     for(uint8_t idx = 0; idx < sizeof(init_keys)/2; idx++) {
         #ifdef POWER_BEFORE_SCAN
@@ -362,15 +354,17 @@ void scan_init_keys(void) {
         }
         #endif
     }
+    return true;
 }
 #else // AM_INIT_KEY NUM > 0
-#define scan_init_keys()
+#define scan_init_keys() false
 #endif // AM_INIT_KEY NUM > 0 else
 
 
 //MARK: Scan
 // Weak definition to allow overwriting the full scan function
-__attribute__((weak)) uint8_t analog_matrix_scan(void) {
+#ifndef CUSTOM_MATRIX_FULL
+uint8_t matrix_scan(void) {
     bool matrix_has_changed = false;
 
     #ifdef USE_MIXED_MATRIX
@@ -506,6 +500,14 @@ __attribute__((weak)) uint8_t analog_matrix_scan(void) {
 
     return matrix_has_changed;
 }
+//TODO: Decide if I want to do it like this
+//      This way I can re-use the normal scan checking and don't have to add my own, but it's very slightly slower
+// Weakly defined to allow overwriting with custom implementation
+#else // ifndef CUSTOM_MATRIX_FULL
+__attribute__((weak)) uint8_t matrix_scan(void) {
+    return false;
+}
+#endif
 
 
 //MARK: Translate
@@ -632,55 +634,54 @@ bool get_calibration_data(void) {
         #endif
     }
     #endif
-    #endif
+    #endif // if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
 
     // Read the calibration data from EEPROM
     eeconfig_read_keyboard((uint16_t*)&calibration_data);
 
     for(uint8_t key = 0; key < switch_num; key++) {
         bool valid = true;
-        uint16_t adjustment = 0;
+        int16_t adjustment = 0;
+
+        #ifndef INVERT_ADC
+        if(key_config[key].top_value <= calibration_data[key]) valid = false;
+        if(key_config[key].top_value - calibration_data[key] < INIT_THRESHOLD) valid = false;
+        #ifdef DYNAMIC_CALIBRATION
+        adjustment = AM_DC_FACTOR * (key_config[key].top_value - calibration_data[key]) + bottom_deadzone;
+        #endif
+
+        #else
+        if(key_config[key].top_value >= calibration_data[key]) valid = false;
+        if(calibration_data[key] - key_config[key].top_value < INIT_THRESHOLD) valid = false;
+        #ifdef DYNAMIC_CALIBRATION
+        adjustment = -AM_DC_FACTOR * (calibration_data[key] - key_config[key].top_value) - bottom_deadzone;
+        #endif
+        #endif
+        key_config[key].bottom_value = calibration_data[key] + adjustment;
+
         // Check if the switch data makes sense, start calibration or use fallback values if not
         // A fake mixed matrix will have top/bottom values of 4095 and 0
-        if(key_config[key].top_value < 5 && calibration_data[key] < 5)  valid = false;
+        if(key_config[key].top_value < 100 && calibration_data[key] < 100)  valid = false;
         if(key_config[key].top_value > 4000 && calibration_data[key] > 4000)  valid = false;
         // No switch can have a valid value above 4095 due to the 12 bit ADC resolution
         if(key_config[key].top_value > 4096 || calibration_data[key] > 4096) valid = false;
 
-        #ifndef INVERT_ADC
-        if(key_config[key].top_value <= calibration_data[key]) valid = false;
-
         if(!valid) {
-            #if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
-            LED_ON;  // If enabled, turn on the debug LED to signify problems with the data
-            calibration_data[key] = bottom_value[key];
-            #else
-            return false;
+            LED_ON;
+            //TODO: What happens if the config is actually invalid? Will that erroneously trigger init keys, or not?
+            // An invalid reading can stem from a pressed down key, check for that here
+            #if AM_INIT_KEY_NUM > 0
+            valid = scan_init_keys();
             #endif
+            if(!valid) {
+                #if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
+                LED_ON;  // If enabled, turn on the debug LED to signify problems with the data
+                key_config[key].bottom_value = bottom_value[key];
+                #else
+                return false;
+                #endif
+            }
         }
-
-        #ifdef DYNAMIC_CALIBRATION
-        adjustment = AM_DC_FACTOR * (key_config[key].top_value - calibration_data[key]);
-        #endif
-        key_config[key].bottom_value = calibration_data[key] + bottom_deadzone + adjustment;
-
-        #else
-        if(key_config[key].top_value >= calibration_data[key]) valid = false;
-
-        if(!valid) {
-            #if defined AM_TOP_VALUES && defined AM_BOTTOM_VALUES
-            LED_ON;  // If enabled, turn on the debug LED to signify problems with the data
-            calibration_data[key] = bottom_value[key];
-            #else
-            return false;
-            #endif
-        }
-
-        #ifdef DYNAMIC_CALIBRATION
-        adjustment = AM_DC_FACTOR * (calibration_data[key] - key_config[key].top_value);
-        #endif
-        key_config[key].bottom_value = calibration_data[key] - bottom_deadzone - adjustment;
-        #endif
 
         key_config[key].scan_value = key_config[key].top_value;
 
@@ -826,8 +827,8 @@ void calibrate_switches(bool init) {
             // Clear matrix and layer state to avoid stuck keys
             void reset_matrix_keys(void);
             reset_matrix_keys();
-            layer_state_t reset_layer_state(void);
-            layer_state = reset_layer_state();
+            layer_state = default_layer_state;
+            am_highest_layer = default_layer_state;
 
             #ifndef AM_NO_EEPROM
             for(uint8_t key = 0; key < switch_num; key++) {
@@ -1118,15 +1119,27 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
 // Populates the key matrix with the static config params, heights are populated separately
 void get_switch_data(void) {
     // Slave values are less stable than master values
-    if(!is_keyboard_master()){
-        //TODO: Test how rounding is handled
-        top_deadzone *= SLAVE_DEADZONE_MULT;
-        bottom_deadzone *= SLAVE_DEADZONE_MULT;
-        smoothing *= SLAVE_DEADZONE_MULT;
+    #ifdef RIGHT_MULTIPLIER
+    if(!is_keyboard_left()){
+        top_deadzone *= RIGHT_MULTIPLIER;
+        bottom_deadzone *= RIGHT_MULTIPLIER;
+        smoothing *= RIGHT_MULTIPLIER;
         #if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
         adc_filter = adc_slave_filter;
         #endif
     }
+    #elif defined SLAVE_MULTIPLIER
+    if(!is_keyboard_master()){
+        //TODO: Test how rounding is handled
+        top_deadzone *= SLAVE_MULTIPLIER;
+        bottom_deadzone *= SLAVE_MULTIPLIER;
+        smoothing *= SLAVE_MULTIPLIER;
+        #if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+        adc_filter = adc_slave_filter;
+        #endif
+    }
+    #endif
+    wait_ms(AM_STARTUP_DELAY);
     // Dummy reads because the first reads are wrong
     adc_read(adc_pin_mux[0]);
     adc_read(adc_pin_mux[0]);
@@ -1339,33 +1352,26 @@ void reset_matrix_keys(void) {
 }
 
 
-layer_state_t reset_layer_state(void) {
-    return default_layer_state;
-}
-
-
 //TODO: Make an equivalent for profile changes
 //MARK: Layer state
 layer_state_t layer_state_set_am(layer_state_t state) {
     am_highest_layer = get_highest_layer(state);
-    printf("A: %u\n", am_highest_layer);
 
+    //TODO: Seems to work just fine without this, but it should be called from layer change probably
     #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
-    if(joystick_layer) { reset_joystick_keys(); }
+    // if(joystick_layer) { reset_joystick_keys(); }
     #endif
-    #if defined MIDI_ENABLE
-    if(midi_layer) { reset_midi_keys(); }
-    #endif
+    // #if defined MIDI_ENABLE
+    // if(midi_layer) { reset_midi_keys(); }
+    // #endif
     #if defined SPLIT_LAYER_SYNC
     am_data_manual_transaction();
     #endif
 
     change_layer_settings(am_highest_layer);
-    printf("B: %u\n", am_highest_layer);
-
     #ifdef DYNAMIC_CALIBRATION
     // Not the cleanest way to allow disabling the update check
-    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES <= (SMAX(SWITCH_NUM) + 1)
+    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM)
     if(recalibrated_switches >= RECALIBRATED_SWITCHES) {
         eeconfig_update_keyboard((uint16_t*)&calibration_data);
         recalibrated_switches = 0;
@@ -1431,7 +1437,6 @@ uint16_t adc_slave_filter_function(uint16_t value, uint8_t index) {
 #else
 #   error "Invalid filter strength. Only values 0 - 4 are allowed."
 #endif
-// #define ADC_FILTER(value, index) value - (value - key_config[index].scan_value) >> 2
 #endif
     return ADC_SLAVE_FILTER(value, index);
 }

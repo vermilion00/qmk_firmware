@@ -42,10 +42,6 @@ typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
 #   define SPLIT_MUTABLE const
 #endif
 
-#ifndef SLAVE_DEADZONE_MULT
-#   define SLAVE_DEADZONE_MULT 2.5
-#endif
-
 #ifndef RC_INIT_KEY_NUM_R
 #define RC_INIT_KEY_NUM_R 0
 #endif
@@ -250,7 +246,11 @@ extern bool manual_profile_lock;
 #   define ADC_FILTER_STRENGTH 3
 #endif
 #ifndef ADC_SLAVE_FILTER_STRENGTH
-#   define ADC_SLAVE_FILTER_STRENGTH ADC_FILTER_STRENGTH
+#   ifdef ADC_RIGHT_FILTER_STRENGTH
+    #   define ADC_SLAVE_FILTER_STRENGTH ADC_RIGHT_FILTER_STRENGTH
+#   else
+    #   define ADC_SLAVE_FILTER_STRENGTH ADC_FILTER_STRENGTH
+#   endif
 #endif
 
 #if ADC_FILTER_STRENGTH != 0
@@ -314,7 +314,7 @@ extern uint8_t switch_num_slave;
 // Readies the keyboard state before scanning begins
 void analog_matrix_init(void);
 // Scans the keys and calls the evaluation function on them
-uint8_t analog_matrix_scan(void);
+uint8_t matrix_scan(void);
 // Evaluates the value against the configured heights, to see if the switch state has changed. Returns true if changed.
 bool evaluate_value(uint8_t index, uint16_t value);
 // Populates the calibrated values from eeprom or hardcoded values, and applies deadzones
@@ -322,7 +322,8 @@ bool get_calibration_data(void);
 // Get the switch data configured in the json
 void get_switch_data(void);
 // Scans the init keys defined in the info.json
-void scan_init_keys(void);
+//TODO: Does this work if no init keys have been defined? I should just set the top left key as default if none are defined tbh
+bool scan_init_keys(void);
 // Translate the user defined heights and distances into the equivalent ADC values
 void translate_mm_to_value(uint8_t index);
 // Gets the previously calibrated min/max values for each switch from the EEPROM

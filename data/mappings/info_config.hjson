@@ -38,6 +38,8 @@
     "ADC_DEADZONE": {"info_key": "analog_matrix.hardware.deadzone", "value_type": "int"},
     "ADC_TOP_DEADZONE": {"info_key": "analog_matrix.hardware.top_deadzone", "value_type": "int"},
     "ADC_BOTTOM_DEADZONE": {"info_key": "analog_matrix.hardware.bottom_deadzone", "value_type": "int"},
+    "RIGHT_MULTIPLIER": {"info_key": "analog_matrix.hardware.right_multiplier"},
+    "SLAVE_MULTIPLIER": {"info_key": "analog_matrix.hardware.slave_multiplier"},
     "MUX_TO_NUM": {"info_key": "analog_matrix.hardware.mux_to_num", "value_type": "array.array"},
     "MUX_TO_NUM_R": {"info_key": "analog_matrix.hardware.mux_to_num_right", "value_type": "array.array"},
     "NUM_TO_MATRIX": {"info_key": "analog_matrix.hardware.num_to_matrix", "value_type": "array.array"},
@@ -49,6 +51,7 @@
     "INVERT_ADC": {"info_key": "analog_matrix.hardware.invert_adc", "value_type": "flag"},
     "AM_STARTUP_DELAY": {"info_key": "analog_matrix.hardware.startup_delay", "value_type": "int"},
     "CUSTOM_MATRIX_LITE": {"info_key": "analog_matrix.hardware.custom_matrix_lite", "value_type": "flag"},
+    "CUSTOM_MATRIX_FULL": {"info_key": "analog_matrix.hardware.custom_matrix_full", "value_type": "flag"},
 
     "ADC_SCAN_DELAY": {"info_key": "analog_matrix.config.adc_scan_delay", "value_type": "int"},
     "MUX_SELECT_DELAY": {"info_key": "analog_matrix.config.mux_select_delay", "value_type": "int"},

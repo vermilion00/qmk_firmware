@@ -73,17 +73,15 @@ const uint8_t thisHand = 0;
 
 //MARK: Joystick
 #ifdef JOYSTICK_ENABLE
+//TODO: No need to return anything if used like this
 bool process_analog_joystick(uint16_t keycode) {
-    //TODO: Check if it's faster to check for the keycodes
-    if(!joystick_state.dirty || !joystick_layer) return true;
-
     switch (keycode) {
         case ANALOG_JOYSTICK_KEYCODE_RANGE:
             // Subtract the first axis keycode to get the axis index
             evaluate_joystick_axis(keycode - AM_JOYSTICK_RANGE);
             return false;
     }
-    return true;
+    return false;
 }
 #endif
 

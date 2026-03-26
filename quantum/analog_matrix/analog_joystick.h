@@ -54,7 +54,7 @@ extern const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 extern uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #endif
 
-extern uint16_t axis_values[JOYSTICK_AXIS_COUNT * 2];
+extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
 
 void analog_joystick_init(void);
@@ -63,14 +63,3 @@ bool evaluate_joystick_axis(axis_name_t axis);
 bool joystick_post_scan(void);
 void analog_joystick_task(void);
 void reset_joystick_keys(void);
-
-#ifndef JS_DEADZONE
-#define JS_DEADZONE 80
-#endif
-#if !defined JS_TOP_DEADZONE
-#define JS_TOP_DEADZONE JS_DEADZONE
-#endif
-#if !defined JS_BOTTOM_DEADZONE
-#define JS_BOTTOM_DEADZONE JS_DEADZONE
-#endif
-

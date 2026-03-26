@@ -84,12 +84,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //   ),
 
   [_GMPD] = LAYOUT(
-     KC_ESC,  JS_RNZ,  JS_RPZ,  KC_3,  JS_RNY,  KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
+     KC_ESC,  JS_RNZ,  JS_RPZ,  JS_RPY,  JS_RNY,  KC_5,                    			          KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
     TG(_GMPD),KC_Q,    JS_LT,   JS_LPY,  JS_RT,   KC_B,                    			          KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_MINS,
      KC_BSPC, JS_RPX,  JS_LNX,  JS_LNY,  JS_LPX,  KC_G,                    			          KC_K,    KC_N,    KC_E,    KC_I,    KC_O,    DB_TOGG,
-     JS_RNX,  KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, MO(_FN),
+     JS_RNX,  KC_V,    KC_X,    KC_D,    KC_C,    KC_Z,                    			          KC_M,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, _______,
                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
-						                                 TG(_GMPD),    KC_SPC,  MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
+						                                 TG(_GMPD),KC_SPC, MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
 									                                  KC_LCTL, KC_LALT,			 KC_ENT
   ),
 

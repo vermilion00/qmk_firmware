@@ -32,6 +32,8 @@ Working features are:
     * Automatic adjusting of calibration data during use (as an optional mode)
 * [Split communication](analog_matrix.md#split-keyboards)
     * Split profile and calibration synchronisation
+    * Assign different deadzones, smoothing values, and filter strengths on master and slave
+        * This can be used to remedy less stable scan values on the slave
 * [Automatic](analog_matrix.md#profile-objects) and manual profile switching
 * [Analog joystick](analog_matrix.md#analog-joystick) mode
     * Axes only work on the main half for split keyboards
@@ -61,7 +63,8 @@ Working features are:
 ## What doesn't work?
 
 * GUI configurator
-    * VIAL support is in the early stages of development.
+    * VIAL can be used with this branch to change the keymap and QMK settings only, no analog configuration
+    * Full VIAL support is in the early stages of development
 * Joystick axes on the slave half
 * Controlling the sensor power via gpio pins<sup>1</sup>
 * High USB polling rates
@@ -100,7 +103,8 @@ While calibration mode is active, you'll need to press every single key on the k
 #define CAL_THRESHOLD (5 * ADC_TOP_DEADZONE)
 ```
 This is the minimum absolute difference in value between top and bottom, for a switch to be seen as calibrated. As the calibration only stops once all keys are counted as calibrated, setting this value too high will cause the calibration to never finish, while setting this value to low will cancel calibration prematurely. Keep in mind that the ADC is configured to use a 12 bit resolution.  
-How these values are saved depends on the configuration:
+
+How the calibration values are saved depends on the configuration:
 
 ## Persistent Storage
 
@@ -263,27 +267,26 @@ This is an array of the analog pins used by the chip. The output of each multipl
 This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm. If it is wrong, then heights will be incorrectly converted. The travel distance of a switch can usually be found in its product description or datasheet.
 
 ```json
-"smoothing": 60
+"smoothing": 20
 ```
 Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it. A general starting point for this value is (top_value - bottom_value) / (2 * travel_distance).
 If the change in value compared to the previous scan is smaller than this value, the switch evaluation is skipped.
 
 ```json
-"deadzone": 80
+"deadzone": 50
 ```
 Sets a deadzone at the top and bottom range of the switch travel. A smaller value shrinks the deadzone. If you have issues with the switch occasionally not counting as released, increase this value.
-You can have different deadzones for top and bottom by using top_deadzone and bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Similarily, a switch inside the bottom deadzone will always count as pressed
+You can have different deadzones for top and bottom by using top_deadzone and bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Conversely, a switch inside the bottom deadzone will always count as pressed.
 
 ```json
 "invert_adc": false
 ```
 The analog matrix logic assumes that the ADC value of a released switch is higher than the value of a pressed switch, which should be the default for most of-the-shelf keyboards. If this is not the case, set this to true.
 
-
 ```json
 "analog_debounce": 5
 ```
-While it's disabled by default, you can enable timer-based debouncing routines by setting this parameter. Keep in mind that the normal "debounce" parameter doesn't work for analog keys, as that is reserved for debouncing the mechanical keys in a mixed matrix configuration.
+While it's disabled by default, you can enable timer-based debouncing routines by setting this parameter. Keep in mind that the normal "debounce" parameter doesn't work for analog keys, as it is reserved for debouncing the mechanical keys in a mixed matrix configuration.
 
 
 #### Layout
@@ -582,50 +585,6 @@ You can use these functions from your 'keyboard'.c or keymap.c file by including
 ```
 
 
-<!--MARK: Split kb -->
-# Split keyboards
-
-The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind:
-
-<!--
-By default, QMK loads the same firmware into both halves and assigns the side during initialization. As an analog matrix requires a lot of additional information, this feature gives you the option to use the -s flag during flashing to reduce the firmware size by compiling the firmware specifically for one side.
-
-To flash the left half, you use
-"qmk flash -kb path/to/your/keyboard -km keymap_name -s left"
-
-Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compilation time, as the firmware needs to be recompiled for each half.  
-Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs. To speed up compilation time, you can use the -j flag to compile multiple files in parallel (e.g. -j 10).
-
-The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
-```c
-#ifdef SIDE_LEFT // To check for the right half, use SIDE_RIGHT
-//Do something here
-#endif
-```
-This will run that code only if the -s left flag is set.
-
-In case of issues with your configuration, try using the -s flag when flashing the sides, as assigning the sides at initialization is generally added later for new features.
--->
-
-Joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
-
-Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
-When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
-
-If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
-When using the calibration_key to start calibration at init, only the half with the pressed down key will start calibration.
-
-If you wish to use different multiplexer pins for each half, the optimizations might not work. In case of issues, you can manually disable these optimizations by setting
-```json
-"no_mux_optimization": true
-```
-to true inside the hardware object in the json, or by defining
-```c
-#define NO_MUX_OPTIMIZATION
-```
-inside of your keyboards config.h. This will cause a minor performance penalty.
-
-
 <!--MARK: Filtering -->
 # Filtering
 
@@ -666,6 +625,63 @@ Timer-based debouncing (the same algorithm used for mechanical keys) is disabled
 This will use a debounce time of 5 milliseconds.
 
 <!--TODO: Add adjustment section here -->
+
+
+<!--MARK: Split kb -->
+# Split keyboards
+
+The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind:
+
+<!--
+By default, QMK loads the same firmware into both halves and assigns the side during initialization. As an analog matrix requires a lot of additional information, this feature gives you the option to use the -s flag during flashing to reduce the firmware size by compiling the firmware specifically for one side.
+
+To flash the left half, you use
+"qmk flash -kb path/to/your/keyboard -km keymap_name -s left"
+
+Accepted options are l/left/r/right. Using this flag means that only the configuration for that specific half is compiled, which can reduce firmware size by a decent bit. For example, my personal keyboard is a split 61 key dactyl manuform with 2 profiles. Using the flag gives me a firmware size of ~80kb, while not using it takes me to ~100kb (25% more.) I still have the option of using either side as master, the only changes are a slightly longer compilation time, as the firmware needs to be recompiled for each half.  
+Flashing without the parameter also works fine, but could cause space problems on chips with less flash and larger configs. To speed up compilation time, you can use the -j flag to compile multiple files in parallel (e.g. -j 10).
+
+The -s flag works by defining SIDE_LEFT or SIDE_RIGHT respectively and then forcing recompilation. If any of your features require this already, you can use this by doing
+```c
+#ifdef SIDE_LEFT // To check for the right half, use SIDE_RIGHT
+//Do something here
+#endif
+```
+This will run that code only if the -s left flag is set.
+
+In case of issues with your configuration, try using the -s flag when flashing the sides, as assigning the sides at initialization is generally added later for new features.
+-->
+
+On split keyboards, it is generally recommended to use one half as the constant master, as the slave values are generally less stable. Both halves should be calibrated with the constant master half plugged in. If you're going to use the keyboard for gaming, the movement keys should all be on the master half.
+To mitigate this, you can set a multiplier for the deadzones and smoothing values, as well as a separate filter strength, to use on the right half / slave half:
+```c
+#define RIGHT_MULTIPLIER 1.5 
+#define RIGHT_ADC_FILTER_STRENGTH 4 // Same as ADC_FILTER_STRENGTH by default (3)
+#define SLAVE_MULTIPLIER 1.5 
+#define SLAVE_ADC_FILTER_STRENGTH 4 // Same as ADC_FILTER_STRENGTH by default (3)
+```
+This will multiply the deadzone and smoothing values by the defined amount, if the keyboard half is detected as the right half.
+As this is only checked once during initialization, don't be afraid to use floating values.
+The SLAVE version works the same, but is used when the keyboard is detected as the slave half. If both are defined, only the RIGHT version is used.
+Using a separate filter strength on the slave will cause a minor performance hit.
+
+Joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
+
+Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
+When changing "debug_scan_no_input", you need to flash both halves, as it applies to each half separately.
+
+If no_eeprom is set, the master half will wait for the slave half to finish calibrating before printing the values for both halves.
+When using the calibration_key to start calibration at init, only the half with the pressed down key will start calibration.
+
+If you wish to use different multiplexer pins for each half, the optimizations might not work. In case of issues, you can manually disable these optimizations by setting
+```json
+"no_mux_optimization": true
+```
+to true inside the hardware object in the json, or by defining
+```c
+#define NO_MUX_OPTIMIZATION
+```
+inside of your keyboards config.h. This will cause a minor performance penalty.
 
 
 <!--MARK: Mixed matrix-->
@@ -891,55 +907,66 @@ Since we're only doing a lite implementation, things like debouncing, split sync
 <!--MARK: Custom full-->
 ### Full Replacement
 
-If you instead need full control over the scanning routine, use a full replacement instead. A barebones implementation will look something like this:
+If you instead need full control over the scanning routine, use a full replacement instead, by setting these values:
+```json
+"analog_matrix": {
+    "hardware": {
+        "custom_matrix_full": true
+    }
+}
+```
+or set the define in config.h:
+```c
+#define CUSTOM_MATRIX_FULL
+``` 
+A barebones implementation will look something like this:
 ```c
 // In matrix.c
 #include "analog_matrix.h" // To make use of analog matrix functions
 // The function definition has to look like this
 uint8_t analog_matrix_scan(void) {
     bool matrix_has_changed = false;
+
     // Handle the matrix scanning here
 
     return matrix_has_changed;
 }
 ```
 This is all that's necessary to overwrite the scanning routine with your own. For it to work correctly, you need to keep a few things in mind:
-The evaluation function translates the ADC scan value of a switch into its press/release state, and returns true if the switch state has changed, NOT if it is pressed. <br> The evaluation function also handles stuff like joystick axes automatically (if those are enabled). <br>
+The evaluation function translates the ADC scan value of a switch into its press/release state, and returns true if the switch state has changed, NOT if it is pressed. <br> The evaluation function also handles stuff like joystick axes automatically (if used). <br>
 
 A simple scanning routine can look something like this:
 ```c
 uint8_t analog_matrix_scan(void) {
     bool matrix_has_changed = false;
-    uint16_t adc_value;
-    uint8_t index;
     
     // Loop through all used multiplexer channels. mux_channel_num contains the highest used mux channel (of that half for split keyboards)
     for(uint8_t mux_channel = 0; mux_channel < mux_channel_num; mux_channel++) {
+        // If a multiplexer delay is set, it will be called inside set_mux_channel
         set_mux_channel(mux_channel);
-        // If you need it, you can set a short delay here to let the multiplexer output settle before scanning.
-        delay_ns(MUX_SELECT_DELAY); 
         // Loop through all used ADC pins. adc_pin_num contains the amount of pins (of that half for split keyboards)
         for(uint8_t adc_channel = 0; adc_channel < adc_pin_num; adc_channel++) {
             // mux_to_num contains the matrix index for all possible intersections of mux channels and adc pins. If the index at an intersection is 255, it means it is unused.
-            index = mux_to_num[mux_channel][adc_channel];
+            const uint8_t index = mux_to_num[mux_channel][adc_channel];
             // An index of 0 means that the intersection is unused, we can continue with the next combination
             if (index == 255) continue;
 
             // Scan the selected channel combination. adc_pin_mux contains the converted ADC and ADC channel combination of all used ADC pins.
-            adc_value = adc_read(adc_pin_mux[adc_channel]);
+            uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]);
             // Filter the scan value using the algorithms described in the Filtering section
-            ADC_FILTER(adc_value, index);
+            adc_value = ADC_FILTER(adc_value, index);
             // This checks if the value has changed enough compared to the previous value to warrant a full evaluation.
-            // If the change is smaller than ADC_SMOOTHING (60 by default, 12 bit ADC), we continue with the next switch.
+            // If the change is smaller than ADC_SMOOTHING (40 by default, 12 bit ADC), we continue with the next switch.
             if ((adc_value < (key_config[index].scan_value + ADC_SMOOTHING)) && (adc_value > (key_config[index].scan_value - ADC_SMOOTHING))) continue;
+
+            // Update the previous scan value with the current one
+            key_config[index].scan_value = adc_value;
             // Check if key is pressed/released, returns true if the switch state has changed
             if(evaluate_value(index, adc_value)) {
                 matrix_has_changed = true;
                 // Toggle the state of the matrix position. The matrix array doesn't reset between scans. The matrix position of each switch is saved to the key_config[index].
                 matrix[key_config[index].row] ^= 1 << key_config[index].col;
             }
-            // Update the previous scan value with the current one
-            key_config[index].scan_value = adc_value;
         }
     }
 
@@ -952,7 +979,7 @@ uint8_t analog_matrix_scan(void) {
     matrix_has_changed |= matrix_post_scan();
     #endif
 
-    // If you wish to debounce the keys, replace the previous section with this one instead:
+    // Most of the time, time-based debouncing isn't necessary on analog keyboards. If you still wish to make use of it, use code block 2 instead:
     // 2.
     #ifdef SPLIT_KEYBOARD
     matrix_has_changed = debounce(raw_matrix + thisHand, matrix + thisHand, MATRIX_ROWS_PER_HAND, matrix_has_changed) | matrix_post_scan();
@@ -960,8 +987,6 @@ uint8_t analog_matrix_scan(void) {
     matrix_has_changed = debounce(raw_matrix, matrix, MATRIX_ROWS_PER_HAND, changed);
     #endif
 
-
-    // Unlike the default QMK scanning function, this one needs to return true if the matrix state has changed
     return matrix_has_changed;
 }
 ```
@@ -1157,7 +1182,7 @@ This feature is not very useful currently, as USB polling rates above 1k aren't 
 
 ::: warning  
 This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work. <br>
-One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still try to add them to Steam to use Steam input. <br>
+One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still add them to Steam to use Steam input. <br>
 On split keyboards, assigning joystick axes to the slave half doesn't work. You can still use it for joystick buttons.  
 :::
 
@@ -1169,14 +1194,16 @@ The analog joystick feature can be enabled by simply configuring it in the keybo
         "joystick": {
             "axes": 6,
             "buttons": 16,
-            "deadzone": 80,
+            "top_deadzone": 20,
+            "bottom_deadzone": 0,
             "layout": "XBOX",
             "resolution_methods": {
                 "x": "difference",
                 "y": "lowest",
                 "trigger": "difference",
                 "rx": "cancel",
-                "ry": "positive_dominant"
+                "ry": "positive_dominant",
+                "rz": "negative_dominant"
             }
         }
     }
@@ -1186,14 +1213,21 @@ The axis buttons are split up by component. This means that for each axis (X, Y,
 If the negative axis value is bottomed out, the axis component value -X will be 127, and the axis value will be -127. If both buttons are pressed simultaneously, the output is decided by the resolution method.
 
 ```json
-"deadzone": 120
+"top_deadzone": 50
 ```
-This sets a deadzone to the top and bottom of the travel range, separate from the normal switch deadzone. If you wish to use different values for top and bottom, you can instead use top_deadzone and bottom_deadzone.
+This sets a deadzone to the top of the travel range, separate from the normal switch deadzone. While the switch is inside this deadzone, the axis is fully released. Defaults to 20. 
+
+```json
+"bottom_deadzone": 50
+```
+This sets a deadzone to the bottom of the travel range. While the switch is inside this deadzone, the axis is fully pressed. Defaults to 0.
+
+Keep in mind that these deadzones stack with the normal switch deadzones.
 
 ```json
 "layout": "XBOX"
 ```
-This imports a list of aliases for the joystick buttons and axes, to make them easier. All buttons are prefixed by JS_. Using the xbox layout means that you can use keycodes like JS_A and JS_RT. Accepted values are xbox, playstation and nintendo. Defaults to xbox.
+This imports a list of aliases for the joystick buttons and axes, to make them easier. All buttons are prefixed by JS_. For example, using the xbox layout means that you can use keycodes like JS_A and JS_RT, while playstation can use JS_SQRE. Accepted values are xbox, playstation and nintendo. Defaults to xbox.
 
 ```json
 "resolution_method": "difference"
@@ -1201,7 +1235,7 @@ This imports a list of aliases for the joystick buttons and axes, to make them e
 If two competing axis buttons are pressed simultaneously, this options controls how the conflict is resolved.
 For example, if the buttons that control the positive and negative X axis components are pressed together.
 
-| Resolution                        | Description                                                                                                                 |
+| Resolution method                 | Description                                                                                                                 |
 |-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
 | Difference                        | The resulting output is the difference between the absolute values of each axis component. Default value.                   |
 | Lowest                            | The output is controlled by the component that is pressed down further.                                                     |
@@ -1220,7 +1254,7 @@ Using this option will set the method for all axes. If you wish to set different
     "ry": "positive_dominant"
 }
 ```
-The "resolution_method" parameter only applies to axes that aren't specifically defined in the "resolution_methods" object. To specify the axes, you can use the following names: x, y, trigger/z, rx, ry, rz.
+Any axis that isn't named in the "resolution_methods" object will default to "resolution_method", which in turn defaults to difference.
 
 ::: warning  
 The trigger buttons are two components of the z axis, with LB/L2 corresponding to the negative component of the Z axis and RB/R2 corresponding to the positive component.
@@ -1233,11 +1267,6 @@ I currently don't know if they work together.
 ```
 These options control the amount of axes and buttons that the descriptor will use. Trying to use a keycode for an axis that is outside of the range of the defined axis amount will crash the keyboard, while trying to use a button that is outside of that range will result in the button simply not working.
 Defaults to 6 axes and 16 buttons.
-
-::: warning  
-The axis amount needs to be 1 higher than the actual amount of axes you're trying to use. If you plan on emulating a standard gamepad controller with two analog sticks and two triggers, this means that while you're only using 5 axes, the keyboard expects 6. <br>
-Also, the joystick feature accepts a maximum of 6 axes, meaning that the RZ axis cannot be used at this moment.  
-:::
 
 ### Keycodes
 All joystick keycodes are prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.
@@ -1265,24 +1294,26 @@ Each logical axis (X, Y, Z/Triggers, RX, RY, RZ) has a range from -127 to 127. T
 * The prefix JS_
 * L or R, for the Left or Right axis
 * N or P, for the negative or positive component
-* The axis designation (X, Y etc)
+* The axis direction (X, Y, Z)
+For the stick axis components, you can alternatively use the following aliases:
+* L or R, for the Left or Right stick
+* S for Stick
+* L, R, U, D for Left, Right, Up, Down
 
 | Axis component | XBox       | Playstation | Nintendo |
 |----------------|------------|-------------|----------|
-| JS_LPX         | :o:        | :o:         | :o:      |
-| JS_LNX         | :o:        | :o:         | :o:      |
-| JS_LPY         | :o:        | :o:         | :o:      |
-| JS_LNY         | :o:        | :o:         | :o:      |
+| JS_LPX         | JS_LSR     | JS_LSR      | JS_LSR   |
+| JS_LNX         | JS_LSL     | JS_LSL      | JS_LSL   |
+| JS_LPY         | JS_LSU     | JS_LSU      | JS_LSU   |
+| JS_LNY         | JS_LSD     | JS_LSD      | JS_LSD   |
 | JS_LPZ         | JS_RT      | JS_R2       | JS_ZR    |
 | JS_LNZ         | JS_LT      | JS_L2       | JS_ZL    |
-| JS_RPX         | :o:        | :o:         | :o:      |
-| JS_RNX         | :o:        | :o:         | :o:      |
-| JS_RPY         | :o:        | :o:         | :o:      |
-| JS_RNY         | :o:        | :o:         | :o:      |
-| JS_RPZ<sup>1</sup> | :o:    | :o:         | :o:      |
-| JS_RNZ<sup>1</sup> | :o:    | :o:         | :o:      |
-
-1: The right Z axis does not corrently work, due to a bug with the firmware, where one more axis than necessary needs to be defined, while the joystick feature limits the amount of joystick axes to 6. As standard gamepads only use 5 axes anyway, fixing this is a low priority at the moment.
+| JS_RPX         | JS_RSR     | JS_RSR      | JS_RSR   |
+| JS_RNX         | JS_RSL     | JS_RSL      | JS_RSL   |
+| JS_RPY         | JS_RSU     | JS_RSU      | JS_RSU   |
+| JS_RNY         | JS_RSD     | JS_RSD      | JS_RSD   |
+| JS_RPZ         | :o:        | :o:         | :o:      |
+| JS_RNZ         | :o:        | :o:         | :o:      |
 
 
 <!--MARK: Debug guide -->

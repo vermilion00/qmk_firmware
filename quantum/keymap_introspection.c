@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <stdint.h>
+#include "action.h"
 #include "gpio.h"
 #include "info_config.h"
+#include "joystick.h"
 #include "keyboard.h"
 #include "keycodes.h"
 #include "matrix.h"
@@ -438,15 +440,36 @@ extern uint8_t thisHand;
 const uint8_t thisHand = 0;
 #endif
 
-//TODO: Something is turning off debugging when switching to the joystick layer specifically
 //MARK: joystick mask
 // Creates a mask of all joystick keycodes in the layer
 void create_joystick_mask(uint8_t current_layer) {
+
+    // If the previous layer was a joystick layer, fully reset all matrix and pressed states
+    if (joystick_layer) {
+        // joystick_flush();
+        memset(&joystick_mask, 0, sizeof(joystick_mask));
+        memset(joystick_state.axes, 0, sizeof(joystick_state.axes));
+        // What about setting the pressed state to be the same as the matrix state instead of resetting everything?
+        // memset(&matrix, 0, sizeof(matrix));
+        // memset(&matrix_previous, 0, sizeof(matrix_previous));
+        // for(uint8_t key = 0; key < switch_num; key++) key_config[key].pressed = false;
+
+        //TODO: If this doesn't work, then try setting matrix to be equal to matrix prev or smth
+        // Update the pressed state according to the matrix state, as it's not updated for joystick keys
+        for(uint8_t key = 0; key < switch_num; key++) {
+            const uint8_t row = key_config[key].row;
+            const uint8_t col = key_config[key].col;
+            if((matrix[row]) & 1 << col) key_config[key].pressed = true;
+            else key_config[key].pressed = false;
+        }
+
+        joystick_state.dirty = false;
+        joystick_layer = false;
+    }
+
     // const bool master = is_keyboard_master();
-    joystick_layer = false;
     //TODO: Do I even need the joystick mask if I save the axis to the key config directly?
     // Still useful for resetting only the joystick keys, but can be used for other things
-    memset(&joystick_mask, 0, sizeof(joystick_mask));
 
     //TODO: Make sure this doesn't cause issues when the joystick layer state is different
     // The master needs to check every keycode, the slave only the keycodes for the slave half
