@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "action.h"
+#include "analog_matrix/analog_matrix.h"
 #include "gpio.h"
 #include "info_config.h"
 #include "joystick.h"
@@ -228,6 +229,24 @@ extern uint8_t priority_index_num;
 extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
+// Define *_layer variables here for easier usage
+#ifdef JOYSTICK_ENABLE
+bool joystick_layer = false;
+#else
+const bool joystick_layer = false;
+#endif
+#ifdef MIDI_ENABLE
+bool midi_layer = false;
+#else
+const bool midi_layer = false;
+#endif
+#ifdef USE_SPECIAL_MODE
+bool special_layer = false;
+#else
+// const bool special_layer = false;
+#define special_layer false
+#endif
+
 //TODO: Figure out proper guards here (keymap config, etc)
 #if defined USE_TRIGGER_HEIGHT
 extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
@@ -429,7 +448,6 @@ void assign_config(bool side) {
 
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 #include "analog_joystick.h"
-bool joystick_layer = false;
 
 extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 
@@ -443,18 +461,11 @@ const uint8_t thisHand = 0;
 //MARK: joystick mask
 // Creates a mask of all joystick keycodes in the layer
 void create_joystick_mask(uint8_t current_layer) {
-
-    // If the previous layer was a joystick layer, fully reset all matrix and pressed states
+    // If the previous layer was a joystick layer, clear the joystick mask and joystick_state
     if (joystick_layer) {
-        // joystick_flush();
         memset(&joystick_mask, 0, sizeof(joystick_mask));
         memset(joystick_state.axes, 0, sizeof(joystick_state.axes));
-        // What about setting the pressed state to be the same as the matrix state instead of resetting everything?
-        // memset(&matrix, 0, sizeof(matrix));
-        // memset(&matrix_previous, 0, sizeof(matrix_previous));
-        // for(uint8_t key = 0; key < switch_num; key++) key_config[key].pressed = false;
 
-        //TODO: If this doesn't work, then try setting matrix to be equal to matrix prev or smth
         // Update the pressed state according to the matrix state, as it's not updated for joystick keys
         for(uint8_t key = 0; key < switch_num; key++) {
             const uint8_t row = key_config[key].row;
@@ -516,7 +527,6 @@ void create_joystick_mask(uint8_t current_layer) {
 #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
 // #include "analog_matrix.h"
 #include "analog_midi.h"
-bool midi_layer = false;
 
 matrix_row_t midi_mask[MATRIX_ROWS];
 #if defined SPLIT_KEYBOARD
@@ -572,6 +582,12 @@ void change_layer_settings(uint8_t current_layer) {
     #endif
 
     //TODO: Add more mask functions here as necessary
+
+    //TODO: Replace this with USE_SPECIAL
+    #ifdef USE_SPECIAL_MODE
+    special_layer = false;
+    special_layer |= joystick_layer | midi_layer;
+    #endif
 }
 
 #endif // if defined(ANALOG_MATRIX_ENABLE)

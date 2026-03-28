@@ -548,8 +548,12 @@
                         "deadzone": {"type": "integer"},
                         "top_deadzone": {"type": "integer"},
                         "bottom_deadzone": {"type": "integer"},
+                        "adc_deadzone": {"type": "integer"},
+                        "adc_top_deadzone": {"type": "integer"},
+                        "adc_bottom_deadzone": {"type": "integer"},
                         "right_multiplier": {"$ref": "./definitions.jsonschema#/unsigned_decimal"},
                         "slave_multiplier": {"$ref": "./definitions.jsonschema#/unsigned_decimal"},
+                        "default_offset": {"$ref": "./definitions.jsonschema#/unsigned_int_16"},
                         "custom_matrix_lite": {"type": "boolean"},
                         "custom_matrix_full": {"type": "boolean"}
                     }
@@ -634,9 +638,9 @@
                         "dynamic_calibration_factor":  {"$ref": "./definitions.jsonschema#/unsigned_decimal"},
                         "recalibrated_switches": {"type": "integer"},
                         "no_eeprom": {"type": "boolean"},
-                        "top_values": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "top_deadzones": {"$ref": "./definitions.jsonschema#/uint_array"},
                         "bottom_values": {"$ref": "./definitions.jsonschema#/uint_array"},
-                        "top_values_right": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "top_deadzones_right": {"$ref": "./definitions.jsonschema#/uint_array"},
                         "bottom_values_right": {"$ref": "./definitions.jsonschema#/uint_array"}
                     }
                 },

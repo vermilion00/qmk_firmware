@@ -75,9 +75,9 @@ void                          eeconfig_read_keymap(keymap_config_t *keymap_confi
 void                          eeconfig_update_keymap(const keymap_config_t *keymap_config) __attribute__((nonnull));
 
 #ifdef ANALOG_MATRIX_ENABLE
-void                          eeconfig_read_switch(uint16_t *switch_data, uint8_t key_idx);
+void                          eeconfig_read_deadzone(uint8_t *keyboard_data);
+void                          eeconfig_update_deadzone(const uint8_t *keyboard_data);
 void                          eeconfig_read_keyboard(uint16_t *keyboard_data);
-void                          eeconfig_update_switch(const uint16_t *switch_data, uint8_t key_idx);
 void                          eeconfig_update_keyboard(const uint16_t *keyboard_data);
 #endif
 

@@ -103,6 +103,7 @@ enum serial_transaction_id {
     PUT_AM_DATA,
 #if defined(AM_NO_EEPROM)
     GET_CAL_DATA,
+    GET_TOP_DATA,
 #endif
 #   if defined(JOYSTICK_ENABLE)
     GET_JOYSTICK_CHECKSUM,

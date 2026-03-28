@@ -995,14 +995,20 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         config_h_lines.append(generate_define('AM_USE_DELAY'))
 
     split_layer_sync = False
+    use_special_mode = False
     if 'joystick' in objects and features.get('joystick', True):
+        use_special_mode = True
         split_layer_sync = True
         generate_joystick_config(info_data, config_h_lines)
 
     #TODO: Implement this
     if 'midi' in objects and features.get('midi', True):
+        use_special_mode = True
         split_layer_sync = True
         #generate_midi_config(info_data, config_h_lines)
+
+    if use_special_mode:
+        config_h_lines.append(generate_define('USE_SPECIAL_MODE'))
 
     if 'debug_matrix_position' in am_json['config']:
         debug_matrix_position(info_data, config_h_lines)

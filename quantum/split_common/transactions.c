@@ -949,6 +949,7 @@ bool manual_transaction_handler(bool (*handler)(void)) {
 static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
     static bool prev_calibration = false;
+    static bool prev_top_calibration = false;
     bool changed = false;
 
     // Data layout: unused | calibration start | profile | layer
@@ -966,6 +967,12 @@ static bool am_data_manual_handler(void) {
         prev_calibration = calibration_started;
         data |= calibration_started << 5;
         //TODO: Am I using changed?
+        changed = true;
+    }
+
+    if (top_calibration_started != prev_top_calibration) {
+        prev_top_calibration = top_calibration_started;
+        data |= top_calibration_started << 6;
         changed = true;
     }
 
@@ -1017,13 +1024,51 @@ bool calibration_data_master_manual_handler(void) {
     return true;
 }
 
+bool cal_top_data_master_manual_handler(void) {
+    uint8_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = 0};
+
+    if(!transport_read(GET_TOP_DATA, &split_shmem->top_data, sizeof(split_shmem->top_data))) return false;
+
+    if(memcmp(&test_data, &split_shmem->top_data, sizeof(test_data)) == 0) return false;
+
+    // Print the slave calibration values here
+    char side[7] = "";
+    // Inverted logic, since we're printing the slave data
+    if(is_keyboard_left()) {
+        char right[7] = "_right";
+        memcpy(&side, &right, sizeof(right));
+    }
+
+    printf("top_deadzones%s\": [ %u", side, split_shmem->top_data[0]);
+    for(uint8_t index = 1; index < switch_num_slave; index++){
+        printf(", %u", split_shmem->top_data[index]);
+    }
+    print(" ],\n");
+
+    return true;
+}
+
 
 //MARK: Cal Slave
 // Called by the slave when calibration finishes
 bool calibration_data_slave_manual_handler(void) {
     split_shared_memory_lock();
     for(uint8_t key = 0; key < switch_num; key++) {
+        #ifndef INVERT_ADC
         split_shmem->cal_data[key] = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+        #else
+        split_shmem->cal_data[key] = key_config[key].bottom_value + ADC_BOTTOM_DEADZONE;
+        #endif
+    }
+    split_shared_memory_unlock();
+
+    return true;
+}
+
+bool top_cal_data_slave_manual_handler(void) {
+    split_shared_memory_lock();
+    for(uint8_t key = 0; key < switch_num; key++) {
+        split_shmem->top_data[key] = top_deadzones[key];
     }
     split_shared_memory_unlock();
 
@@ -1043,9 +1088,15 @@ void sync_calibration_values(bool init) {
     } else { manual_transaction_handler(calibration_data_slave_manual_handler); }
 }
 
+void sync_top_calibration(void) {
+    if(is_keyboard_master()) { manual_transaction_handler(cal_top_data_master_manual_handler); }
+    else { manual_transaction_handler(top_cal_data_slave_manual_handler); }
+}
+
 //TODO: Consolidate all analog matrix fallback defines into one place
 #define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS \
-        [GET_CAL_DATA] = trans_target2initiator_initializer(cal_data),
+        [GET_CAL_DATA] = trans_target2initiator_initializer(cal_data), \
+        [GET_TOP_DATA] = trans_target2initiator_initializer(top_data),
 
 #else // ifdef AM_NO_EEPROM
 #   define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
@@ -1064,27 +1115,24 @@ void sync_calibration_values(bool init) {
 __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     split_shared_memory_lock();
 
-    // Data layout: unused | calibration start | profile | layer
-    // uint16_t  0b  00000          1             11111    11111
+    // Data layout: unused | top_cal_start | calibration start | profile | layer
+    // uint16_t  0b  0000  |       1       |        1             11111    11111
     // Without layer sync:
-    // uint8_t   0b    00  |        1          |  11111
+    // uint8_t   0b    0   |       1       |        1          |  11111
     am_data_t data = split_shmem->am_data;
     split_shared_memory_unlock();
 
     #ifdef SPLIT_LAYER_SYNC
     //TODO: Make sure this is correct
     static uint8_t last_layer = 0;
-    //TODO: Check if this mask actually works properly
-    am_highest_layer = data & (am_data_t)0b00011111;
+    am_highest_layer = data & (am_data_t)0b0000000000011111;
     data >>= 5;
     #endif
 
     active_profile = data & 0b00011111;
 
     static bool prev_calibration = false;
-    //TODO: Do I need to mask the first bit here, does it pull in other stuff or nah? Will need to mask if I use the unused bits for smth
-    bool calibration_started = data >> 5;
-
+    bool calibration_started = (data >> 5) & 1;
     if(calibration_started != prev_calibration) {
         prev_calibration = calibration_started;
         if(calibration_started) {
@@ -1096,7 +1144,23 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
             #endif
 
             calibrate_switches(false);
-            //TODO: Reset something here?
+        }
+    }
+
+    static bool prev_top_calibration = false;
+    bool top_calibration_started = (data >> 6) & 1;
+    if(top_calibration_started != prev_top_calibration) {
+        prev_top_calibration = top_calibration_started;
+        if(top_calibration_started) {
+            #ifdef AM_NO_EEPROM
+            // Remove the old calibration data from the buffer, else the master will get the old values
+            //TODO: Update this for top calibration
+            split_shared_memory_lock();
+            memset(&split_shmem->top_data, 0, sizeof(split_shmem->top_data));
+            split_shared_memory_unlock();
+            #endif
+
+            calibrate_top_value();
         }
     }
 

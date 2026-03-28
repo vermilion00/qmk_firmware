@@ -242,6 +242,7 @@ typedef struct _split_shared_memory_t {
     am_data_t am_data;
 #   if defined(AM_NO_EEPROM)
     uint16_t cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+    uint8_t  top_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #   endif
 #   if defined(JOYSTICK_ENABLE)
 //TODO: Reenable this

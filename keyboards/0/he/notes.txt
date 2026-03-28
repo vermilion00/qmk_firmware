@@ -52,8 +52,8 @@ Joystick:
 -Specifically the R key is updated much less frequently with a smoothing value set?
     -Is it because the joystick value is calculated fairly choppily, and sending less frequent updates compounds that?
 -Where the hell is the joystick state set to dirty? It's supposed to be reset after flushing, but the eval function keeps being called despite nothing setting it to true
-    -joystick_flush() also continuously sends updates even with no keys pressed
---> It seems like synching the pressed state of each switch to the matrix state fixes it
+    -joystick_flush() also continuously sends updates even with no keys pressed -> because joystick_state is always dirty somehow
+--> Syncing the pressed state of each switch to the matrix state fixes it
 
 
 MIDI:
@@ -69,9 +69,6 @@ MIDI:
     -Or at least only delete the keyboard folder
     -Can probably just touch config.h
     -Will that work when other files are also dependent on the flag?
-
--Try a higher buffer depth and circular buffer?
--Add always inline stuff
 
 Add mode for multiple actions on one key (DKS) somehow
     -Use switch mode >= 10
@@ -106,7 +103,6 @@ that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
     -Calibration values are checked before init keys for obvious reasons, but it means that calibration will always start first
     -Maybe run a sophisticated check where the init key is counted as pressed if it is a certain value below the avg scan value of the matrix?
 -Calibration key doesn't start calibration on slave, likely because split communication is initialized after
-    -Do post init checking for pressed calibration keys
     -Instead of checking init keys in post, just check a calibration flag?
 
 
@@ -114,7 +110,6 @@ Notes:
 -Current code doesn't work with AVR, palSetLineMode etc isn't a thing (but can be fixed, high effort low prio)
 -Debug output works better with qhe than qhed
 -info_defaults don't work?
--Pins are set to input by default -> QMK sets unused pins to output high (Why not low?)
 -LED on B2 is active high
 -Button on C13 is active high
 -When doing transactions stuff, make sure that the registration is correct! trans_initiator2target_initializer stuff needs to be correct to function!
@@ -134,10 +129,6 @@ Notes:
     -And the adc deadzone is just a user defined region around the top/bottom where the other stuff doesn't apply
 -Could even do a thing where each half has it's own deadzone based on if it's master/slave, and apply them after init?
 -Add a hack to define a default height/distance, then apply the actual one over, with 0s being ignored
-
--Setting the key_mode by default fails the height config validation, move it down
-
--Lower deadzone and higher smoothing works wayyyyyy better -> like 100 deadzone, 60 smoothing
 
 -Looks like keys occasionally tick up by like 35 for some reason
 -The keys that register randomly on the slave seem to all be the lower left MUX, near the thumb cluster
@@ -159,28 +150,20 @@ Remove unnecessary 0 defines for stuff that is guarded anyways (clutter in info_
 
 -What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
 
-Break out the scanning function into another file called analog_scanning or smth, and make another implementation purely based on powering pins before reading them
-    -The second implementation will cover reading selectively powered sensors through diodes instead
-    -The diodes should be NOT be wired in series, instead each sensor should have the diode wired between the output and the ADC pin directly
-        -Else the voltage drop across the diode would accumulate too much
--Mux impl should be default, diode one would be guarded
-
 When VIA_ENABLED is set, define all USE_* height defines
     -Allow disabling specific ones in config though
 
 VIA makes init keys take forever, check if bootmagic is called before then and scan keys there?
-Since the bottom mux has problems on slave, check if that is actually the cause?
+Since the bottom left mux has problems on slave, check if that is actually the cause of worse slave stability?
     -Maybe I don't need larger slave deadzones after all?
-
-Use multiple scans for top value in init, then take the lowest one/avg one?
-
-Allow using a left/right setup as well as a master/slave setup for deadzones and filter functions
-    -This helps more, because if only one side is master then it will also be calibrated for that
-    -Or my right half just has that fucked mux and it's actually not a problem
+    -Probably just caused by a bad connection to the ADC pin or smth
 
 Can the layout macro be reworked, so that the mux param replaces the matrix parameter completely, since technically only the order matters?
     -automatically place all keys in a row until it has 8 keys, then go to the next one
     -Make sure it also works with mixed matrix, which it should
+    -This would make it harder to set anything requiring the actual matrix position
+        -Prio keys, debug position, init keys etc
+    -Could do it as an optional thing, and set all of those via the index instead, but it's a lot of effort for little payoff in light off that
 
 Bootmagic:
 -Does having bootmagic enabled still fail compilation due to invalid pins?
@@ -190,10 +173,11 @@ Bootmagic:
 -Via init happens before matrix_init and quantum_init, does that mean that normal bootmagic functionality is also super delayed on via(l)?
 
 Extra function to calibrate top deadzone:
-    -After it has started, wait for a bit before scanning the top values of each key multiple times
-    -The deadzone will be the max difference between the filtered scan values + a small offset (10% or so? Should be relative anyway)
-    -Cap at 255 as save to eeprom for each switch
-        -Still effective because we only need to apply it at init, and don't have to check every scan anyway
+    -Works beautifully
+    -Could also use it for the smoothing?
+    -Make a similar thing for the bottom deadzone, once VIAL is a thing?
+    -The bottom deadzone would need more guidance, because each key would need to be pressed down and held for a small amount
+        -hard to time without guidance
 
 Better init key scanning:
 -Scan entire matrix once, then calculate max deviation without the lowest key
@@ -202,3 +186,26 @@ Better init key scanning:
 
 Make sure that setting mux channels without defining mux pins works as long as we have an equal amount of power pins as mux channels
     -This is to allow scanning a diode separated matrix of sensors
+
+When the calibration values drift, do they tend to drift together or independently?
+    -Would it make sense to save the travel distance instead of the bottom value?
+        -How would I check for init keys in that case?
+        -Would be possible once the avg init function is ready
+
+Since the init and cal thresholds work off of the deadzone, I need to be careful when setting a high deadzone for tests
+    -Or define a separate value as a fallback
+
+Check how the smoothing works, it currently seems to work like old deadzones
+
+Since I'm already scanning the top value every time, I could just set a default offset as the bottom value if no other are given
+    -This is done, mention it in the docs
+
+Since I have new top values from calibration, I can calibrate until all bottom values have been read, then wait until every switch reads a value inside the top deadzone,
+then calibrate the top_deadzones automatically, instead of doing it separately.
+
+Add my keycodes to docs/keycodes.md with a link to my page
+
+If the slave boot key is pressed, go to bootloader on master? Would make it slower, since I have no way of knowing which half is master until after full init,
+so both halves will need to wait.
+
+!!! IMPORTANT !!!

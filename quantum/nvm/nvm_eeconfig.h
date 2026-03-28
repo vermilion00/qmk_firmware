@@ -31,9 +31,9 @@ void                          nvm_eeconfig_read_keymap(keymap_config_t *keymap_c
 void                          nvm_eeconfig_update_keymap(const keymap_config_t *keymap_config);
 
 #ifdef ANALOG_MATRIX_ENABLE
-void                          nvm_eeconfig_read_switch(uint16_t *switch_data, uint8_t key_idx);
+void                          nvm_eeconfig_read_deadzone(uint8_t *keyboard_data);
+void                          nvm_eeconfig_update_deadzone(const uint8_t *keyboard_data);
 void                          nvm_eeconfig_read_keyboard(uint16_t *keyboard_data);
-void                          nvm_eeconfig_update_switch(const uint16_t *switch_data, uint8_t key_idx);
 void                          nvm_eeconfig_update_keyboard(const uint16_t *keyboard_data);
 #endif
 

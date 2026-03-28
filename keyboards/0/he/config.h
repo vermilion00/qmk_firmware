@@ -21,6 +21,11 @@
 #define ADC_FILTER_STRENGTH 3
 // #define ADC_SLAVE_FILTER_STRENGTH 4
 // #define ADC_FILTER_STRENGTH 3
+// Don't update the top values in DC
+#define NO_TOP_UPDATE
+//TODO: Make these the same thing
+#define CAL_THRESHOLD 400
+#define INIT_THRESHOLD 400
 
 // This doesn't make it more precise, and costs 300 sps. Next step up from ADC_SAMPLE_3
 // #define ADC_SAMPLING_RATE ADC_SAMPLE_15

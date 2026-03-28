@@ -24,43 +24,50 @@ This is a list of tested microcontrollers:
 This feature is in a beta state. This means that, while it is fully functional, configuration is more clunky than I'd like, and not everything is guaranteed to be bug-free (or even tested properly.) What I can say is that my personal split analog keyboard has seen a lot of use over the last ~3 months, both for work and video games (Valorant mainly, Immortal rank), so I can attest that the main functions all work perfectly fine (on my setup at least).
 
 Working features are:
-* [Adjustable heights](analog_matrix.md#height-configuration)
-* [Rapid trigger](analog_matrix.md#height-configuration)
+* [Adjustable heights](analog_matrix#height-configuration)
+* [Rapid trigger](analog_matrix#height-configuration)
     * Standard, Continuous and Constant modes are available
-* [Calibration](analog_matrix.md#calibration)
+* Deadzones
+    * Deadzones can be adjusted separately for top and bottom
+    * Also for the left and right half on [split keyboards](analog_matrix#split-keyboards)
+    * The top deadzone can be [calibrated](analog_matrix#deadzone-calibration)
+* [Calibration](analog_matrix#calibration)
     * Save calibration data to persistent storage
     * Automatic adjusting of calibration data during use (as an optional mode)
-* [Split communication](analog_matrix.md#split-keyboards)
+    * The top deadzone can be [calibrated](analog_matrix#deadzone-calibration)
+* [Split communication](analog_matrix#split-keyboards)
     * Split profile and calibration synchronisation
     * Assign different deadzones, smoothing values, and filter strengths on master and slave
         * This can be used to remedy less stable scan values on the slave
-* [Automatic](analog_matrix.md#profile-objects) and manual profile switching
-* [Analog joystick](analog_matrix.md#analog-joystick) mode
+* [Automatic](analog_matrix#profile-objects) and manual profile switching
+* [Analog joystick](analog_matrix#analog-joystick) mode
     * Axes only work on the main half for split keyboards
     * While the keyboard is detected as a gamepad on windows, many games don't automatically pick up inputs. I've found success in using steam input to bind the buttons as a workaround.
-* [Debug modes](analog_matrix.md#debugging)
-    * Options to output the scan values for a single key or the entire matrix to the console
-    * Options to disable output while debugging
-* [Priority keys](analog_matrix.md#priority-keys)
+* [SOCD / Snap Tap / Input Cleaner](analog_matrix#SOCD)*
+    * This functionality is available as a separate module in QMK
+    * A height-based priority can't be set, however.
+* [Priority keys](analog_matrix#priority-keys)
     * Select certain matrix positions to be scanned more often than others
     * Not very useful without high polling rate support, which is a low priority at the moment
-* [Custom scanning](analog_matrix.md#custom-scanning) routine
+* [Custom scanning](analog_matrix#custom-scanning) routine
     * If your matrix doesn't conform to the standards layed out in the first section, you can use a custom scanning implementation and still make use of all other features
-        * E.g. selectively powering sensors and using diodes, layering multiplexers
-    * Overwriting the standard analog [initialization](analog_matrix.md#custom-initialization) routine is also possible
-* [Mixed matrix](analog_matrix.md#mixed-matrix)
+        * E.g. selectively powering sensors and using diodes, layering multiplexers*
+        * Selectively powering sensors is likely possible by default but hasn't been tested
+    * Both [full](analog_matrix#full-replacement) and [lite](analog_matrix#lite-implementation) implementations are possible
+    * Overwriting the standard analog [initialization](analog_matrix#custom-initialization) routine is also possible
+* [Mixed matrix](analog_matrix#mixed-matrix)
     * Both mechanical and analog keys can be used together
     * Choose between debouncing only the mechanical keys, or all keys
     * Mechanical and analog keys with bootmagic function
-* Predefined [filter](analog_matrix.md#filtering) options + [debouncing](analog_matrix.md#debouncing)
+* Predefined [filter](analog_matrix#filtering) options + [debouncing](analog_matrix#debouncing)
     * Choose between several predefined filter strengths, or use your own filter
     * Standard timer-based debouncing is disabled by default, but can be enabled
-* [SOCD / Snap Tap / Input Cleaner](analog_matrix.md#SOCD)*
-    * This functionality is available as a separate module in QMK
-    * A height-based priority can't be set, however.
+* [Debug modes](analog_matrix#debugging)
+    * Options to output the scan values for a single key or the entire matrix to the console
+    * Options to disable output while debugging
 * and more
 
-## What doesn't work?
+### What doesn't work?
 
 * GUI configurator
     * VIAL can be used with this branch to change the keymap and QMK settings only, no analog configuration
@@ -75,7 +82,7 @@ Working features are:
 
 1: An implementation is available, but hasn't been tested.
 
-## Current TO-DO list
+### Current TO-DO list
 
 Roughly in descending order of priority:
 * Velocity-sensitive MIDI keys
@@ -94,9 +101,9 @@ Roughly in descending order of priority:
 
 
 <!--MARK: Calibration -->
-# Calibration
+## Calibration
 
-If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a [calibration key](analog_matrix.md#config) and hold that during startup. If the keyboard can't access any calibration values, it will automatically enter calibration mode during startup.
+If you've just finished building your keyboard, or some keys have stopped actuating correctly, you might need to calibrate it. To start calibration, you can either use the AM_CLBR keycode, or define a [calibration key](analog_matrix#config) and hold that during startup. If the keyboard can't access any calibration values, it will automatically enter calibration mode during startup.
 
 While calibration mode is active, you'll need to press every single key on the keyboard down fully at least once. Once a valid top and bottom value has been read for every key, the keyboard will exit calibration mode automatically. If the calibration doesn't finish after pressing every key down, it might mean that the keyboard is expecting a larger difference between the top and bottom values than your sensors are providing. In that case, you can use the following define to lower the threshold:
 ```c
@@ -104,9 +111,15 @@ While calibration mode is active, you'll need to press every single key on the k
 ```
 This is the minimum absolute difference in value between top and bottom, for a switch to be seen as calibrated. As the calibration only stops once all keys are counted as calibrated, setting this value too high will cause the calibration to never finish, while setting this value to low will cancel calibration prematurely. Keep in mind that the ADC is configured to use a 12 bit resolution.  
 
+### Deadzone calibration
+
+The top deadzone of each switch can be calibrated. The resulting values are saved in the same manner as the calibration values. To start calibrating the top deadzone, place the AM_CLTP (AM_CALIBRATE_TOP) keycode in your keymap and use it. After activating it, you need to release all keys. The calibration will start two seconds after the keycode is activated, and take almost no time. Make sure not to press any keys in this time frame, or the deadzone values will be way off. After the calibration is done, the keyboard automatically returns to the normal state, and the new deadzones are used immediately.  
+If you have a form of persistent storage set up, the values will be saved automatically. Keep in mind that any action that wipes the EEPROM will also remove these values, at which point the fallback "adc_deadzone" is used.  
+If the no_eeprom option is used instead, the values will be printed to the console, similar to the regular switch calibration. Make sure to have your console open to be able to save the new values. On split keyboards, similar to the regular calibration, the master will pull the calibrated values from the slave and print them out together.
+
 How the calibration values are saved depends on the configuration:
 
-## Persistent Storage
+### Persistent Storage
 
 By default, the calibration values can be saved to some form of persistent storage, and recalled during startup. This requires you to either:
 * Use a chip with eeprom emulation support in QMK, or
@@ -117,11 +130,11 @@ It is heavily recommended to use one of these two options, as external flash chi
 The stm32-dfu bootloader will always reset the internal flash while flashing firmware, so any chips using it will not be able to remember the values after a firmware change. To circumvent this, you can use another bootloader (like tinyuf2), or an external storage chip.  
 :::
 
-This requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom.md) and [EEPROM driver](../drivers/eeprom.md) or [Flash driver](../drivers/flash.md) pages for more information.
+This requires a proper configuration of the EEPROM feature to work, visit the [EEPROM](../feature_eeprom) and [EEPROM driver](../drivers/eeprom) or [Flash driver](../drivers/flash) pages for more information.
 
 When using an external storage chip, don't forget to configure the used communication peripheral (I2C or SPI) as well.
 
-## Hardcode values
+### Hardcode values
 
 ::: tip  
 It is highly recommended to use a form of persistent storage. Many chips support saving to the internal flash, and external storage chips can be bought for very cheap.  
@@ -158,22 +171,22 @@ For split keyboards, the left and right half are separated:
 ```
 
 
-# AVR configuration
+## AVR configuration
 
 The analog matrix feature doesn't work on AVR chips. Support may be added in the future, but ARM will be preferred generally anyway, due to firmware size limitations and better specs.
 
 <!--MARK: Configuration -->
-# ARM configuration
+## ARM configuration
 
 Enable the ADC peripheral:
 
-## halconf.h
+### halconf.h
 
 ```c
 #define HAL_USE_ADC TRUE
 ```
 
-## mcuconf.h
+### mcuconf.h
 
 If you wish to use a specific ADC (provided the chosen chip has multiple ADCs supported by ChibiOS), you can set that here:
 
@@ -194,19 +207,19 @@ You may also need to configure the DMA settings, particularily when using an ADC
 You can find these values in the reference manual of your chip.
 
 
-# RP2040 configuration
+## RP2040 configuration
 
 While this chip works without issues, the fact that it has only 4 usable ADC channels means that, when using 16 channel multiplexers, you'd be limited to 64 keys.
 You'd either have to use 32 channel multiplexers, which are a lot more expensive than 16 channels, or make a split keyboard, to get access to more keys than that.  
 Another (minor) problem is that the ADC performs poorly compared to STMs offerings, with a fairly slow sample rate of 500ksps, and a lower accuracy. This means that stronger filtering and/or debouncing might need to be enabled to use a sensitive configuration.
 
-## halconf.h
+### halconf.h
 
 ```c
 #define HAL_USE_ADC TRUE
 ```
 
-## mcuconf.h
+### mcuconf.h
 
 ```c
 #undef RP_ADC_USE_ADC1
@@ -214,14 +227,14 @@ Another (minor) problem is that the ADC performs poorly compared to STMs offerin
 ```
 
 <!--MARK: Gen config -->
-# General configuration
+## General configuration
 
-## info.json/keyboard.json
+### info.json/keyboard.json
 
 This is where the bulk of the configuration lives. Since a GUI is still work in progress, the heights, rapid trigger settings, profiles and additional features are all configured here.
 
 <!--MARK: Hardware -->
-### Hardware
+#### Hardware
 
 This section contains the details of how everything is connected to the microcontroller. If you're making a split keyboard, it is recommended to use the same pins for both halves. While it is possible to change them, some optimizations might not work.
 
@@ -272,11 +285,13 @@ This setting sets the switch travel distance that the firmware expects. Defaults
 Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it. A general starting point for this value is (top_value - bottom_value) / (2 * travel_distance).
 If the change in value compared to the previous scan is smaller than this value, the switch evaluation is skipped.
 
+Deadzones are split into two parts: The "ADC Deadzone" intended to eliminate the possibility of false presses/releases with sensitive height settings, and the normal deadzone, intended to give users with a heavy touch room to rest their hand on the switch without accidentally registering a press. Until the deadzone is [calibrated](analog_matrix#deadzone-calibration), this distinction isn't important, as they stack additively: An ADC deadzone of 60 and a deadzone of 20 will behave identically if the values are flipped. This changes when the top deadzone is calibrated, as that will take care of the ADC deadzone, allowing the user to finetune the sensitivity without worrying about accidentally setting the deadzone low enough to register presses due to ADC inaccuracies.
+
 ```json
+"adc_deadzone": 60
 "deadzone": 50
 ```
-Sets a deadzone at the top and bottom range of the switch travel. A smaller value shrinks the deadzone. If you have issues with the switch occasionally not counting as released, increase this value.
-You can have different deadzones for top and bottom by using top_deadzone and bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Conversely, a switch inside the bottom deadzone will always count as pressed.
+You can have different deadzones for top and bottom by using top_deadzone, bottom_deadzone, adc_top_deadzone and adc_bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Conversely, a switch inside the bottom deadzone will always count as pressed.
 
 ```json
 "invert_adc": false
@@ -289,7 +304,7 @@ The analog matrix logic assumes that the ADC value of a released switch is highe
 While it's disabled by default, you can enable timer-based debouncing routines by setting this parameter. Keep in mind that the normal "debounce" parameter doesn't work for analog keys, as it is reserved for debouncing the mechanical keys in a mixed matrix configuration.
 
 
-#### Layout
+##### Layout
 ```json
 "layouts": {
     "LAYOUT": {
@@ -323,7 +338,7 @@ The performance impact of the optimization is low, however.
 Currently, it's only possible to connect the sensors to a multiplexer or to an ADC pin directly. Chaining multiplexers or using diodes to connect multiple sensor outputs to one mux channel is not supported, and will likely never be. If you wish to use such an arrangement with this feature, then you'd need to make a custom matrix scanning routine <!--TODO: Add anchor link here-->, which would still allow you to use the rest of the features.
 
 <!--MARK: Config -->
-### Config
+#### Config
 
 This section contains information about specific subfeatures and profile settings.
 
@@ -383,7 +398,7 @@ If general matrix scanning doesn't work correctly, you can also try adding vario
 Like the startup delay, this is an extremely short, arbitrary amount of time (one asm("nop") instruction to be specific). The mux select delay waits every time the multiplexer channel was changed, while the adc scan delay waits after every adc scan. The time value is dependent on the processing speed. Both default to 0.
 
 <!--MARK: Profiles -->
-### Profiles
+#### Profiles
 
 This section contains all information about trigger heights, rapid trigger, etc. The json is currently the only way to configure them, as VIAL integration is still a ways off. 
 To switch between profiles, you can use the layer parameter to automatically switch the profile based on the active layer, or you can use the AM_AP("profile") keycode by placing it in your keymap and replacing "profile" with the profile you want to switch to. Keep in mind that profiles are 0-indexed, and that manually switching the profile disables automatic profile switching (if configured), which can then be reactivated by pressing that same key again, or using the AM_LOCK keycode.
@@ -440,7 +455,7 @@ Sets the profile that is used at startup or when a layer with no assigned profil
 Defaults to 0 if not set, or if set to a profile that isn't configured.
 
 <!--MARK: Profile objects -->
-### Profile objects
+#### Profile objects
 
 A profile object contains all information relevant to that profile, and looks roughly like this:
 
@@ -464,7 +479,7 @@ You can use up to 32 profiles, as long as they all follow the "profile_n" naming
 As long as profile_switch_mode isn't set to "manual", this profile will be automatically activated when switching to one of these layers. If multiple profiles contain a layer, the profile with the lowest index will be activated. If you don't wish to switch to a specific profile automatically, you can ignore this setting, and use the AM_AP(profile) keycode to switch manually.
 
 
-#### Height configuration
+##### Height configuration
 
 The order of these keys is identical to the order in the layout, so index 0 sets the mode for the first key in the layout definition. This holds true for split keyboards as well. The same logic is applied to all key-specific arrays further down, like height and rapid trigger distance.
 
@@ -557,7 +572,7 @@ Sets the distance that keys need to travel up in order to count as being release
 The same base options and offset options can be used with the rapid trigger values. In this case, the offset can also be negative; an offset of -0.3 with an rt_press_distance of 0.8 results in an rt_release_distance of 0.5 millimeters.
 
 <!--MARK: Keycodes -->
-# Keycodes
+## Keycodes
 
 Profile-related keycodes:
 | Keycode               | Alias          | Description                                                                  |
@@ -569,7 +584,7 @@ Profile-related keycodes:
 | AM_CALIBRATE          | AM_CLBR        | Starts calibration of the keyboard. On split keyboards, only starts calibration of the master half. |
 
 <!--MARK: Functions -->
-# Functions
+## Functions
 
 | Function             | Description                        |
 |----------------------|------------------------------------|
@@ -586,7 +601,7 @@ You can use these functions from your 'keyboard'.c or keymap.c file by including
 
 
 <!--MARK: Filtering -->
-# Filtering
+## Filtering
 
 The feature implements predefined filters, with selectable strength values from 0 (disabled) to 4 (maximum filtering)
 You can select the predefined filter by defining one of the following:
@@ -611,9 +626,19 @@ As the filter works on absolute values, it is recommended to use the debug_matri
 
 If you wish to use your own filter, keep in mind that this filter will run once for every single key in every single scan, meaning that performance should be prioritised over steady readings, within reason. A simple filter will hardly cause a performance penalty, but a more complex filter might. Furthermore, it is advised to use primarily simple operations like adding, subtracting and bitshifting. If possible, multiply and divide by powers of 2 (2, 4, 8 etc), as those operations can be done efficiently via bitshifts (multiplying by 4 equals << 2, dividing by 8 equals >> 3 etc).
 
+On split keyboards, it is possible to use different filter strenghts per half:
+```c
+// In config.h
+// These default to ADC_FILTER_STRENGTH
+#define ADC_RIGHT_FILTER_STRENGTH 3
+#define ADC_SLAVE_FILTER_STRENGTH 3
+```
+This is helpful in the case that the slave power supply is less stable. Using a higher filter strength can smooth out the resulting jitters, but will cause a minor performance penalty. You can use either the _RIGHT option or the _SLAVE option, but the _RIGHT option is generally preferred and wins out over the SLAVE option if both are defined.
+
+
 ## Debouncing
 
-Timer-based debouncing (the same algorithm used for mechanical keys) is disabled by default, but can be enabled by setting the "analog_debounce" parameter:
+[Timer-based debouncing](../feature_debounce_type) (the same algorithm used for mechanical keys) is disabled by default, but can be enabled by setting the "analog_debounce" parameter:
 ```json
 "analog_matrix": {
     "hardware": {
@@ -628,7 +653,7 @@ This will use a debounce time of 5 milliseconds.
 
 
 <!--MARK: Split kb -->
-# Split keyboards
+## Split keyboards
 
 The analog matrix feature works just fine on split keyboards, but there are some things to keep in mind:
 
@@ -665,6 +690,8 @@ As this is only checked once during initialization, don't be afraid to use float
 The SLAVE version works the same, but is used when the keyboard is detected as the slave half. If both are defined, only the RIGHT version is used.
 Using a separate filter strength on the slave will cause a minor performance hit.
 
+The multipliers only affect the [ADC deadzone](analog_matrix#hardware), not the user deadzone. Using the top deadzone calibration feature will remove the multiplier from the top deadzone, as it's assumed to not be necessary anymore.
+
 Joystick axes currently don't work on the slave half. The slave half will need to be flashed when enabling/disabling the analog joystick feature, or else it won't connect.
 
 Debug options to print to the console don't work on the slave half, but having them enabled can still cause a (often major) performance hit.
@@ -685,12 +712,12 @@ inside of your keyboards config.h. This will cause a minor performance penalty.
 
 
 <!--MARK: Mixed matrix-->
-# Mixed Matrix
+## Mixed Matrix
 
 If you wish, you can use normal (mechanical) keys together with your analog keys, e.g. to use the press action on an encoder. <br>
 You can either connect them to GPIO 'direct pin' style (one leg to a GPIO pin, the other leg to ground), or together in a matrix configuration using diodes. However, the pin definition will be different, and the layout macro needs extra information to work correctly.
 
-## Pin configuration
+### Pin configuration
 
 If you wish to wire your mechanical keys together in a matrix configuration, you need to define both the row and column pins inside the "hardware" object:
 ```json
@@ -716,7 +743,7 @@ Don't forget that, while the direct_pins definition for a normal QMK matrix is a
 If you wish to use a mechanical key as an init key, you can simply set it in the same way as an analog key. Mechanical matrix locations are detected and converted automatically, no additional configuration required.
 
 
-## Layout configuration
+### Layout configuration
 
 Similar to the mux parameter for analog keys, all mechanical keys need an added "rc" parameter to work correctly. Since the resulting keymap is a combination of mechanical and analog keys that don't fit into an electrical matrix together, the rc parameter maps the pin index(es) to a matrix position. The contents of the parameter depend on the pin definition used. If row_pins and col_pins is defined, functions identically to the mux parameter:
 ```json
@@ -752,7 +779,7 @@ If you instead wish to use timer-based debouncing for both mechanical and analog
 
 <!--TODO: Put this into its own page -->
 <!--MARK: Custom scanning -->
-# Custom Scanning
+## Custom Scanning
 
 The default matrix scanning routine works like this:
 1. Scan mechanical keys (if configured)
@@ -771,7 +798,7 @@ However, if your matrix is layed out differently from the standard described abo
 
 There are two different ways to implement a custom scanning routine, depending on your needs: a "lite" implementation that keeps the debouncing, split synchronisation, and mechanical key scanning in place; and the full replacement, which gives you full control.
 
-## Setup
+### Setup
 
 To use your own scanning or initialization routine, you need to add a new file placed in your keyboard folder, and tell QMK to compile it as well. Assuming that file is called matrix.c: <br>
 In rules.mk:
@@ -780,7 +807,7 @@ SRC += matrix.c
 ```
 Importantly, you should NOT add CUSTOM_MATRIX = yes or CUSTOM_MATRIX = lite to your rules.mk.
 
-### General information
+#### General information
 
 An analog switch is represented with the analog_key_t struct in the firmware. The definition of this struct looks like this:
 ```c
@@ -830,7 +857,7 @@ This will allow you to access these fields in your custom routines without modif
 If you need to save data that will be different on each profile, you can define it as an array with AM_PROFILE_NUM elements. AM_PROFILE_NUM is automatically defined to be equal to the profiles configured in keyboard.json.
 To be able to use linebreaks in your definition, you need to put a backslash ('\') at the end of the line.
 
-If you need to save information to these fields only once before actual scanning starts, you can do so by using the [matrix_init_kb()](analog_matrix.md#custom-initialization) function.
+If you need to save information to these fields only once before actual scanning starts, you can do so by using the [matrix_init_kb()](analog_matrix#custom-initialization) function.
 
 All switches (on this half, if using a split keyboard) are configured in a one-dimensional array:
 ```c
@@ -845,7 +872,7 @@ The total amount of switches (in that half) is stored in the switch_num variable
 
 <!--MARK: Custom lite-->
 
-### Lite Implementation
+#### Lite Implementation
 
 To make use of the "lite" implementation, you also need to add the following parameter to the hardware object:
 ```json
@@ -905,7 +932,7 @@ Since we're only doing a lite implementation, things like debouncing, split sync
 
 
 <!--MARK: Custom full-->
-### Full Replacement
+#### Full Replacement
 
 If you instead need full control over the scanning routine, use a full replacement instead, by setting these values:
 ```json
@@ -992,16 +1019,16 @@ uint8_t analog_matrix_scan(void) {
 ```
 
 Let's assume we're using five switches. Two of those are connected to channels 0 and 1 of multiplexer number 0, the other three are connected to channels 0, 1 and 2 of mux 1.
-That means that our mux_to_num array has the form {{1, 2}, {3, 4}, {255, 5}}. As no switch is connected to multiplexer 0 channel 2, the index will be 255, meaning that it won't be scanned.<br>
+That means that our mux_to_num array has the form {{1, 2}, {3, 4}, {255, 5}}. As no switch is connected to multiplexer 0 channel 2, the index will be 255, and will therefore be skipped.<br>
 The mux_to_num array is filled automatically with the information taken from the LAYOUT object in info.json, and doesn't have to be manually set. If it isn't correct, double check that the mux parameters in the LAYOUT definition are set correctly.
 
 ::: warning  
-The special debugging modes described in "Other Features->Debugging" are called directly during scanning, replacing the scanning routine will make them unusable.  
+The special debugging modes described in "Other Features->[Debugging](analog_matrix#debugging)" are called directly during scanning, replacing the scanning routine will make them unusable.  
 :::
 
 To be able to print information to the console during development, you can include the "debug.h" header, allowing you to use the dprint and dprintf functions. Make sure that you have enabled the QMK debugging mode, or else they won't print anything. To print even with debugging disabled, you can use the "print.h" header and the print and printf functions instead, but keep in mind that these will cause a major performance penalty even with debugging disabled.
 
-### Custom Initialization
+#### Custom Initialization
 
 If you need to initialize additional things, you can do so by defining a matrix_init_kb() function:
 ```c
@@ -1009,7 +1036,7 @@ void matrix_init_kb(void) {
     // Initialize additional stuff without overwriting basic functionality
 }
 ```
-This function will be called at the end of the default initialization function. 
+This function will be called at the end of the default initialization function. If the [`#define USER_PARAMS` option](analog_matrix#general-information) is used, it should be initialized here (if necessary).  
 If you instead wish to overwrite it completely, you can do so similarily to the scanning function:
 ```c
 void analog_matrix_init(void) {
@@ -1021,10 +1048,10 @@ Overwriting this function can break all functionality VERY easily, in many more 
 
 
 <!--MARK: Features -->
-# Other Features
+## Other Features
 
 <!--MARK: SOCD-->
-## SOCD
+### SOCD
 
 While SOCD isn't implemented as part of the analog matrix feature specifically, it is available as a separate module.  
 a. To install it manually, you need to download them from [here](https://github.com/getreuer/qmk-modules), and put the socd_cleaner folder into the modules/getreuer directory (or into a subfolder).  
@@ -1068,7 +1095,7 @@ The <RESOLUTION_METHOD> option defines the conflict resolution method. The avail
 Many thanks to [@getreuer](https://getreuer.info/posts) for this module!
 
 <!--MARK: Dynamic Cali-->
-## Dynamic Calibration
+### Dynamic Calibration
 
 This feature will automatically update the calibration values of a switch based on several parameters:
 ```json
@@ -1091,7 +1118,7 @@ While the boundary check is very efficient, you nevertheless have the option of 
 inside the profile_n object. This will disable the boundary checks on that profile.
 
 <!--MARK: Debugging-->
-## Debugging
+### Debugging
 
 There are several settings you can use to help you debug issues with the analog matrix. These print out the status to the console, so make sure debugging and the console feature is enabled, and that you have access to the console (QMK CLI or QMK Toolbox for example).
 
@@ -1125,7 +1152,7 @@ On split keyboards, enabling debug_scan_no_input on one half will not disable in
 :::
 
 <!--MARK: Prio Keys-->
-## Priority keys
+### Priority keys
 
 You can force the firmware to scan some keys more often, thereby increasing the scan rate for situations in which only some keys are important. This is done by setting these options:
 
@@ -1178,7 +1205,7 @@ This feature is not very useful currently, as USB polling rates above 1k aren't 
 
 
 <!--MARK: Joystick -->
-## Analog Joystick
+### Analog Joystick
 
 ::: warning  
 This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work. <br>
@@ -1268,7 +1295,7 @@ I currently don't know if they work together.
 These options control the amount of axes and buttons that the descriptor will use. Trying to use a keycode for an axis that is outside of the range of the defined axis amount will crash the keyboard, while trying to use a button that is outside of that range will result in the button simply not working.
 Defaults to 6 axes and 16 buttons.
 
-### Keycodes
+#### Keycodes
 All joystick keycodes are prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.
 
 | Button    | XBox    | Playstation   | Nintendo |
@@ -1317,7 +1344,7 @@ For the stick axis components, you can alternatively use the following aliases:
 
 
 <!--MARK: Debug guide -->
-# Debugging guide
+## Debugging guide
 
 #### Keyboard doesn't work after flashing
 
@@ -1351,21 +1378,27 @@ The length of the array needs to be equal to the amount of switches in your layo
 ```
 Check that the array names are correct, and that the flag is set properly.
 
+You could also see if defining a default offset fixes this:
+```c
+#define DEFAULT_OFFSET 800
+```
+This will set the bottom value of a switch to be equal to (top value - DEFAULT_OFFSET) instead of starting calibration, if a key has invalid calibration data. If the calibration stops happening during keyboard startup after setting this value, it guarantees that the cause is a wrong calibration configuration.
+
 If the no_eeprom flag isn't set (values are saved to storage), check if your chip has at least one of these:
 * An external EEPROM/Flash chip, correctly wired up and configured, or
 * Support for embedded flash emulation
 
 As the storage configuration can be finicky, a misconfigured storage configuration is a likely reason for this issue.
 
-2. If this only happens after flashing firmware, you're likely using a chip with the stm32-dfu bootloader, which always erases the whole flash.  
+2. If this only happens after flashing firmware, you're likely using a chip with the stm32-dfu bootloader, which always erases the whole internal flash.  
 To circumvent this, you can use an external storage chip, or change your bootloader (if available, tinyuf2 is a good option).  
 Another reason this could happen is that you're using the bootmagic function to go into the bootloader. The bootmagic function resets the EEPROM, so if your calibration values are saved there, they'll be lost. Use the bootloader_key instead.
 
-3. If a calibration key is set to an invalid value, it will falsely trigger the associated function. Double check all your matrix positions, and keep in mind that the matrix positions defined in the [layout object](analog_matrix.md#layout) might not match up with the physical key location you see on the keyboard. For split keyboards, you should also keep in mind that the right half sits underneath the left half in the matrix definition. This means that a split keyboard with 5 rows and 6 columns per half will have a matrix size of 10 rows and 6 columns, instead of the expected 5 rows and 12 columns.
+3. If a calibration key is set to an invalid value, it will falsely trigger the associated function. Double check all your matrix positions, and keep in mind that the matrix positions defined in the [layout object](analog_matrix#layout) might not match up with the physical key location you see on the keyboard. For split keyboards, you should also keep in mind that the right half sits underneath the left half in the matrix definition. This means that a split keyboard with 5 rows and 6 columns per half will have a matrix size of 10 rows and 6 columns, instead of the expected 5 rows and 12 columns.
 
-4. If you're using the no_eeprom option, the difference between the top and bottom values that your sensor reads might be lower than the threshold that the keyboard expects for a valid value. In that case, you can use the following define to lower the threshold:
+4. The difference between the top and bottom values that your sensor reads might be lower than the threshold that the keyboard expects for a valid value. In that case, you can use the following define to lower the threshold:
 ```c
-#define CAL_THRESHOLD 5 * ADC_TOP_DEADZONE
+#define CAL_THRESHOLD (5 * ADC_TOP_DEADZONE)
 ```
 Keep in mind that the ADC is configured to use a 12 bit resolution.  
 
@@ -1413,7 +1446,7 @@ For normal keyboards:
 * An entire section of keys close together doesn't work:
     * This likely means that the connection between multiplexer output and ADC pin is severed.
 * One or more keys activate randomly on sensitive settings:
-    * Increase the [filter strength](analog_matrix.md#filtering), or enable [debouncing](analog_matrix.md#debouncing)
+    * Increase the [filter strength](analog_matrix#filtering), or enable [debouncing](analog_matrix#debouncing)
 
 
 <!-- 
@@ -1428,9 +1461,9 @@ MARK: Design tips
 * Select the ADC Vref voltage appropriately for your sensor/orientation/switch combo
 -->
 
-# Additional Resources
+## Additional Resources
 
-If you want an implementation example, you can look up [my current keyboard.](https://www.github.com/vermilion00/qmk_firmware/tree/kb/keyboards/0/he)
+If you want an implementation example, you can look up [my current keyboard.](https://www.github.com/vermilion00/qmk_firmware/tree/analog_matrix/keyboards/0/he)
 There you can see an actual, working implementation.
 
 If you have any questions, feel free to contact me at vermilion00.github@gmail.com.

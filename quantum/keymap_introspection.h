@@ -128,6 +128,8 @@ extern bool joystick_layer;
 extern matrix_row_t joystick_mask[MATRIX_ROWS];
 // Create a mask of all joystick axis keys in the highest active layer
 void create_joystick_mask(uint8_t current_layer);
+#else
+extern const bool joystick_layer;
 #endif
 
 #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
@@ -138,6 +140,15 @@ extern bool midi_layer;
 extern matrix_row_t midi_mask[MATRIX_ROWS];
 // Create a mask of all joystick axis keys in the highest active layer
 void create_midi_mask(uint8_t current_layer);
+#else
+extern const bool midi_layer;
+#endif
+
+#ifdef USE_SPECIAL_MODE
+extern bool special_layer;
+#else
+// extern const bool special_layer;
+#define special_layer false
 #endif
 
 #if defined(PRIORITY_INDICES)

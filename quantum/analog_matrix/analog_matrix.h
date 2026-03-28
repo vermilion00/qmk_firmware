@@ -179,17 +179,26 @@ typedef at32_gpio_t gpio_port_t;
 #endif
 #define MAX_ADC_VALUE 4095
 
-#ifndef ADC_DEADZONE
-#   define ADC_DEADZONE 140
-#endif
 #ifndef ADC_SMOOTHING
-#   define ADC_SMOOTHING 80
+#   define ADC_SMOOTHING 30
+#endif
+#ifndef ADC_DEADZONE
+#   define ADC_DEADZONE 100
 #endif
 #ifndef ADC_TOP_DEADZONE
 #   define ADC_TOP_DEADZONE ADC_DEADZONE
 #endif
 #ifndef ADC_BOTTOM_DEADZONE
 #   define ADC_BOTTOM_DEADZONE ADC_DEADZONE
+#endif
+#ifndef USER_DEADZONE
+#   define USER_DEADZONE 50
+#endif
+#ifndef USER_TOP_DEADZONE
+#   define USER_TOP_DEADZONE USER_DEADZONE
+#endif
+#ifndef USER_BOTTOM_DEADZONE
+#   define USER_BOTTOM_DEADZONE USER_DEADZONE
 #endif
 #ifndef SCANS_WITHOUT_CHANGE
 #   define SCANS_WITHOUT_CHANGE 3000
@@ -208,7 +217,7 @@ typedef at32_gpio_t gpio_port_t;
 #endif
 // Percentage of the range that will be moved up/down
 #ifndef AM_DC_FACTOR
-#   define AM_DC_FACTOR 0.15
+#   define AM_DC_FACTOR 0.1
 #endif
 #ifndef RECALIBRATED_SWITCHES
 #   define RECALIBRATED_SWITCHES 5
@@ -293,8 +302,10 @@ extern bool priority_mode;
 
 #ifndef AM_NO_EEPROM
 #include "nvm_eeconfig.h"
+//TODO: Why is this global?
 extern uint16_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
+extern uint8_t top_deadzones[SMAX(SWITCH_NUM)];
 
 #ifdef ADJUSTMENT_FUNCTION
 __attribute__((weak)) uint16_t adjust(uint16_t value);
@@ -304,6 +315,7 @@ __attribute__((weak)) uint16_t adjust(uint16_t value);
 
 #ifdef SPLIT_KEYBOARD
 extern bool calibration_started;
+extern bool top_calibration_started;
 #ifdef AM_NO_EEPROM
 extern uint8_t switch_num_slave;
 #endif
@@ -326,10 +338,10 @@ void get_switch_data(void);
 bool scan_init_keys(void);
 // Translate the user defined heights and distances into the equivalent ADC values
 void translate_mm_to_value(uint8_t index);
-// Gets the previously calibrated min/max values for each switch from the EEPROM
-bool get_calibration_data(void);
-// Immediately starts calibration
+// Starts calibration of the bottom value
 void calibrate_switches(bool init);
+// Starts calibration of the top deadzone
+void calibrate_top_value(void);
 // Assigns side and configuration at init
 void assign_config(bool side);
 // Runs whenever the profile has changed
@@ -358,21 +370,28 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]);
 void _bootmagic(bool init);
 void _bootloader_jump(bool init);
 #endif
-
-#if defined SPLIT_KEYBOARDR && defined AM_NO_EEPROM
+#if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
 void _sync_cal(void);
 #else
-#   define _sync_cal();
+#   define _sync_cal()
 #endif
 
-volatile void sensor_power_init_kb(void);
+#ifdef POWER_BEFORE_SCAN
+#   define set_sensor_power_high(index) set_sensor_power(index)
+#   define set_sensor_power_low(index);
+#elif defined CUSTOM_POWER_BEFORE_SCAN
+volatile void sensor_power_init(void);
 volatile void sensor_power_init_user(void);
-volatile void set_sensor_power_high_kb(uint8_t mux_channel);
+volatile void set_sensor_power_high(uint8_t mux_channel);
 volatile void set_sensor_power_high_user(uint8_t mux_channel);
-volatile void set_sensor_power_low_kb(uint8_t mux_channel);
+volatile void set_sensor_power_low(uint8_t mux_channel);
 volatile void set_sensor_power_low_user(uint8_t mux_channel);
-volatile void sensor_power_toggle_kb(uint8_t mux_channel, uint8_t adc_channel);
+volatile void sensor_power_toggle(uint8_t mux_channel, uint8_t adc_channel);
 volatile void sensor_power_toggle_user(uint8_t mux_channel, uint8_t adc_channel);
+#else
+#   define set_sensor_power_high(index)
+#   define set_sensor_power_low(index)
+#endif
 
 //TODO: Similar to the LAYOUT macro, write a script to define this macro
 /*

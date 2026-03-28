@@ -20,6 +20,12 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+        case AM_CALIBRATE_TOP:
+            if(record->event.pressed) {
+                calibrate_top_value();
+            }
+            return false;
+
         case AM_PRINT_CALIBRATION:
             if(record->event.pressed) {
                 print_calibration_data();

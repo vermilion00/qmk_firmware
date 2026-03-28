@@ -19,20 +19,25 @@
         },
         "0x7921": {
             "group": "analog_matrix",
+            "key": "AM_CALIBRATE_TOP",
+            "aliases": ["AM_CLTP"]
+        },
+        "0x7922": {
+            "group": "analog_matrix",
             "key": "AM_PRINT_CALIBRATION",
             "aliases": ["AM_PRNT"]
         },
-        "0x7922": {
+        "0x7923": {
             "group": "analog_matrix",
             "key": "AM_LOCK_PROFILE",
             "aliases": ["AM_LOCK"]
         },
-        "0x7923": {
+        "0x7924": {
             "group": "analog_matrix",
             "key": "AM_TOGGLE_PRIORITY",
             "aliases": ["AM_TGPR"]
         },
-        //"0x7924/0x001B" - UNUSED
+        //"0x7925/0x0019" - RESERVED
         "0x7940": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_X",

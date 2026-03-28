@@ -55,5 +55,8 @@ bool transaction_rpc_exec(int8_t transaction_id, uint8_t initiator2target_buffer
 #ifdef ANALOG_MATRIX_ENABLE
 // Handler function to allow manual transactions on master
 bool am_data_manual_transaction(void);
+#ifdef AM_NO_EEPROM
 void sync_calibration_values(bool init);
+void sync_top_calibration(void);
+#endif
 #endif

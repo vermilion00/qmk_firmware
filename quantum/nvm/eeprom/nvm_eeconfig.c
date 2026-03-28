@@ -112,18 +112,19 @@ void nvm_eeconfig_update_keymap(const keymap_config_t *keymap_config) {
 
 //MARK: Analog matrix
 #ifdef ANALOG_MATRIX_ENABLE
-void nvm_eeconfig_read_switch(uint16_t *switch_data, uint8_t key_idx) {
-    *switch_data = eeprom_read_word(EECONFIG_ANALOG_MATRIX + key_idx);
+void nvm_eeconfig_read_deadzone(uint8_t *keyboard_data) {
+    const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * sizeof(uint8_t);
+    eeprom_read_block(keyboard_data, EECONFIG_AM_DEADZONES, data_size);
+}
+void nvm_eeconfig_update_deadzone(const uint8_t *keyboard_data) {
+    const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * sizeof(uint8_t);
+    eeprom_update_block(keyboard_data, EECONFIG_AM_DEADZONES, data_size);
 }
 void nvm_eeconfig_read_keyboard(uint16_t *keyboard_data) {
     const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * sizeof(uint16_t);
     eeprom_read_block(keyboard_data, EECONFIG_ANALOG_MATRIX, data_size);
 }
-void nvm_eeconfig_update_switch(const uint16_t *switch_data, uint8_t key_idx) {
-    eeprom_update_word(EECONFIG_ANALOG_MATRIX + key_idx, *switch_data);
-}
 void nvm_eeconfig_update_keyboard(const uint16_t *keyboard_data) {
-    // switch data is comprised of 2 uint16 -> 4 bytes
     const uint8_t data_size = MAX(SWITCH_NUM, SWITCH_NUM_R) * sizeof(uint16_t);
     eeprom_update_block(keyboard_data, EECONFIG_ANALOG_MATRIX, data_size);
 }

@@ -39,10 +39,9 @@
 #    include "connection.h"
 #endif // CONNECTION_ENABLE
 
-//TODO: None of the above includes should be necessary?
-// #ifdef ANALOG_MATRIX_ENABLE
-// // #   include "analog_matrix.h"
-// #endif
+#ifdef ANALOG_MATRIX_ENABLE
+// #   include "analog_matrix.h"
+#endif // ANALOG_MATRIX_ENABLE
 
 #ifdef VIA_ENABLE
 bool via_eeprom_is_valid(void);
@@ -228,14 +227,14 @@ void eeconfig_update_keymap(const keymap_config_t *keymap_config) {
 }
 
 #ifdef ANALOG_MATRIX_ENABLE
-void eeconfig_read_switch(uint16_t *switch_data, uint8_t key_idx) {
-    nvm_eeconfig_read_switch(switch_data, key_idx);
+void eeconfig_read_deadzone(uint8_t *keyboard_data) {
+    nvm_eeconfig_read_deadzone(keyboard_data);
+}
+void eeconfig_update_deadzone(const uint8_t *keyboard_data) {
+    nvm_eeconfig_update_deadzone(keyboard_data);
 }
 void eeconfig_read_keyboard(uint16_t *keyboard_data) {
     nvm_eeconfig_read_keyboard(keyboard_data);
-}
-void eeconfig_update_switch(const uint16_t *switch_data, uint8_t key_idx) {
-    nvm_eeconfig_update_switch(switch_data, key_idx);
 }
 void eeconfig_update_keyboard(const uint16_t *keyboard_data) {
     nvm_eeconfig_update_keyboard(keyboard_data);

@@ -1,5 +1,5 @@
-#include "color.h"
 #include QMK_KEYBOARD_H
+#include "color.h"
 #include "info_config.h"
 #include "joystick_aliases.h"
 #include "keymap_us.h"
@@ -178,9 +178,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_FN2] = LAYOUT(
      QK_BOOT, JS_0,    JS_1,    JS_2,    JS_3,    KC_F5,                   			          AM_LOCK,   AM_AP(0),   AM_AP(1),   AM_AP(2),  KC_F10,  KC_BSPC,
-     AM_PRNT, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
+     AM_CLTP, KC_PGUP, KC_PGUP, KC_UP,   KC_HOME, KC_SCLN,                 		 	          KC_COMM, KC_7,    KC_8,    KC_9,   KC_SCLN, KC_SS,
      AM_CLBR, KC_HOME, KC_LEFT, KC_DOWN, KC_RGHT, KC_AT,              	   			          KC_COMM, KC_4,    KC_5,    KC_6,   KC_0,    KC_QUOT,
-     DB_TOGG, KC_PGDN, KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
+     DB_TOGG, EE_CLR, KC_PGDN, KC_DOWN, KC_END,  KC_MPLY,             	   			          KC_DOT,  KC_1,    KC_2,    KC_3,   KC_0,    KC_DOT,
                                KC_MPRV, KC_MNXT,  													                                    KC_MPRV, KC_MNXT,
 										         LCTAB, KC_SPC,  _______,	        _______,  KC_LSFT, QK_BOOT,
 												                      KC_LCTL, _______,	   		KC_LALT

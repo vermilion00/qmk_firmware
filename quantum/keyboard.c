@@ -413,14 +413,6 @@ __attribute__((weak)) bool is_keyboard_left(void) {
  *   - splits where the slave side needs to process for rgb/oled functionality
  */
 __attribute__((weak)) bool should_process_keypress(void) {
-    //TODO: Test if the current issues are caused by the slave processing all keycodes, instead of just joystick ones
-    // #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
-    // // Process the joystick state on the slave as well
-    // return is_keyboard_master() || joystick_state.dirty;
-    // #else
-    // return is_keyboard_master();
-    // #endif
-
     return is_keyboard_master();
 }
 
@@ -579,6 +571,13 @@ void keyboard_init(void) {
 #ifdef HAPTIC_ENABLE
     haptic_init();
 #endif
+//MARK: Init call
+// #ifdef ANALOG_MATRIX_ENABLE
+//     analog_matrix_init();
+// #   ifdef JOYSTICK_ENABLE
+//     analog_joystick_init();
+// #   endif
+// #endif
 
 #if defined(DEBUG_MATRIX_SCAN_RATE) && defined(CONSOLE_ENABLE)
     debug_enable = true;
