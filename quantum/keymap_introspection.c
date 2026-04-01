@@ -1,15 +1,6 @@
 // Copyright 2022 Nick Brassel (@tzarc)
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <stdint.h>
-#include "action.h"
-#include "analog_matrix/analog_matrix.h"
-#include "gpio.h"
-#include "info_config.h"
-#include "joystick.h"
-#include "keyboard.h"
-#include "keycodes.h"
-#include "matrix.h"
 #if defined(COMMUNITY_MODULES_ENABLE)
 #    include "community_modules_introspection.h"
 #endif // defined(COMMUNITY_MODULES_ENABLE)
@@ -193,6 +184,7 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 #if defined(ANALOG_MATRIX_ENABLE)
 #include "analog_matrix.h"
 #include "multiplexer.h"
+#include "info_config.h"
 
 #ifdef SPLIT_KEYBOARD
 #if KEYBOARD_SIDE == UNKNOWN

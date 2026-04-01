@@ -195,8 +195,6 @@ When the calibration values drift, do they tend to drift together or independent
 Since the init and cal thresholds work off of the deadzone, I need to be careful when setting a high deadzone for tests
     -Or define a separate value as a fallback
 
-Check how the smoothing works, it currently seems to work like old deadzones
-
 Since I'm already scanning the top value every time, I could just set a default offset as the bottom value if no other are given
     -This is done, mention it in the docs
 
@@ -208,4 +206,23 @@ Add my keycodes to docs/keycodes.md with a link to my page
 If the slave boot key is pressed, go to bootloader on master? Would make it slower, since I have no way of knowing which half is master until after full init,
 so both halves will need to wait.
 
+Add clear_eeprom thing similar to force_calibrate -> Should be checked before getting calibration data, and if set, it should immediately clear eeprom and start calibration
+    -The problem is that the normal clear eeprom things don't seem to clear core stuff
+    -Could change analog matrix to be extra similar to VIA?
+
+Once VIA(L) is a thing, start top cal from there and keep it running until it's stopped on the PC
+    -This allows you to jiggle the keys a bit for better readings
+
+Add top values to calibration printing
+
 !!! IMPORTANT !!!
+
+Currently, bootmagic keys don't seem to reset eeprom (but they do go into the bootloader)
+The clear eeprom key also doesn't seem to wipe cal values
+    -> Either the keyboard doesn't check for that correctly, or they don't work, or the core stuff is exempt from being wiped? VIAL is extra, so that may be the case
+
+Do I need to calculate the rt_threshold when switching profiles or not?
+    -Kinda seems like yes, but it hasn't been a problem yet
+    -Likely need a high rt_press_value for it to matter
+
+Split calibration sync is broken!

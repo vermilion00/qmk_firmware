@@ -18,13 +18,8 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "_wait.h"
-#include "action_layer.h"
 #include "crc.h"
 #include "debug.h"
-#include "info_config.h"
-#include "keyboard.h"
-#include "keymap_introspection.h"
 #include "matrix.h"
 #include "host.h"
 #include "action_util.h"
@@ -71,6 +66,7 @@
 #endif
 #ifdef ANALOG_MATRIX_ENABLE
 #   include "analog_matrix.h"
+#   include "keymap_introspection.h"
 #endif
 
 #define SYNC_TIMER_OFFSET 2
@@ -997,7 +993,7 @@ bool am_data_manual_transaction(void) {
     return manual_transaction_handler(am_data_manual_handler);
 }
 
-#ifdef AM_NO_EEPROM
+#if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
 //MARK: Cal Master
 //Called by the master when calibration finishes
 bool calibration_data_master_manual_handler(void) {
@@ -1129,7 +1125,9 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     data >>= 5;
     #endif
 
+    #if AM_PROFILE_NUM > 1
     active_profile = data & 0b00011111;
+    #endif
 
     static bool prev_calibration = false;
     bool calibration_started = (data >> 5) & 1;
@@ -1173,13 +1171,11 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     #endif
 }
 
-#   define TRANSACTIONS_AM_DATA_MASTER()
 #   define TRANSACTIONS_AM_DATA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_data)
 #   define TRANSACTIONS_AM_DATA_REGISTRATIONS [PUT_AM_DATA] = trans_initiator2target_initializer(am_data),
 
 #else // defined(ANALOG_MATRIX_ENABLE)
 
-#   define TRANSACTIONS_AM_DATA_MASTER()
 #   define TRANSACTIONS_AM_DATA_SLAVE()
 #   define TRANSACTIONS_AM_DATA_REGISTRATIONS
 
@@ -1235,9 +1231,9 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
 // #   define TRANSACTIONS_JOYSTICK_REGISTRATIONS
 // #endif
 //TODO: Remove this when slave joystick is being worked on again
-#   define TRANSACTIONS_JOYSTICK_MASTER()
-#   define TRANSACTIONS_JOYSTICK_SLAVE()
-#   define TRANSACTIONS_JOYSTICK_REGISTRATIONS
+#   define TRANSACTIONS_AM_JOYSTICK_MASTER()
+#   define TRANSACTIONS_AM_JOYSTICK_SLAVE()
+#   define TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS
 
 ////////////////////////////////////////////////////
 
@@ -1271,7 +1267,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_DETECTED_OS_REGISTRATIONS
     TRANSACTIONS_AM_DATA_REGISTRATIONS
     TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
-    TRANSACTIONS_JOYSTICK_REGISTRATIONS
+    TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS
 // clang-format on
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
@@ -1303,7 +1299,7 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
-    TRANSACTIONS_JOYSTICK_MASTER();
+    TRANSACTIONS_AM_JOYSTICK_MASTER();
     return true;
 }
 
@@ -1328,7 +1324,7 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
     TRANSACTIONS_AM_DATA_SLAVE();
-    TRANSACTIONS_JOYSTICK_SLAVE();
+    TRANSACTIONS_AM_JOYSTICK_SLAVE();
 }
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

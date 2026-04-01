@@ -479,6 +479,8 @@ def transform_init_keys(info_data, config_h_lines):
     hardware = info_data['analog_matrix']['hardware']
     rc_pos = hardware.get('used_rc_pos', [])
     rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
+    max_rows = info_data['matrix_size']['rows']
+    max_cols = info_data['matrix_size']['cols']
     # '_right' postfix is used twice to scan _right key implementation as well
     repeated_right = False
 
@@ -517,6 +519,10 @@ def transform_init_keys(info_data, config_h_lines):
                         break
                     else:
                         used_pos.append(key_pos)
+
+                    # Check if it's a valid position
+                    if key_pos[0] >= max_rows or key_pos[1] >= max_cols:
+                        print(f"Key position {key_pos} is outside of the matrix!")
 
                     # Skip keys assigned to the opposite half for now
                     if key_pos[0] < low_offset or key_pos[0] >= offset:
@@ -648,7 +654,7 @@ def generate_profile_config(info_data, config_h_lines):
             # If base_release_height is defined, it takes priority over offset, as the two values clash
             # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
             base_release_height = profile_data.get('base_release_height', 0)
-            offset = -profile_data.get('release_offset', 0) if not from_bottom else profile_data.get('release_offset', 0)
+            offset = -profile_data.get('release_offset', 0.2) if not from_bottom else profile_data.get('release_offset', 0.2)
             release_height = profile_data.get('release_height', [0])
             if len(release_height) == 1:
                 release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
@@ -785,11 +791,11 @@ def generate_profile_config(info_data, config_h_lines):
             config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
             config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
 
-        if [idx for profile in trigger_heights for idx in profile].count(0) != switch_num * profile_num:
+        if [idx for profile in press_distances for idx in profile].count(0) != switch_num * profile_num:
             config_h_lines.append(generate_define('RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
             config_h_lines.append(generate_define('RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
 
-        if [idx for profile in trigger_heights for idx in profile].count(-1) != switch_num * profile_num:
+        if [idx for profile in key_modes for idx in profile].count(-1) != switch_num * profile_num:
             config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Add the profile config to info_config.h

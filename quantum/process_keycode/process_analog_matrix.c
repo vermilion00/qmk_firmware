@@ -34,10 +34,12 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         case AM_LOCK_PROFILE:
+            #if AM_PROFILE_NUM > 1
             if(record->event.pressed) {
                 manual_profile_lock = !manual_profile_lock;
                 break;
             }
+            #endif
             return false;
 
         case AM_TOGGLE_PRIORITY:
@@ -50,6 +52,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         case AM_PROFILE_RANGE ... AM_PROFILE_RANGE_MAX:
+            #if AM_PROFILE_NUM > 1
             if (record->event.pressed) {
                 // Sanity check that the profile exists
                 if((keycode & 0x1F) >= AM_PROFILE_NUM) {
@@ -66,6 +69,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
                     manual_profile_lock = true;
                 }
             }
+            #endif
             return false;
     }
     return true;

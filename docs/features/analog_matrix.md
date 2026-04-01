@@ -285,13 +285,14 @@ This setting sets the switch travel distance that the firmware expects. Defaults
 Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it. A general starting point for this value is (top_value - bottom_value) / (2 * travel_distance).
 If the change in value compared to the previous scan is smaller than this value, the switch evaluation is skipped.
 
-Deadzones are split into two parts: The "ADC Deadzone" intended to eliminate the possibility of false presses/releases with sensitive height settings, and the normal deadzone, intended to give users with a heavy touch room to rest their hand on the switch without accidentally registering a press. Until the deadzone is [calibrated](analog_matrix#deadzone-calibration), this distinction isn't important, as they stack additively: An ADC deadzone of 60 and a deadzone of 20 will behave identically if the values are flipped. This changes when the top deadzone is calibrated, as that will take care of the ADC deadzone, allowing the user to finetune the sensitivity without worrying about accidentally setting the deadzone low enough to register presses due to ADC inaccuracies.
+Deadzones are split into two parts. While both are supposed to keep the keyboard from registering a press/release where there isn't supposed to be one, they target different causes: The "adc_deadzone" is intended to eliminate the possibility of false presses/releases caused by noise in the ADC readings, while the "deadzone" is intended to give users with a heavy touch room to rest their hand on the switch without accidentally registering a press/release.  
+Until the deadzone is [calibrated](analog_matrix#deadzone-calibration), this distinction isn't important, as they stack additively: An ADC deadzone of 60 and a deadzone of 20 will behave identically if the values are flipped. This changes when the top deadzone is calibrated, as that will take care of the ADC deadzone, allowing the user to finetune the sensitivity without worrying about accidentally setting the deadzone low enough to register presses due to ADC inaccuracies.
 
 ```json
 "adc_deadzone": 60
-"deadzone": 50
+"deadzone": 80
 ```
-You can have different deadzones for top and bottom by using top_deadzone, bottom_deadzone, adc_top_deadzone and adc_bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Conversely, a switch inside the bottom deadzone will always count as pressed.
+You can have different deadzones for top and bottom by using top_deadzone, bottom_deadzone, adc_top_deadzone and adc_bottom_deadzone instead. If the switch is inside the top deadzone, it will always count as released, regardless of height settings. Conversely, a switch inside the bottom deadzone will always count as pressed. Both the "adc_deadzone" and "deadzone" values together need to be in the range from 0 to 255.
 
 ```json
 "invert_adc": false
@@ -557,7 +558,9 @@ You also have the option of setting an offset. If the release height isn't defin
 "trigger_height": [ 1.0, 1.5, 2.0, 0.3 ],
 "release_offset": 0.2
 ```
-This option would result in a release height config of [ 0.8, 1.3, 1.8, 0.1 ]. Keep in mind that the offset needs to be positive, so that the resulting release height is lower than the trigger height for the same key, as it is counted from the top by default.
+This option would result in a release height config of [ 0.8, 1.3, 1.8, 0.1 ]. Keep in mind that the offset needs to be positive, so that the resulting release height is lower than the trigger height for the same key, as it is counted from the top by default.  
+
+If no release_height, no base_release_height and no release_offset is defined, the release height will be higher than the trigger height by 0.2 millimeters (default offset is 0.2).
 
 ```json
 "rt_press_distance": [ 0.7, 0.3, 0.5, 1.5 ]
@@ -1342,14 +1345,16 @@ For the stick axis components, you can alternatively use the following aliases:
 | JS_RPZ         | :o:        | :o:         | :o:      |
 | JS_RNZ         | :o:        | :o:         | :o:      |
 
+If the joystick feature is disabled, the button and axis keycodes will simply not work. There is no need to remove them from your keymap.
+
 
 <!--MARK: Debug guide -->
 ## Debugging guide
 
 #### Keyboard doesn't work after flashing
 
-1. If you have a bootloader or bootmagic key configured, this key might be being triggered during startup, causing the keyboard to boot into the bootloader instead. You can go into the Device settings of your computer to check for bootloaders. Try disabling the bootloader/bootmagic keys to see if they're the cause.
-
+1. If you have a bootloader or bootmagic key configured, this key might be being triggered during startup, causing the keyboard to boot into the bootloader instead. Try disabling the bootloader/bootmagic keys to see if they're the cause.
+    * To see if this is the case, you can look in your Device Manager. The bootloader will carry a name like "STM32 BOOTLOADER" or "RPI-RP2".
 2. Another reason could be a conflict with another feature using the ADC. This feature very likely doesn't support this, but it hasn't been tested.
 
 3. The ADC channel or multiplexer pins could be assigned to another function as well, causing issues.
@@ -1413,7 +1418,7 @@ If the LED works by pulling the connected GPIO pin low, you can add this define 
 ```c
 #define LED_INVERTED
 ```
-This will pull the line low instead of high when the LED should turn on. If your LED still doesn't work, then it's likely not a simple LED.
+This will pull the line low, instead of high, when the LED should turn on. If your LED still doesn't work, then it's likely not a simple LED.
 ::: warning  
 Using this while something is connected to the same line as the LED can cause problems.  
 :::

@@ -16,13 +16,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdint.h>
-#include <string.h>
 #include "keyboard.h"
 #include "keycode_config.h"
-#include "quantum.h"
 //MARK: Include
 #ifdef ANALOG_MATRIX_ENABLE
 #   include "analog_matrix.h"
+#   include "quantum.h"
 #   ifdef JOYSTICK_ENABLE
 #       include "process_analog_matrix.h"
 #       include "analog_joystick.h"

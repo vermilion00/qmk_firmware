@@ -3,7 +3,6 @@
 #include "matrix.h"
 #include <stdint.h>
 #include "action_layer.h"
-#include "analog_matrix.h"
 #include "eeconfig.h"
 #include "info_config.h"
 #include "analog.h"
@@ -231,7 +230,6 @@ typedef at32_gpio_t gpio_port_t;
 #define AM_INIT_KEYS_R AM_INIT_KEYS
 #define AM_INIT_FUNCTIONS_R AM_INIT_FUNCTIONS
 #endif
-
 // The minimum absolute difference in values for the switch to count as calibrated
 #ifndef CAL_THRESHOLD
 #   define CAL_THRESHOLD (5 * ADC_TOP_DEADZONE)
@@ -240,15 +238,18 @@ typedef at32_gpio_t gpio_port_t;
 #ifndef INIT_THRESHOLD
 #   define INIT_THRESHOLD (4 * ADC_BOTTOM_DEADZONE)
 #endif
+#ifndef TOP_DEADZONE_MULT
+#   define TOP_DEADZONE_MULT 1.3
+#endif
 
 /* Profile switching stuff */
 // We always have one profile, but switching isn't needed until we have more
-extern bool manual_profile_lock;
 #if AM_PROFILE_NUM > 1
 #define PROFILE_MUTABLE
 #else
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
+extern PROFILE_MUTABLE bool manual_profile_lock;
 
 //MARK: Filters
 #ifndef ADC_FILTER_STRENGTH
@@ -345,7 +346,11 @@ void calibrate_top_value(void);
 // Assigns side and configuration at init
 void assign_config(bool side);
 // Runs whenever the profile has changed
+#if AM_PROFILE_NUM > 1
 void profile_state_changed(uint8_t profile);
+#else
+#   define profile_state_changed(profile)
+#endif
 // Activates the profile passed as the parameter (only on the master half on split keyboards)
 void set_active_profile(uint8_t profile);
 // Returns the active profile
