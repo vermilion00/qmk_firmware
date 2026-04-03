@@ -375,10 +375,14 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]);
 void _bootmagic(bool init);
 void _bootloader_jump(bool init);
 #endif
-#if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
+#ifdef AM_NO_EEPROM
+#if defined SPLIT_KEYBOARD
 void _sync_cal(void);
 #else
 #   define _sync_cal()
+#endif
+#else
+void clear_calibration(void);
 #endif
 
 #ifdef POWER_BEFORE_SCAN

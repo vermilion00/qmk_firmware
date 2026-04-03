@@ -223,6 +223,7 @@ At the end of top calibration, bring the lower deadzones up a bit according to t
     -Maybe instead of +30% of its deadzone, it should be +30% of the highest deadzone?
 
 Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
+Keep joystick task from running, put the button update logic into analog_joystick.c and run from there
 
 
 !!! IMPORTANT !!!
@@ -235,15 +236,9 @@ Do I need to calculate the rt_threshold when switching profiles or not?
     -Kinda seems like yes, but it hasn't been a problem yet
     -Likely need a high rt_press_value for it to matter
 
-Split calibration sync is broken!
-    -Split cal works again in general, but is broken with joystick enabled
-        -Likely a SPLIT_LAYER_SYNC issue? Need to somehow check if it's wrong on the master or slave side
-    -If joystick is enabled but the SPLIT_LAYER_SYNC is commented out, stuff works
-    -The master side leftshifting seems to work fine
--Change cal sync to always be offset from the left side (MSB)
-    -> (1 << (8 * sizeof(cal_data_t)) - 1) check the logic on this, seems wrong but the general thought makes sense
-
-Update translate_mm_to_value() with the new top_deadzone behaviour (and everywhere else, like joystick?)
-
 Does running top_calibration mess up the bottom values?
+    -Latest test didn't show this behaviour
 
+The joystick layer is sending constant updates (no keycodes are pressed though, just the console being spammed)
+    -Wasn't that fixed at one point? Is it due to the smoothing check being bypassed?
+    -How can I make it so that it only sends updates when an axis is updated?

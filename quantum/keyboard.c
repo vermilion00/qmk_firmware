@@ -673,8 +673,9 @@ static bool matrix_task(void) {
 
                 // Process the joystick action on master and slave
                 #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
-                // // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
+                // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
                 //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
+                //TODO: Generalise this for MIDI etc -> special_layer
                 if (joystick_layer && joystick_state.dirty) {
                     keyrecord_t record = {.event = MAKE_KEYEVENT(row, col, true)};
                     uint16_t keycode = get_record_keycode(&record, true);

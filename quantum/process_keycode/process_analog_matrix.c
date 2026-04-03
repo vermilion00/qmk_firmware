@@ -37,7 +37,6 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             #if AM_PROFILE_NUM > 1
             if(record->event.pressed) {
                 manual_profile_lock = !manual_profile_lock;
-                break;
             }
             #endif
             return false;
@@ -46,7 +45,14 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             #ifdef USE_PRIORITY_MODE
             if(record->event.pressed) {
                 priority_mode = !priority_mode;
-                break;
+            }
+            #endif
+            return false;
+
+        case AM_CLEAR_CALIBRATION:
+            #ifndef AM_NO_EEPROM
+            if(record->event.pressed) {
+                clear_calibration();
             }
             #endif
             return false;
@@ -55,17 +61,17 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             #if AM_PROFILE_NUM > 1
             if (record->event.pressed) {
                 // Sanity check that the profile exists
-                if((keycode & 0x1F) >= AM_PROFILE_NUM) {
+                if((keycode & 0x001F) >= AM_PROFILE_NUM) {
                     printf("Profile %u doesn't exist! Remember that profiles are 0-indexed.", active_profile);
                     return false;
                 }
 
                 // Turn on manual profile lock if switching to a new profile, turn it off when switching to the currently active profile
-                if((keycode & 0x1F) == active_profile) {
+                if((keycode & 0x001F) == active_profile) {
                     manual_profile_lock = false;
                 } else {
                     // 32 profiles max
-                    set_active_profile(keycode&0x1F);
+                    set_active_profile(keycode & 0x001F);
                     manual_profile_lock = true;
                 }
             }

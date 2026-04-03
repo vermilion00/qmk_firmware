@@ -101,7 +101,8 @@ bool translate_joystick_axis(uint8_t index) {
 bool joystick_update_axis(const uint8_t axis, const int16_t value) {
     if (value != joystick_state.axes[axis]) {
         joystick_state.axes[axis] = value;
-        joystick_state.dirty      = false;
+        //TODO: This should obviously be set to true, but dirty is somehow always true anyway, even if explicitely set to false everywhere
+        // joystick_state.dirty      = true;
         return true;
     }
     return false;

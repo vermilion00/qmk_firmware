@@ -13,6 +13,7 @@
 
     // Analog Matrix
     "FORCE_CALIBRATE": {"info_key": "analog_matrix.hardware.force_calibrate", "value_type": "flag"},
+    "CLEAR_CALIRBATION": {"info_key": "analog_matrix.hardware.clear_calibration", "value_type": "flag"},
     "KEYBOARD_SIDE": {"info_key": "analog_matrix.hardware.keyboard_side", "value_type": "int"},
     "ADC_PINS": {"info_key": "analog_matrix.hardware.adc_pins", "value_type": "array"},
     "ADC_PINS_R": {"info_key": "analog_matrix.hardware.adc_pins_right", "value_type": "array"},

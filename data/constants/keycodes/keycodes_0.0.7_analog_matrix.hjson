@@ -37,7 +37,12 @@
             "key": "AM_TOGGLE_PRIORITY",
             "aliases": ["AM_TGPR"]
         },
-        //"0x7925/0x0019" - RESERVED
+        "0x7925": {
+            "group": "analog_matrix",
+            "key": "AM_CLEAR_CALIBRATION",
+            "aliases": ["AM_CLCL"]
+        },
+        //"0x7925/0x000E" - RESERVED
         "0x7940": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_X",

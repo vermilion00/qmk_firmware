@@ -9,6 +9,7 @@
 #include "_wait.h"
 #include "action_layer.h"
 #include "bootloader.h"
+#include "eeconfig.h"
 #include "keymap_introspection.h"
 #include "debug.h"
 #include "print.h"
@@ -238,6 +239,10 @@ SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 
 //MARK: Init
 __attribute__((weak)) void analog_matrix_init(void) {
+    #ifdef CLEAR_CALIBRATION
+    clear_calibration();
+    #endif
+
     #ifdef USE_MIXED_MATRIX
     mixed_matrix_init();
     #endif
@@ -477,7 +482,6 @@ __attribute__((weak)) uint8_t matrix_scan(void) { return false; }
 
 //MARK: Translate
 // Translate the heights of all keys into the corresponding ADC values
-//TODO: Update the top_deadzone stuff for the new standard
 void translate_mm_to_value(uint8_t index, bool init) {
     #ifdef INVERT_ADC
     const uint16_t top_value = init ? (key_config[index].top_value - top_deadzone) : (key_config[index].top_value - top_deadzones[index]);
@@ -1303,6 +1307,14 @@ void _bootloader_jump(bool init) {
     //     bootloader_jump();
     // }
 // }
+
+
+void clear_calibration(void) {
+    memset(&calibration_data, 0, sizeof(calibration_data));
+    eeconfig_update_keyboard((uint16_t*)&calibration_data);
+    memset(&top_deadzones, 0, sizeof(top_deadzones));
+    eeconfig_update_deadzone((uint8_t*)&top_deadzones);
+}
 
 
 //MARK: wait_cycles
