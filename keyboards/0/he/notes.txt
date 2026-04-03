@@ -215,6 +215,16 @@ Once VIA(L) is a thing, start top cal from there and keep it running until it's 
 
 Add top values to calibration printing
 
+The slave layer_state from the default layer sync transaction is delayed by 1 sync somehow
+The profile is only updated on the master when the higher layer is released?
+    -The update function is called immediately when the layer is selected
+
+At the end of top calibration, bring the lower deadzones up a bit according to the higher values?
+    -Maybe instead of +30% of its deadzone, it should be +30% of the highest deadzone?
+
+Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
+
+
 !!! IMPORTANT !!!
 
 Currently, bootmagic keys don't seem to reset eeprom (but they do go into the bootloader)
@@ -226,3 +236,14 @@ Do I need to calculate the rt_threshold when switching profiles or not?
     -Likely need a high rt_press_value for it to matter
 
 Split calibration sync is broken!
+    -Split cal works again in general, but is broken with joystick enabled
+        -Likely a SPLIT_LAYER_SYNC issue? Need to somehow check if it's wrong on the master or slave side
+    -If joystick is enabled but the SPLIT_LAYER_SYNC is commented out, stuff works
+    -The master side leftshifting seems to work fine
+-Change cal sync to always be offset from the left side (MSB)
+    -> (1 << (8 * sizeof(cal_data_t)) - 1) check the logic on this, seems wrong but the general thought makes sense
+
+Update translate_mm_to_value() with the new top_deadzone behaviour (and everywhere else, like joystick?)
+
+Does running top_calibration mess up the bottom values?
+

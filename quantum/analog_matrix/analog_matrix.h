@@ -252,20 +252,20 @@ typedef at32_gpio_t gpio_port_t;
 extern PROFILE_MUTABLE bool manual_profile_lock;
 
 //MARK: Filters
-#ifndef ADC_FILTER_STRENGTH
-#   define ADC_FILTER_STRENGTH 3
+#ifndef FILTER_STRENGTH
+#   define FILTER_STRENGTH 3
 #endif
-#ifndef ADC_SLAVE_FILTER_STRENGTH
-#   ifdef ADC_RIGHT_FILTER_STRENGTH
-    #   define ADC_SLAVE_FILTER_STRENGTH ADC_RIGHT_FILTER_STRENGTH
+#ifndef SLAVE_FILTER_STRENGTH
+#   ifdef RIGHT_FILTER_STRENGTH
+    #   define SLAVE_FILTER_STRENGTH RIGHT_FILTER_STRENGTH
 #   else
-    #   define ADC_SLAVE_FILTER_STRENGTH ADC_FILTER_STRENGTH
+    #   define SLAVE_FILTER_STRENGTH FILTER_STRENGTH
 #   endif
 #endif
 
-#if ADC_FILTER_STRENGTH != 0
+#if FILTER_STRENGTH != 0
 uint16_t adc_filter_function(uint16_t value, uint8_t index);
-#if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+#if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
 uint16_t adc_slave_filter_function(uint16_t value, uint8_t index);
 #endif
 #else
@@ -338,7 +338,7 @@ void get_switch_data(void);
 //TODO: Does this work if no init keys have been defined? I should just set the top left key as default if none are defined tbh
 bool scan_init_keys(void);
 // Translate the user defined heights and distances into the equivalent ADC values
-void translate_mm_to_value(uint8_t index);
+void translate_mm_to_value(uint8_t index, bool init);
 // Starts calibration of the bottom value
 void calibrate_switches(bool init);
 // Starts calibration of the top deadzone

@@ -28,11 +28,11 @@
 
 #ifdef SPLIT_KEYBOARD
 #include "transactions.h"
-uint16_t top_deadzone = ADC_TOP_DEADZONE + USER_TOP_DEADZONE;
-uint16_t bottom_deadzone = ADC_BOTTOM_DEADZONE + USER_BOTTOM_DEADZONE;
+uint16_t top_deadzone = ADC_TOP_DEADZONE;
+uint16_t bottom_deadzone = ADC_BOTTOM_DEADZONE;
 //TODO: Once smoothing calibration is a thing, also do a USER_SMOOTHING thing
 uint16_t smoothing = ADC_SMOOTHING;
-#if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+#if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
 adc_filter_t adc_filter = adc_filter_function;
 #else
 const adc_filter_t adc_filter = adc_filter_function;
@@ -47,8 +47,8 @@ const adc_filter_t adc_filter = adc_filter_function;
 #ifndef AM_NO_EEPROM
 uint16_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
-//TODO: Do I need this as a global always on thing? For the
-uint8_t top_deadzones[SMAX(SWITCH_NUM)] = {[0 ... SMAX(SWITCH_NUM) - 1] = ADC_TOP_DEADZONE + USER_TOP_DEADZONE};
+//TODO: Do I need this as a global always on thing?
+uint8_t top_deadzones[SMAX(SWITCH_NUM)] = {[0 ... SMAX(SWITCH_NUM) - 1] = ADC_TOP_DEADZONE};
 
 extern matrix_row_t matrix[MATRIX_ROWS];
 #if ANALOG_DEBOUNCE > 0
@@ -292,7 +292,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
 
     // Translate the trigger height etc into the equivalent ADC value
     for(uint8_t index = 0; index < switch_num; index++) {
-        translate_mm_to_value(index);
+        translate_mm_to_value(index, true);
     }
 
     profile_state_changed(active_profile);
@@ -333,7 +333,6 @@ bool scan_init_keys(void) {
         if(adc_value > key_config[matrix_index].bottom_value - INIT_THRESHOLD)
         #endif
         {
-            LED_ON;
             init_functions[idx](true);
             return true;
         }
@@ -422,7 +421,7 @@ uint8_t matrix_scan(void) {
             #ifdef DYNAMIC_CALIBRATION
             if(!priority_mode && update_switch_bounds(index, adc_value)) {
                 // If the bounds have been updated, translate the heights
-                translate_mm_to_value(index);
+                translate_mm_to_value(index, false);
                 recalibrated_switches += 1;
             }
             #endif // ifdef DYNAMIC_CALIBRATION
@@ -478,14 +477,15 @@ __attribute__((weak)) uint8_t matrix_scan(void) { return false; }
 
 //MARK: Translate
 // Translate the heights of all keys into the corresponding ADC values
-void translate_mm_to_value(uint8_t index) {
+//TODO: Update the top_deadzone stuff for the new standard
+void translate_mm_to_value(uint8_t index, bool init) {
     #ifdef INVERT_ADC
-    const uint16_t top_value = key_config[index].top_value - top_deadzone;
+    const uint16_t top_value = init ? (key_config[index].top_value - top_deadzone) : (key_config[index].top_value - top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value + bottom_deadzone;
     const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
     #else
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
-    const uint16_t top_value = key_config[index].top_value + top_deadzone;
+    const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
     const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
     #endif
@@ -547,7 +547,7 @@ bool get_calibration_data(void) {
     return false;
     #endif
 
-    //TODO: Make sure the pointer is always set to an actual target before dereferencing
+    // Get the calibrated values from whatever source
     uint16_t* bottom_value = NULL;
     uint8_t* deadzone_value = &top_deadzones[0];
     #ifdef AM_BOTTOM_VALUES
@@ -619,7 +619,6 @@ bool get_calibration_data(void) {
         if(key_config[key].top_value > 4096 || bottom_value[key] > 4096) valid = false;
 
         if(!valid) {
-            LED_ON;
             //TODO: What happens if the config is actually invalid? Will that erroneously trigger init keys, or not?
             // An invalid reading can stem from a pressed down key, check for that here
             #if AM_INIT_KEY_NUM > 0
@@ -628,7 +627,6 @@ bool get_calibration_data(void) {
             if(!valid) {
                 // If no init key is pressed, check if we have backup data, otherwise start calibration immediately
                 #if !defined AM_NO_EEPROM && defined AM_BOTTOM_VALUES
-                LED_ON;  // If enabled, turn on the debug LED to signify problems with the data
                 key_config[key].bottom_value = bottom_backup[key];
                 // Otherwise, check if a default offset is defined, and apply that
                 #elif defined ADC_DEFAULT_OFFSET
@@ -679,6 +677,8 @@ void calibrate_switches(bool init) {
                 tries++;
             } else { break; }
         }
+        calibration_started = false;
+        wait_ms(1000);
     }
     #endif
 
@@ -767,10 +767,6 @@ void calibrate_switches(bool init) {
         if(scans_without_change > SCANS_WITHOUT_CHANGE){
             // Calibration is done
             LED_OFF;
-            //TODO: I thought this wouldn't work but it does? Have I just not flashed this to both, or is that only a thing with top cal?
-            #ifdef SPLIT_KEYBOARD
-            calibration_started = false;
-            #endif
             // Clear matrix and layer state to avoid stuck keys
             void reset_matrix_keys(void);
             reset_matrix_keys();
@@ -811,6 +807,9 @@ void calibrate_switches(bool init) {
                 key_config[key].bottom_value -= bottom_deadzone;
                 #endif
                 key_config[key].scan_value = key_config[key].top_value;
+
+                // Translate the heights again using the new values
+                translate_mm_to_value(key, false);
             }
 
             break;
@@ -819,7 +818,7 @@ void calibrate_switches(bool init) {
 }
 
 
-//This is run from AM_PRNT for testing purposes
+//This is run from AM_PRNT
 #if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
 void _sync_cal(void) {
     sync_calibration_values(false);
@@ -828,7 +827,7 @@ void _sync_cal(void) {
 
 //MARK: Calibrate top
 void calibrate_top_value(void) {
-    //TODO: Wait in a scan loop until all keys are in a certain distance of the top_value, then wait a small amount of time before starting
+    //TODO: Wait in a scan loop until all keys are in a certain distance of the established top_value, then wait a small amount of time before starting
     //      Could also use that to prime the filter
 
     #ifdef AM_NO_EEPROM
@@ -854,12 +853,13 @@ void calibrate_top_value(void) {
                 tries++;
             } else { break; }
         }
+        top_calibration_started = false;
     }
     #endif
 
-    // Wait 2 seconds to make sure that all keys are released
-    wait_ms(2000);
     LED_ON;
+    // Wait to make sure that all keys are released
+    wait_ms(1500);
     // Dummy read just in case
     adc_read(adc_pin_mux[0]);
     for(uint8_t repeat = 0; repeat < 2; repeat++) {
@@ -883,6 +883,8 @@ void calibrate_top_value(void) {
                 uint16_t lowest_value = 4095;
                 // Take the average of 250 scans
                 for(uint8_t scan = 0; scan < 250; scan++) {
+                    //TODO: Test if it makes sense to filter this value
+                    // const uint16_t adc_value = adc_read(adc_pin_mux[adc_channel]), index;
                     const uint16_t adc_value = adc_filter(adc_read(adc_pin_mux[adc_channel]), index);
                     wait_cycles(ADC_SCAN_DELAY);
                     key_config[index].scan_value = adc_value;
@@ -891,8 +893,8 @@ void calibrate_top_value(void) {
                 }
                 adc_values /= 250;
                 // Set the deadzone to be 30% higher, rounded up
-                const uint8_t cal_top_deadzone = (uint8_t)((uint16_t)(floor((adc_values - lowest_value) * TOP_DEADZONE_MULT) + 1) & 0x00FF);
-                key_config[index].top_value = adc_values - cal_top_deadzone - USER_TOP_DEADZONE;
+                const uint16_t cal_top_deadzone = (uint16_t)(floor((adc_values - lowest_value) * TOP_DEADZONE_MULT) + 1);
+                key_config[index].top_value = adc_values - (cal_top_deadzone < 255 ? cal_top_deadzone : 255) - USER_TOP_DEADZONE;
 
                 #else
                 uint16_t lowest_value = 0;
@@ -904,23 +906,21 @@ void calibrate_top_value(void) {
                     if(adc_value > lowest_value) lowest_value = adc_value;
                 }
                 adc_values /= 250;
-                const uint8_t cal_top_deadzone = (uint8_t)((uint16_t)(floor((lowest_value - adc_values) * TOP_DEADZONE_MULT) + 1) & 0x00FF);
-                key_config[index].top_value = adc_values + cal_top_deadzone + USER_TOP_DEADZONE;
+                const uint8_t cal_top_deadzone = (uint16_t)(floor((lowest_value - adc_values) * TOP_DEADZONE_MULT) + 1);
+                key_config[index].top_value = adc_values + (cal_top_deadzone < 255 ? cal_top_deadzone : 255) + USER_TOP_DEADZONE;
                 #endif
                 key_config[index].scan_value = adc_values;
-                top_deadzones[index] = cal_top_deadzone;
+                top_deadzones[index] = (cal_top_deadzone < 255 ? cal_top_deadzone : 255);
 
                 #ifdef DEBUG_CALIBRATION
                 dprintf("%u: %lu, %u\n", index, adc_values, cal_top_deadzone);
                 #endif
+                translate_mm_to_value(index, false);
             }
             set_sensor_power_low(mux_channel);
         }
     }
     LED_OFF;
-    #ifdef SPLIT_KEYBOARD
-    top_calibration_started = false;
-    #endif
     dprint("Top deadzone calibration finished\n");
     // Clear matrix and layer state to avoid stuck keys
     void reset_matrix_keys(void);
@@ -1182,25 +1182,32 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
 // Populates the key matrix with the static config params, heights are populated separately
 void get_switch_data(void) {
     // Slave values are less stable than master values, this allows easily setting separate values per half
+    #ifdef SPLIT_KEYBOARD
     #ifdef RIGHT_MULTIPLIER
     if(!is_keyboard_left()){
         top_deadzone *= RIGHT_MULTIPLIER;
         bottom_deadzone *= RIGHT_MULTIPLIER;
         smoothing *= RIGHT_MULTIPLIER;
-        #if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+        #if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
         adc_filter = adc_slave_filter;
         #endif
     }
-    #elif defined SLAVE_MULTIPLIER
+    #endif
+    #if defined SLAVE_MULTIPLIER
     if(!is_keyboard_master()){
         //TODO: Test how rounding is handled
         top_deadzone *= SLAVE_MULTIPLIER;
         bottom_deadzone *= SLAVE_MULTIPLIER;
         smoothing *= SLAVE_MULTIPLIER;
-        #if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH
+        #if !defined RIGHT_FILTER_STRENGTH && (FILTER_STRENGTH != SLAVE_FILTER_STRENGTH)
         adc_filter = adc_slave_filter;
         #endif
     }
+    #endif
+    // After the ADC deadzones have been multiplied, add the user deadzones
+    top_deadzone += USER_TOP_DEADZONE;
+    bottom_deadzone += USER_BOTTOM_DEADZONE;
+    for (uint8_t key = 0; key < switch_num; key++) top_deadzones[key] = top_deadzone < 255 ? top_deadzone : 255;
     #endif
 
     wait_ms(AM_STARTUP_DELAY);
@@ -1340,7 +1347,16 @@ void toggle_profile_lock(void) { manual_profile_lock = !manual_profile_lock; }
 void set_profile_lock(bool value) { manual_profile_lock = value; }
 
 #if AM_PROFILE_NUM > 1
-void profile_state_changed(uint8_t profile);
+// Makes all changes that need to happen on a profile change
+void profile_state_changed(uint8_t profile) {
+    //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
+    // if(is_keyboard_master()) am_data_manual_transaction();
+
+    #ifdef USE_PRIORITY_MODE
+    priority_mode = profiles[active_profile].priority_profile;
+    #endif
+}
+
 #ifndef SPLIT_KEYBOARD
 void set_active_profile(uint8_t profile) { active_profile = profile; }
 #else // ifndef SPLIT_KEYBOARD
@@ -1356,28 +1372,10 @@ void set_active_profile(uint8_t profile) {
 #endif // ifndef SPLIT_KEYBOARD else
 #else // if AM_PROFILE_NUM > 1
 #define set_active_profile(profile)
+#define profile_state_changed(profile)
 #endif // if AM_PROFILE_NUM > 1
 
 
-#if AM_PROFILE_NUM > 1
-// Makes all changes that need to happen on a profile change
-void profile_state_changed(uint8_t profile) {
-    //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
-    // am_profile_manual_transaction();
-
-    #ifdef USE_PRIORITY_MODE
-    priority_mode = profiles[active_profile].priority_profile;
-    #endif
-
-    //TODO: Make sure no conflicts are caused with features remapping key modes (probably doesn't happen anyway)
-
-}
-#else
-#define profile_state_changed(profile)
-#endif
-
-//TODO: This is called from calibration, does it actually help there?
-//      Should I call it at the end of top cal too?
 void reset_matrix_keys(void) {
     for(uint8_t index = 0; index < switch_num; index++) {
         key_config[index].pressed = false;
@@ -1430,18 +1428,18 @@ layer_state_t layer_state_set_am(layer_state_t state) {
 
 
 //MARK: Filter functions
-#if ADC_FILTER_STRENGTH != 0
+#if FILTER_STRENGTH != 0
 uint16_t adc_filter_function(uint16_t value, uint8_t index) {
 // Guarded to allow overwriting the filter with a different implementation
 #ifndef ADC_FILTER
 // This filter seems more efficient than value -= (value - key_config[index].scan_value) >> 1
-#if   ADC_FILTER_STRENGTH == 4 // 1/4 new, 3/4 old
+#if   FILTER_STRENGTH == 4 // 1/4 new, 3/4 old
 #   define ADC_FILTER(value, index) (value >> 2) + ((key_config[index].scan_value * 3) >> 2)
-#elif ADC_FILTER_STRENGTH == 3 // 1/2 new, 1/2 old
+#elif FILTER_STRENGTH == 3 // 1/2 new, 1/2 old
 #   define ADC_FILTER(value, index) (value >> 1) + (key_config[index].scan_value >> 1)
-#elif ADC_FILTER_STRENGTH == 2 // 3/4 new, 1/4 old
+#elif FILTER_STRENGTH == 2 // 3/4 new, 1/4 old
 #   define ADC_FILTER(value, index) ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
-#elif ADC_FILTER_STRENGTH == 1   // 7/8 new, 1/8 old
+#elif FILTER_STRENGTH == 1   // 7/8 new, 1/8 old
 #   define ADC_FILTER(value, index) ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
 #else
 #   error "Invalid filter strength. Only values 0 - 4 are allowed."
@@ -1451,17 +1449,17 @@ uint16_t adc_filter_function(uint16_t value, uint8_t index) {
     return ADC_FILTER(value, index);
 }
 
-#if ADC_FILTER_STRENGTH != ADC_SLAVE_FILTER_STRENGTH || defined ADC_SLAVE_FILTER
+#if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH || defined ADC_SLAVE_FILTER
 uint16_t adc_slave_filter_function(uint16_t value, uint8_t index) {
 #ifndef ADC_SLAVE_FILTER
 // This filter seems more efficient than value -= (value - key_config[index].scan_value) >> 1
-#if   ADC_SLAVE_FILTER_STRENGTH == 4 // 1/4 new, 3/4 old
+#if   SLAVE_FILTER_STRENGTH == 4 // 1/4 new, 3/4 old
 #   define ADC_SLAVE_FILTER(value, index) (value >> 2) + ((key_config[index].scan_value * 3) >> 2)
-#elif ADC_SLAVE_FILTER_STRENGTH == 3 // 1/2 new, 1/2 old
+#elif SLAVE_FILTER_STRENGTH == 3 // 1/2 new, 1/2 old
 #   define ADC_SLAVE_FILTER(value, index) (value >> 1) + (key_config[index].scan_value >> 1)
-#elif ADC_SLAVE_FILTER_STRENGTH == 2 // 3/4 new, 1/4 old
+#elif SLAVE_FILTER_STRENGTH == 2 // 3/4 new, 1/4 old
 #   define ADC_SLAVE_FILTER(value, index) ((value * 3) >> 2) + (key_config[index].scan_value >> 2)
-#elif ADC_SLAVE_FILTER_STRENGTH == 1   // 7/8 new, 1/8 old
+#elif SLAVE_FILTER_STRENGTH == 1   // 7/8 new, 1/8 old
 #   define ADC_SLAVE_FILTER(value, index) ((value * 7) >> 3) + (key_config[index].scan_value >> 3)
 #else
 #   error "Invalid filter strength. Only values 0 - 4 are allowed."

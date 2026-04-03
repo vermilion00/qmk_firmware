@@ -937,6 +937,7 @@ bool manual_transaction_handler(bool (*handler)(void)) {
     return false;
 }
 
+//TODO: Since I'm calling this manually anyway, just trust that something changed instead of checking?
 //TODO: Perhaps split this up into separate transactions for layer, profile etc?
 //TODO: Instead of checking if 3 different things have changed, change them and then check if it needs to be sent over?
 //MARK: AM Data
@@ -944,45 +945,30 @@ bool manual_transaction_handler(bool (*handler)(void)) {
 //      Since the memory needs to initialized, i'll probably need to use a profile_change() function that gets the new profile from split_shmem and updates a global var
 static bool am_data_manual_handler(void) {
     static uint8_t last_profile = DEFAULT_PROFILE;
-    static bool prev_calibration = false;
-    static bool prev_top_calibration = false;
-    bool changed = false;
+    // bool changed = false;
 
-    // Data layout: unused | calibration start | profile | layer
-    // uint16_t  0b  00000          1             11111    11111
+    // Data layout: unused | top_cal_start | calibration start | profile | layer
+    // uint16_t  0b  0000  |       1       |        1          |  11111  | 11111
     // Without layer sync:
-    // uint8_t   0b    00  |        1          |  11111
+    // uint8_t   0b    0   |       1       |        1          |  11111
     am_data_t data = active_profile;
 
     if (active_profile != last_profile) {
         last_profile = active_profile;
-        changed = true;
     }
 
-    if (calibration_started != prev_calibration) {
-        prev_calibration = calibration_started;
-        data |= calibration_started << 5;
-        //TODO: Am I using changed?
-        changed = true;
+    //TODO: Since there's never a situation in which a calibration start happens at the same time as a layer sync/profile sync, I could just call transport_write from here
+    if(calibration_started) {
+        data |= 32;
     }
 
-    if (top_calibration_started != prev_top_calibration) {
-        prev_top_calibration = top_calibration_started;
-        data |= top_calibration_started << 6;
-        changed = true;
+    if(top_calibration_started) {
+        data |= 64;
     }
 
     #if defined SPLIT_LAYER_SYNC
-    static uint8_t last_layer = 0;
-    if (am_highest_layer != last_layer) {
-        last_layer = am_highest_layer;
-        // As only 32 profiles and layers are allowed, we have enough space here and can save on a transaction
-        data = data << 5 | am_highest_layer;
-        changed = true;
-    }
+    data = (data << 5) | am_highest_layer;
     #endif
-
-    if (!changed) return true;
 
     split_shmem->am_data = data;
     return transport_write(PUT_AM_DATA, &split_shmem->am_data, sizeof(am_data_t));
@@ -1102,70 +1088,67 @@ void sync_top_calibration(void) {
 #endif // ifdef ANALOG_MATRIX_ENABLE else
 
 
-//MARK: AM Profile
+//MARK: AM Slave data
 ////////////////////////////////////////////////////
-// Analog Matrix profile (and layer) synchronisation
+// Analog Matrix synchronisation
 
 #if defined(ANALOG_MATRIX_ENABLE)
 
 __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static am_data_t prev_data = 0;
     split_shared_memory_lock();
 
     // Data layout: unused | top_cal_start | calibration start | profile | layer
-    // uint16_t  0b  0000  |       1       |        1             11111    11111
+    // uint16_t  0b  0000  |       1       |        1          |  11111  | 11111
     // Without layer sync:
     // uint8_t   0b    0   |       1       |        1          |  11111
     am_data_t data = split_shmem->am_data;
     split_shared_memory_unlock();
 
+    if (data == prev_data) return;
+    prev_data = data;
+
     #ifdef SPLIT_LAYER_SYNC
-    //TODO: Make sure this is correct
-    static uint8_t last_layer = 0;
-    am_highest_layer = data & (am_data_t)0b0000000000011111;
+    am_highest_layer = data & 0x001F;
     data >>= 5;
     #endif
 
     #if AM_PROFILE_NUM > 1
-    active_profile = data & 0b00011111;
+    static uint8_t prev_profile = 0;
+    active_profile = data & 0x001F;
+    if(active_profile != prev_profile) {
+        prev_profile = active_profile;
+        profile_state_changed(active_profile);
+    }
     #endif
 
-    static bool prev_calibration = false;
-    bool calibration_started = (data >> 5) & 1;
-    if(calibration_started != prev_calibration) {
-        prev_calibration = calibration_started;
-        if(calibration_started) {
-            #ifdef AM_NO_EEPROM
-            // Remove the old calibration data from the buffer, else the master will get the old values
-            split_shared_memory_lock();
-            memset(&split_shmem->cal_data, 0, sizeof(split_shmem->cal_data));
-            split_shared_memory_unlock();
-            #endif
+    if(data & 0b00100000) {
+        #ifdef AM_NO_EEPROM
+        // Remove the old calibration data from the buffer, else the master will get the old values
+        split_shared_memory_lock();
+        memset(&split_shmem->cal_data, 0, sizeof(split_shmem->cal_data));
+        split_shared_memory_unlock();
+        #endif
 
-            calibrate_switches(false);
-        }
+        calibrate_switches(false);
     }
 
-    static bool prev_top_calibration = false;
-    bool top_calibration_started = (data >> 6) & 1;
-    if(top_calibration_started != prev_top_calibration) {
-        prev_top_calibration = top_calibration_started;
-        if(top_calibration_started) {
-            #ifdef AM_NO_EEPROM
-            // Remove the old calibration data from the buffer, else the master will get the old values
-            //TODO: Update this for top calibration
-            split_shared_memory_lock();
-            memset(&split_shmem->top_data, 0, sizeof(split_shmem->top_data));
-            split_shared_memory_unlock();
-            #endif
+    if(data & 0b01000000) {
+        #ifdef AM_NO_EEPROM
+        // Remove the old calibration data from the buffer, else the master will get the old values
+        split_shared_memory_lock();
+        memset(&split_shmem->top_data, 0, sizeof(split_shmem->top_data));
+        split_shared_memory_unlock();
+        #endif
 
-            calibrate_top_value();
-        }
+        calibrate_top_value();
     }
 
     // Create a joystick mask for the slave
     #ifdef SPLIT_LAYER_SYNC
-    if(last_layer != am_highest_layer) {
-        last_layer = am_highest_layer;
+    static uint8_t prev_layer = 0;
+    if(prev_layer != am_highest_layer) {
+        prev_layer = am_highest_layer;
         change_layer_settings(am_highest_layer);
     }
     #endif

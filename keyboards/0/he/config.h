@@ -18,9 +18,9 @@
 #define DEBUG_MATRIX_SCAN_RATE
 
 // #define RIGHT_MULTIPLIER 2.0
-#define ADC_FILTER_STRENGTH 3
-// #define ADC_SLAVE_FILTER_STRENGTH 4
-// #define ADC_FILTER_STRENGTH 3
+#define FILTER_STRENGTH 3
+// #define SLAVE_FILTER_STRENGTH 4
+// #define FILTER_STRENGTH 3
 // Don't update the top values in DC
 #define NO_TOP_UPDATE
 //TODO: Make these the same thing
@@ -69,7 +69,7 @@
 #define WS2812_PWM_TARGET_PERIOD 800000
 #define RGBLIGHT_DISABLE_KEYCODES
 //TODO: I don't think this calls layer_state_set, so no point in having this in?
-#define SPLIT_LAYER_STATE_ENABLE
+// #define SPLIT_LAYER_STATE_ENABLE
 
 /* SPI config for pmw3360 sensor */
 #define SPI_DRIVER                           SPID1
@@ -114,6 +114,8 @@
 #define NO_ACTION_ONESHOT
 
 #define SPLIT_WATCHDOG_ENABLE
+
+// #define SPLIT_TRANSACTION_IDS_KB RPC_ID_KB_CONFIG_SYNC
 
 /*
 #define MATRIX(k0A, k0B, k0C, k0D, k0E, k0F, k6A, k6B, k6C, k6D, k6E, k6F, k1A, k1B, k1C, k1D, k1E, k1F, k7A, k7B, k7C, k7D, k7E, k7F, k2A, k2B, k2C, k2D, k2E, k2F, k8A, k8B, k8C, k8D, k8E, k8F, k3A, k3B, k3C, k3D, k3E, k3F, k9A, k9B, k9C, k9D, k9E, k9F, k4C, k4D, kAC, kAD, k5D, k4E, k4F, kBA, kAA, kAB, k5E, k5F, kBB) \

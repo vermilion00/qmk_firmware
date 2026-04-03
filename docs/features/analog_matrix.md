@@ -277,13 +277,13 @@ This is an array of the analog pins used by the chip. The output of each multipl
 ```json
 "travel_distance": 4.0
 ```
-This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm. If it is wrong, then heights will be incorrectly converted. The travel distance of a switch can usually be found in its product description or datasheet.
+This setting sets the switch travel distance that the firmware expects. Defaults to 4 mm. If it is wrong, then heights will be incorrectly converted. The travel distance of a switch can usually be found in its product description or datasheet, and is different from the spring length of the switch.
 
 ```json
 "smoothing": 20
 ```
-Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered late. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it. A general starting point for this value is (top_value - bottom_value) / (2 * travel_distance).
-If the change in value compared to the previous scan is smaller than this value, the switch evaluation is skipped.
+Controls how sensitive the ADC is. A lower value means that smaller changes can be picked up, but less resistance to noise. If this value is larger than a distance setting, it will win, e.g. if the smoothing value is too high, it can cause small movements to be registered later than expected. If keys are pressed/released accidentally, try increasing this value. If the keys seem to activate later than expected, try to decrease it. A general starting point for this value is (top_value - bottom_value) / (2 * travel_distance).
+If the change in value compared to the last evaluated scan is smaller than this value, the switch evaluation is skipped.
 
 Deadzones are split into two parts. While both are supposed to keep the keyboard from registering a press/release where there isn't supposed to be one, they target different causes: The "adc_deadzone" is intended to eliminate the possibility of false presses/releases caused by noise in the ADC readings, while the "deadzone" is intended to give users with a heavy touch room to rest their hand on the switch without accidentally registering a press/release.  
 Until the deadzone is [calibrated](analog_matrix#deadzone-calibration), this distinction isn't important, as they stack additively: An ADC deadzone of 60 and a deadzone of 20 will behave identically if the values are flipped. This changes when the top deadzone is calibrated, as that will take care of the ADC deadzone, allowing the user to finetune the sensitivity without worrying about accidentally setting the deadzone low enough to register presses due to ADC inaccuracies.
@@ -322,7 +322,6 @@ While it's disabled by default, you can enable timer-based debouncing routines b
 
 The controller needs to know what ADC pin and multiplexer channel combination corresponds to what key. This is done by adding a "mux" parameter to each key in the layout definition. This mux parameter has the ADC pin as the first index, and the mux channel as the second index. Both of these are 0-indexed.
 Assume our hardware config looks like this:
-
 ```json
 "adc_pins": ["A0", "A1", "A2"],
 "mux_pins": ["B12", "B13", "B14", "B15"],
@@ -373,7 +372,7 @@ For split keyboards, you can define a separate key for the right half by setting
 Similar to the above options, this key causes the keyboard to enter calibration mode when held during startup.
 For split keyboards, you can define a separate key for the right half by setting "calibration_keys_right". Only the half with the pressed down calibration key will start calibration. <br>
 
-If more than one key (per keyboard half) should be bound to the same function, you can set it to an array of matrix positions:
+If more than one key (per keyboard half) should be bound to the same function, you can set it as an array of matrix positions:
 ```json
 "calibration_keys": [[1, 0], [2, 4], [3, 3], [0, 5], [10, 3]]
 ```
@@ -610,7 +609,7 @@ The feature implements predefined filters, with selectable strength values from 
 You can select the predefined filter by defining one of the following:
 ```c
 // In config.h
-#define ADC_FILTER_STRENGTH 3
+#define FILTER_STRENGTH 3
 ```
 You can use a custom filter implementation by defining it in config.h:
 ```c
@@ -632,9 +631,9 @@ If you wish to use your own filter, keep in mind that this filter will run once 
 On split keyboards, it is possible to use different filter strenghts per half:
 ```c
 // In config.h
-// These default to ADC_FILTER_STRENGTH
-#define ADC_RIGHT_FILTER_STRENGTH 3
-#define ADC_SLAVE_FILTER_STRENGTH 3
+// These default to FILTER_STRENGTH
+#define RIGHT_FILTER_STRENGTH 3
+#define SLAVE_FILTER_STRENGTH 3
 ```
 This is helpful in the case that the slave power supply is less stable. Using a higher filter strength can smooth out the resulting jitters, but will cause a minor performance penalty. You can use either the _RIGHT option or the _SLAVE option, but the _RIGHT option is generally preferred and wins out over the SLAVE option if both are defined.
 
@@ -684,9 +683,9 @@ On split keyboards, it is generally recommended to use one half as the constant 
 To mitigate this, you can set a multiplier for the deadzones and smoothing values, as well as a separate filter strength, to use on the right half / slave half:
 ```c
 #define RIGHT_MULTIPLIER 1.5 
-#define RIGHT_ADC_FILTER_STRENGTH 4 // Same as ADC_FILTER_STRENGTH by default (3)
+#define RIGHT_FILTER_STRENGTH 4 // Same as FILTER_STRENGTH by default (3)
 #define SLAVE_MULTIPLIER 1.5 
-#define SLAVE_ADC_FILTER_STRENGTH 4 // Same as ADC_FILTER_STRENGTH by default (3)
+#define SLAVE_FILTER_STRENGTH 4 // Same as FILTER_STRENGTH by default (3)
 ```
 This will multiply the deadzone and smoothing values by the defined amount, if the keyboard half is detected as the right half.
 As this is only checked once during initialization, don't be afraid to use floating values.

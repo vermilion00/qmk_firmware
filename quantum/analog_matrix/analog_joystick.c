@@ -156,26 +156,6 @@ bool evaluate_joystick_axis(axis_name_t axis) {
     return joystick_update_axis(axis, joystick_value);
 }
 
-// extern matrix_row_t matrix[MATRIX_ROWS];
-// Clear the matrix and switch state of all joystick keys
-//TODO: If this is called on the slave, wouldn't it reset keys outside of array? Is matrix defined as full rows there, or rows per hand?
-// void reset_joystick_keys(void) {
-//     // Reset the pressed state of all joystick keys to avoid stuck keys
-//     for(uint8_t index = 0; index < switch_num; index++) {
-//         // Here I could also check if the joystick axis field is set
-//         const uint8_t row = key_config[index].row;
-//         const uint8_t col = key_config[index].col;
-
-//         if(joystick_mask[row] & 1 << col) {
-//             key_config[index].pressed = false;
-//         }
-//     }
-//     // Reset the matrix state of all joystick keys
-//     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-//         matrix[row] &= ~joystick_mask[row];
-//     }
-// }
-
 //MARK: Joystick task
 void analog_joystick_task(void) {
     joystick_flush();
