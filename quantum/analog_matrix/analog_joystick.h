@@ -18,22 +18,22 @@ typedef enum axis_name_t {
     RIGHT_Z_AXIS
 } axis_name_t;
 
-// typedef enum axis_index_t {
-//     LEFT_POSITIVE_X_INDEX = 0,
-//     LEFT_NEGATIVE_X_INDEX,
-//     LEFT_NEGATIVE_Y_INDEX,
-//     LEFT_POSITIVE_Y_INDEX,
-//     LEFT_TRIGGER_INDEX,
-//     RIGHT_TRIGGER_INDEX,
-//     RIGHT_POSITIVE_X_INDEX,
-//     RIGHT_NEGATIVE_X_INDEX,
-//     RIGHT_NEGATIVE_Y_INDEX,
-//     RIGHT_POSITIVE_Y_INDEX
-//     RIGHT_POSITIVE_Z_INDEX
-//     RIGHT_NEGATIVE_Z_INDEX
-// } axis_component_t;
+typedef enum axis_index_t {
+    LEFT_POSITIVE_X_INDEX = 0,
+    LEFT_NEGATIVE_X_INDEX,
+    LEFT_NEGATIVE_Y_INDEX,
+    LEFT_POSITIVE_Y_INDEX,
+    LEFT_TRIGGER_INDEX,
+    RIGHT_TRIGGER_INDEX,
+    RIGHT_POSITIVE_X_INDEX,
+    RIGHT_NEGATIVE_X_INDEX,
+    RIGHT_NEGATIVE_Y_INDEX,
+    RIGHT_POSITIVE_Y_INDEX,
+    RIGHT_POSITIVE_Z_INDEX,
+    RIGHT_NEGATIVE_Z_INDEX
+} axis_component_t;
 
-typedef uint8_t axis_component_t;
+// typedef uint8_t axis_component_t;
 
 typedef enum conflict_options_t {
     DIFFERENCE = 0,
@@ -58,8 +58,7 @@ extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 extern analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT];
 
 void analog_joystick_init(void);
-bool translate_joystick_axis(uint8_t index);
-bool evaluate_joystick_axis(axis_name_t axis);
+bool translate_joystick_axis(uint8_t index, uint16_t value);
+bool evaluate_joystick_axis(axis_component_t axis_component);
 bool joystick_post_scan(void);
 void analog_joystick_task(void);
-void reset_joystick_keys(void);

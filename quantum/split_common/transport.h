@@ -140,11 +140,11 @@ typedef uint16_t am_data_t;
 typedef uint8_t am_data_t;
 #endif
 
-#if defined(JOYSTICK_ENABLE)
-// typedef struct _joystick_slave_axis_sync_t {
-//     uint8_t checksum;
-//     uint8_t values[JOYSTICK_AXIS_COUNT * 2];
-// } joystick_slave_axis_sync_t;
+#if defined(JOYSTICK_ENABLE) && !defined (NO_SLAVE_AXES)
+typedef struct _joystick_slave_axis_sync_t {
+    uint8_t checksum;
+    uint8_t values[JOYSTICK_AXIS_COUNT * 2];
+} joystick_sync_t;
 #endif // defined(JOYSTICK_ENABLE)
 #endif // defined(ANALOG_MATRIX_ENABLE)
 
@@ -244,9 +244,8 @@ typedef struct _split_shared_memory_t {
     uint16_t cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
     uint8_t  top_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #   endif
-#   if defined(JOYSTICK_ENABLE)
-//TODO: Reenable this
-    // joystick_slave_axis_sync_t axis_data;
+#   if defined(JOYSTICK_ENABLE) && !defined (NO_SLAVE_AXES)
+    joystick_sync_t axis_data;
 #   endif // defined(JOYSTICK_ENABLE)
 #endif // defined(ANALOG_MATRIX_ENABLE)
 

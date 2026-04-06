@@ -183,8 +183,8 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 
 #if defined(ANALOG_MATRIX_ENABLE)
 #include "analog_matrix.h"
-#include "multiplexer.h"
-#include "info_config.h"
+// #include "multiplexer.h"
+// #include "info_config.h"
 
 #ifdef SPLIT_KEYBOARD
 #if KEYBOARD_SIDE == UNKNOWN
@@ -446,8 +446,7 @@ extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 matrix_row_t joystick_mask[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
 extern uint8_t thisHand;
-#else
-const uint8_t thisHand = 0;
+extern uint8_t thatHand;
 #endif
 
 //MARK: joystick mask
@@ -456,60 +455,45 @@ void create_joystick_mask(uint8_t current_layer) {
     // If the previous layer was a joystick layer, clear the joystick mask and joystick_state
     if (joystick_layer) {
         memset(&joystick_mask, 0, sizeof(joystick_mask));
-        memset(joystick_state.axes, 0, sizeof(joystick_state.axes));
-
-        // Update the pressed state according to the matrix state, as it's not updated for joystick keys
-        for(uint8_t key = 0; key < switch_num; key++) {
-            const uint8_t row = key_config[key].row;
-            const uint8_t col = key_config[key].col;
-            if((matrix[row]) & 1 << col) key_config[key].pressed = true;
-            else key_config[key].pressed = false;
-        }
-
+        memset(&joystick_state.axes, 0, sizeof(joystick_state.axes));
+        //TODO: Could set it to true here to trigger one last flush, to clear the values properly
         joystick_state.dirty = false;
         joystick_layer = false;
     }
 
-    // const bool master = is_keyboard_master();
-    //TODO: Do I even need the joystick mask if I save the axis to the key config directly?
-    // Still useful for resetting only the joystick keys, but can be used for other things
-
-    //TODO: Make sure this doesn't cause issues when the joystick layer state is different
-    // The master needs to check every keycode, the slave only the keycodes for the slave half
-    // for(uint8_t row = 0; row < MATRIX_ROWS_PER_HAND; row++) {
-    // // for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
-    //     for(uint8_t col = 0; col < MATRIX_COLS; col++) {
-    //         uint8_t key_index = matrix_to_num[row][col];
-    //         // uint8_t key_index = matrix_to_num[row - thisHand][col];
-    //         if(key_index == 255) continue;
-
-    //         //TODO: When the master checks every row instead of just the master half, fix this
-    //         const uint16_t keycode = keymaps[current_layer][row + thisHand][col];
-    //         if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
-    //             joystick_layer = true;
-    //             joystick_mask[row] |= 1 << col;
-    //             key_config[key_index].axis_index = keycode - AM_JOYSTICK_RANGE;
-    //         } else {
-    //             key_config[key_index].axis_index = -1;
-    //         }
-    //         printf("%u\n", key_config[key_index].axis_index);
-    //     }
-    // }
-
-    //TODO: This way only works if no slave keys need to be checked to know if it's a joystick layer
     for(uint8_t key = 0; key < switch_num; key++) {
         const uint8_t row = key_config[key].row;
         const uint8_t col = key_config[key].col;
 
+        //TODO: Does this reset the correct keys, or do I need to subtract thisHand? I don't think so, matrix on slave should be the full one I think?
+        if((matrix[row]) & 1 << col) key_config[key].pressed = true;
+        else key_config[key].pressed = false;
+
         const uint16_t keycode = keymaps[current_layer][row][col];
         if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
             joystick_layer = true;
+            //TODO: Could it be that I need to do smth with thisHand offset here or below?
             joystick_mask[row] |= 1 << col;
             key_config[key].axis_index = keycode - AM_JOYSTICK_RANGE;
         } else {
             key_config[key].axis_index = 255;
         }
     }
+
+    #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
+    // Check the slave half for joystick keys
+    if(is_keyboard_master()) {
+        for(uint8_t row = thatHand; row < (MATRIX_ROWS_PER_HAND + thatHand); row++) {
+            for(uint8_t col = 0; col < MATRIX_COLS; col++) {
+                const uint16_t keycode = keymaps[current_layer][row][col];
+                if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
+                    joystick_layer = true;
+                    joystick_mask[row] |= 1 << col;
+                }
+            }
+        }
+    }
+    #endif
 }
 #endif // defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 
@@ -520,43 +504,6 @@ void create_joystick_mask(uint8_t current_layer) {
 // #include "analog_matrix.h"
 #include "analog_midi.h"
 
-matrix_row_t midi_mask[MATRIX_ROWS];
-#if defined SPLIT_KEYBOARD
-//TODO: Will this cause a conflict if joystick is enabled as well, or is it limited to the function scope?
-extern uint8_t thisHand;
-#else
-const uint8_t thisHand = 0;
-#endif
-bool master;
-
-
-//MARK: MIDI mask
-// Creates a mask of all MIDI keycodes in the layer
-void create_midi_mask(uint8_t current_layer) {
-    master = is_keyboard_master();
-    midi_layer = false;
-    memset(midi_mask, 0, sizeof(midi_mask));
-
-    // The master needs to check every keycode, the slave only the keycodes for the slave half
-    // printf("Layer: %u\n", current_layer);
-    for(uint8_t row = master ? 0 : thisHand; row < (master ? MATRIX_ROWS : (MATRIX_ROWS_PER_HAND + thisHand)); row++) {
-        for(uint8_t col = 0; col < MATRIX_COLS; col++) {
-            const uint16_t keycode = keymaps[current_layer][row][col];
-            const uint8_t key_index = matrix_to_num[row - thisHand][col];
-            if(key_index == 255) continue;
-
-            if(IS_MIDI_NOTE(keycode)) {
-                midi_layer = true;
-                midi_mask[row] |= 1 << col;
-                // printf("MIDI R:%u, C:%u\n", row, col);
-                //TODO: Put whatever logic i'll use here
-                // key_config[key_index].axis_index = keycode - QK_AM_JOYSTICK_AXIS;
-            } else {
-                // key_config[key_index].axis_index = -1;
-            }
-        }
-    }
-}
 
 #endif // defined(MIDI_ENABLE) && !defined(USE_JOYSTICK)
 

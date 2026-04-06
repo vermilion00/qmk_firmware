@@ -666,22 +666,9 @@ static bool matrix_task(void) {
             if (row_changes & col_mask) {
                 const bool key_pressed = current_row & col_mask;
 
-                //TODO: Maybe process them in here, and add a || joystick_state.dirty or joystick_layer
                 if (process_keypress) {
                     action_exec(MAKE_KEYEVENT(row, col, key_pressed));
                 }
-
-                // Process the joystick action on master and slave
-                #if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
-                // Handle the joystick axis actions separately, since the slave also needs to be able to execute them
-                //TODO: Make sure that joystick_layer is applicable to USE_JOYSTICK
-                //TODO: Generalise this for MIDI etc -> special_layer
-                if (joystick_layer && joystick_state.dirty) {
-                    keyrecord_t record = {.event = MAKE_KEYEVENT(row, col, true)};
-                    uint16_t keycode = get_record_keycode(&record, true);
-                    process_analog_joystick(keycode);
-                }
-                #endif
 
                 switch_events(row, col, key_pressed);
             }

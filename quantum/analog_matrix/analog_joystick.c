@@ -5,24 +5,18 @@
 #include "analog_matrix.h"
 #include "info_config.h"
 #include "keyboard.h"
-#include "keycodes.h"
 #include "matrix.h"
-#include "keymap_introspection.h"
-#ifdef SPLIT_KEYBOARD
-#   include "transport.h"
-#endif
 
 #define clamp_axis(value) (value < 0 ? 0 : (value > 127 ? 127 : value))
 
-//Add curve option
-// TODO: Go through and set the smallest type everywhere (including the key_config fields)
+//TODO: Add curve option
 SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
 #ifdef SPLIT_KEYBOARD
 uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
 const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
 #endif
 
-// Double the amount of axes, since every axis is represented by two keys
+// Double the amount of axes, since every axis is represented by two components
 uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];
 analog_joystick_t axis_config[JOYSTICK_AXIS_COUNT] = AM_JOYSTICK_AXIS_CONFIG;
 
@@ -65,31 +59,19 @@ void analog_joystick_init(void) {
 //MARK: Translate
 //TODO: Is it faster to pass all as params, or just pass index?
 // Calculate the joystick component value
-bool translate_joystick_axis(uint8_t index) {
+bool translate_joystick_axis(uint8_t index, uint16_t scan_value) {
     //TODO: Check if I can use larger values here to avoid the float
-    // Since the trigger value for this profile isn't used anyway, use the field to store the axis value instead
-    const uint16_t scan_value = key_config[index].scan_value;
-    #ifdef USE_JOYSTICK
-    uint16_t* const travel_diff = &key_config[index].release_value[active_profile];
-    //TODO: Make sure that the axis index is saved to the trigger value
-    uint16_t* const axis_value = &axis_values[key_config[index].trigger_value[active_profile]];
-    #else
     uint16_t* const travel_diff = &key_config[index].joystick_travel;
     uint8_t* const axis_value = &axis_values[key_config[index].axis_index];
-    #endif
 
-    uint8_t prev_value = *axis_value;
+    const uint8_t prev_value = *axis_value;
 
     #ifndef INVERT_ADC
-    //TODO: Would it be faster to just let clamping handle it, since it now kinda tests twice?
-    if(scan_value > key_config[index].top_value - JS_TOP_DEADZONE) { *axis_value = 0; }
-    else if(scan_value < key_config[index].bottom_value) { *axis_value = 127; }
-    else { *axis_value = clamp_axis(((float)(key_config[index].top_value - scan_value - JS_TOP_DEADZONE) * 127) / (float)*travel_diff); }
-
+    *axis_value += clamp_axis(((float)(key_config[index].top_value - scan_value - JS_TOP_DEADZONE) * 127) / (float)*travel_diff);
+    *axis_value = *axis_value > 127 ? 127 : *axis_value;
     #else
-    if(scan_value < key_config[index].top_value + JS_TOP_DEADZONE) { *axis_value = 0; }
-    else if(scan_value > key_config[index].bottom_value - JS_BOTTOM_DEADZONE) { *axis_value = 127; }
-    else { *axis_value = clamp_axis(((float)(scan_value - key_config[index].top_value - JS_TOP_DEADZONE) * 127) / (float)*travel_diff); }
+    *axis_value += clamp_axis(((float)(scan_value - key_config[index].top_value - JS_TOP_DEADZONE) * 127) / (float)*travel_diff);
+    *axis_value = *axis_value > 127 ? 127 : *axis_value;
     #endif
 
     // Return true if the value has changed
@@ -101,8 +83,7 @@ bool translate_joystick_axis(uint8_t index) {
 bool joystick_update_axis(const uint8_t axis, const int16_t value) {
     if (value != joystick_state.axes[axis]) {
         joystick_state.axes[axis] = value;
-        //TODO: This should obviously be set to true, but dirty is somehow always true anyway, even if explicitely set to false everywhere
-        // joystick_state.dirty      = true;
+        joystick_state.dirty      = true;
         return true;
     }
     return false;
@@ -110,9 +91,11 @@ bool joystick_update_axis(const uint8_t axis, const int16_t value) {
 
 
 //MARK: Eval axis
-bool evaluate_joystick_axis(axis_name_t axis) {
+bool evaluate_joystick_axis(axis_component_t axis_component) {
     int16_t joystick_value = 0;
-    const uint8_t axis_index = axis * 2;
+    const uint8_t axis = axis_component >> 1; // Get the index of the axis
+    //TODO: Test if it would be better to just change the axis_component instead of making a new var
+    const uint8_t axis_index = axis_component & ~1;
 
     // If both keys are pressed:
     switch(axis_config[axis].resolution) {
@@ -159,6 +142,17 @@ bool evaluate_joystick_axis(axis_name_t axis) {
 
 //MARK: Joystick task
 void analog_joystick_task(void) {
+    // On split keyboards with slave axes, we need to evaluate those on the master as well
+    #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
+    if(!joystick_state.dirty) return;
+
+    for(uint8_t axis = 0; axis < JOYSTICK_AXIS_COUNT; axis++) {
+        evaluate_joystick_axis(axis * 2);
+    }
+    #endif
+
     joystick_flush();
+
+    memset(&axis_values, 0, sizeof(axis_values));
 }
 

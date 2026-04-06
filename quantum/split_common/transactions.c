@@ -1168,55 +1168,62 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
 ////////////////////////////////////////////////////
 // Analog Matrix Joystick synchronisation
 
-// #if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE)
-// #include "analog_joystick.h"
+#if defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE) && !defined NO_SLAVE_AXES
+#include "analog_joystick.h"
 
-// static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-//     // If we're not on a layer with joystick keys, we don't need to sync
-//     if(!joystick_layer) return true;
+static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static uint8_t slave_data[JOYSTICK_AXIS_COUNT * 2] = { 0 };
+    static uint8_t checksum = 0;
 
-//     static uint32_t last_update = 0;
-//     uint8_t slave_axis_values[JOYSTICK_AXIS_COUNT * 2];
+    // If we're not on a layer with joystick keys, we don't need to sync
+    if(!joystick_layer) return true;
 
-//     // memset(slave_axis_values, 0, sizeof(slave_axis_values));
-//     bool okay = read_if_checksum_mismatch(GET_JOYSTICK_CHECKSUM, GET_JOYSTICK_DATA, &last_update, slave_axis_values, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
-//     if (okay) {
-//         for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
-//             // printf("B%u: %u, ", index, axis_values[index]);
-//             // Only assign the values if the master array at that index is 0, to avoid overwriting the values
-//             if(axis_values[index] == 0) {
-//                 axis_values[index] = slave_axis_values[index];
-//                 // printf("C: %u, ", slave_axis_values[index]);
-//             }
-//             // printf("A%u: %u\n", index, axis_values[index]);
-//         }
-//     }
-//     return okay;
-// }
+    //TODO: There's gotta be a better way that doesn't involve resetting the entire array each time
+    if(!transport_read(GET_JOYSTICK_CHECKSUM, &split_shmem->axis_data.checksum, sizeof(split_shmem->axis_data.checksum))) return true;
+    if(checksum != split_shmem->axis_data.checksum) checksum = split_shmem->axis_data.checksum;
+    else {
+        for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
+            if(axis_values[index] == 0) axis_values[index] = slave_data[index];
+        }
+    }
 
-// static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-//     memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
-//     split_shmem->axis_data.checksum = crc8(split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values));
-// }
+    if(transport_read(GET_JOYSTICK_DATA, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values))) {
+        // Only copy the new values if the transaction is successful, else use the old data instead
+        memcpy(&slave_data, &split_shmem->axis_data.values, sizeof(slave_data));
+    }
 
-// // clang-format off
-// #define TRANSACTIONS_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
-// #define TRANSACTIONS_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE_AUTOLOCK(joystick)
-/*
-#define TRANSACTIONS_JOYSTICK_REGISTRATIONS \
-    [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum), \
-    [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values),
-*/
-// // clang-format on
-// #else
-// #   define TRANSACTIONS_JOYSTICK_MASTER()
-// #   define TRANSACTIONS_JOYSTICK_SLAVE()
-// #   define TRANSACTIONS_JOYSTICK_REGISTRATIONS
-// #endif
-//TODO: Remove this when slave joystick is being worked on again
+    split_shared_memory_lock();
+    for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
+        if(axis_values[index] == 0) axis_values[index] = slave_data[index];
+    }
+    split_shared_memory_unlock();
+
+    return true;
+}
+
+static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    //TODO: I feel like it would be better to handle the transaction on the master half, as it's busier in theory already
+    if (!joystick_layer) return;
+
+    if (!joystick_state.dirty) return;
+
+    split_shared_memory_lock();
+    split_shmem->axis_data.checksum = crc8(axis_values, sizeof(axis_values));
+    memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
+    split_shared_memory_unlock();
+}
+
+#define TRANSACTIONS_AM_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)
+#define TRANSACTIONS_AM_JOYSTICK_SLAVE() TRANSACTION_HANDLER_SLAVE(joystick)
+#define TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS \
+    [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values), \
+    [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum),
+
+#else
 #   define TRANSACTIONS_AM_JOYSTICK_MASTER()
 #   define TRANSACTIONS_AM_JOYSTICK_SLAVE()
 #   define TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS
+#endif
 
 ////////////////////////////////////////////////////
 

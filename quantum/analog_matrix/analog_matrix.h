@@ -126,19 +126,19 @@ typedef struct analog_key_t {
     #if defined USE_CONTINUOUS_RAPID_TRIGGER
     uint8_t rt_active;
     #endif
-    #if defined USE_TRIGGER_HEIGHT || (defined JOYSTICK_ENABLE && defined USE_JOYSTICK)
+    #if defined USE_TRIGGER_HEIGHT
     // The switch is counted as pressed below this value
     uint16_t trigger_value[AM_PROFILE_NUM];
     // The switch is counted as released above this value
     uint16_t release_value[AM_PROFILE_NUM];
     #endif
     //TODO: Test if it's worth to have fields for the travel diff, or just calculate it every time
-    #if defined JOYSTICK_ENABLE && !defined USE_JOYSTICK
+    #if defined JOYSTICK_ENABLE
     uint16_t joystick_travel;
     uint8_t joystick_value;
     uint8_t axis_index;
     #endif
-    #if defined MIDI_ENABLE && !defined USE_MIDI
+    #if defined MIDI_ENABLE
     uint8_t midi_velocity;
     #endif
     #if defined USE_RT_DISTANCE
@@ -382,6 +382,7 @@ void _sync_cal(void);
 #   define _sync_cal()
 #endif
 #else
+#   define _sync_cal()
 void clear_calibration(void);
 #endif
 

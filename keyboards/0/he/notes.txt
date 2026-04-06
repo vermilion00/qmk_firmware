@@ -54,6 +54,7 @@ Joystick:
 -Where the hell is the joystick state set to dirty? It's supposed to be reset after flushing, but the eval function keeps being called despite nothing setting it to true
     -joystick_flush() also continuously sends updates even with no keys pressed -> because joystick_state is always dirty somehow
 --> Syncing the pressed state of each switch to the matrix state fixes it
+Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
 
 
 MIDI:
@@ -206,10 +207,6 @@ Add my keycodes to docs/keycodes.md with a link to my page
 If the slave boot key is pressed, go to bootloader on master? Would make it slower, since I have no way of knowing which half is master until after full init,
 so both halves will need to wait.
 
-Add clear_eeprom thing similar to force_calibrate -> Should be checked before getting calibration data, and if set, it should immediately clear eeprom and start calibration
-    -The problem is that the normal clear eeprom things don't seem to clear core stuff
-    -Could change analog matrix to be extra similar to VIA?
-
 Once VIA(L) is a thing, start top cal from there and keep it running until it's stopped on the PC
     -This allows you to jiggle the keys a bit for better readings
 
@@ -222,15 +219,16 @@ The profile is only updated on the master when the higher layer is released?
 At the end of top calibration, bring the lower deadzones up a bit according to the higher values?
     -Maybe instead of +30% of its deadzone, it should be +30% of the highest deadzone?
 
-Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
-Keep joystick task from running, put the button update logic into analog_joystick.c and run from there
+With VBUS sensing -> A9 and B13 need to be unused (floating input, no alternate function)
+    -The f446 datasheet doesn't mention a voltage divider, do I need one?
+
+Tinyuf2:
+-Default config doesn't compile due to missing USB_OTG_GCCFG_BCDEN
+    -Does this mean it will only work with VBUS sensing?
+    -Removing the NO_VBUS define compiles with warnings but doesn't work, even with voltage divider setup (2.2k and 10k, as 4.7k put the voltage too low)
 
 
 !!! IMPORTANT !!!
-
-Currently, bootmagic keys don't seem to reset eeprom (but they do go into the bootloader)
-The clear eeprom key also doesn't seem to wipe cal values
-    -> Either the keyboard doesn't check for that correctly, or they don't work, or the core stuff is exempt from being wiped? VIAL is extra, so that may be the case
 
 Do I need to calculate the rt_threshold when switching profiles or not?
     -Kinda seems like yes, but it hasn't been a problem yet
@@ -242,3 +240,11 @@ Does running top_calibration mess up the bottom values?
 The joystick layer is sending constant updates (no keycodes are pressed though, just the console being spammed)
     -Wasn't that fixed at one point? Is it due to the smoothing check being bypassed?
     -How can I make it so that it only sends updates when an axis is updated?
+
+
+!!! Currently working on !!!
+Joystick slave axes
+-With joystick slave axes, the 1 and . keys are registered as held
+    -> Those keys correspond to the axis keys on the slave when LALT layer is active
+    -> They aren't synced properly/don't reset properly
+    -Maybe need to change thisHand offset in joystick_mask? Probably not

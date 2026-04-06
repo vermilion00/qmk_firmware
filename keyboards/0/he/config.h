@@ -15,6 +15,8 @@
   */
 #pragma once
 
+// #define NO_SLAVE_AXES
+
 #define DEBUG_MATRIX_SCAN_RATE
 
 // #define RIGHT_MULTIPLIER 2.0

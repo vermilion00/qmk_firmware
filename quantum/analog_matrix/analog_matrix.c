@@ -953,9 +953,16 @@ bool evaluate_value(uint8_t index, uint16_t value) {
     #if defined JOYSTICK_ENABLE
     if(joystick_layer) {
         if(key_config[index].axis_index < 255) {
-            if(!translate_joystick_axis(index)) return false;
+            if(!translate_joystick_axis(index, value)) return false;
+            #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
+            // On split keyboards, we can't update the axes like this since the slave axes won't be evaluated
+            // Instead, we update all axes in the analog_joystick_task()
+            joystick_state.dirty = true;
+            return true;
+            #else
             if(!evaluate_joystick_axis(key_config[index].axis_index)) return false;
             return true;
+            #endif
         }
     }
     #endif
