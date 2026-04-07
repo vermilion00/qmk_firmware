@@ -1183,7 +1183,8 @@ static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t 
     if(checksum != split_shmem->axis_data.checksum) checksum = split_shmem->axis_data.checksum;
     else {
         for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
-            if(axis_values[index] == 0) axis_values[index] = slave_data[index];
+            axis_values[index] += slave_data[index];
+            axis_values[index] = axis_values[index] > 127 ? 127 : axis_values[index];
         }
     }
 
@@ -1194,7 +1195,9 @@ static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t 
 
     split_shared_memory_lock();
     for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
-        if(axis_values[index] == 0) axis_values[index] = slave_data[index];
+        // Since all values are clamped to 0-127 before and after anyway, we don't have to worry about overflows by adding here
+        axis_values[index] += slave_data[index];
+        axis_values[index] = axis_values[index] > 127 ? 127 : axis_values[index];
     }
     split_shared_memory_unlock();
 
@@ -1208,8 +1211,8 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
     if (!joystick_state.dirty) return;
 
     split_shared_memory_lock();
-    split_shmem->axis_data.checksum = crc8(axis_values, sizeof(axis_values));
     memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
+    split_shmem->axis_data.checksum = crc8(axis_values, sizeof(axis_values));
     split_shared_memory_unlock();
 }
 
@@ -1270,6 +1273,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
 
 //MARK: Transactions master
 bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    TRANSACTIONS_AM_JOYSTICK_MASTER();
     TRANSACTIONS_SLAVE_MATRIX_MASTER();
     TRANSACTIONS_MASTER_MATRIX_MASTER();
     TRANSACTIONS_ENCODERS_MASTER();
@@ -1289,11 +1293,12 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
-    TRANSACTIONS_AM_JOYSTICK_MASTER();
     return true;
 }
 
 void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    TRANSACTIONS_AM_DATA_SLAVE();
+    TRANSACTIONS_AM_JOYSTICK_SLAVE();
     TRANSACTIONS_SLAVE_MATRIX_SLAVE();
     TRANSACTIONS_MASTER_MATRIX_SLAVE();
     TRANSACTIONS_ENCODERS_SLAVE();
@@ -1313,8 +1318,6 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_HAPTIC_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
-    TRANSACTIONS_AM_DATA_SLAVE();
-    TRANSACTIONS_AM_JOYSTICK_SLAVE();
 }
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

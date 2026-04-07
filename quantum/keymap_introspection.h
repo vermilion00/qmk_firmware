@@ -144,7 +144,7 @@ void create_midi_mask(uint8_t current_layer);
 extern const bool midi_layer;
 #endif
 
-#ifdef USE_SPECIAL_MODE
+#if defined(USE_SPECIAL_MODE)
 extern bool special_layer;
 #else
 // extern const bool special_layer;

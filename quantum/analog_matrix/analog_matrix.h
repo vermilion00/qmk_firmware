@@ -290,7 +290,7 @@ extern adc_mux adc_pin_mux[ADC_PIN_NUM];
 extern SPLIT_MUTABLE pin_t mux_pins[MUX_PIN_NUM];
 #endif
 #ifdef POWER_PINS
-extern SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
+extern SPLIT_MUTABLE uint8_t power_pin_num;
 // Set the sensor power pins and delay, if defined
 void set_sensor_power(uint8_t index);
 #endif

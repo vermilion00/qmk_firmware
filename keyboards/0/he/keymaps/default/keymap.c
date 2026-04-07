@@ -97,7 +97,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_ESC,  JS_RPX,  JS_RNX,  JS_RPY,  JS_RNY,  KC_5,                    			          JS_0,    JS_1,    JS_2,    JS_3,    JS_4,    KC_BSPC,
     TG(_GMPD),KC_Q,    JS_LT,   JS_LPY,  JS_RT,   KC_B,                    			          JS_5,    JS_6,    JS_7,    JS_8,    JS_9,    KC_MINS,
      KC_BSPC, JS_RPX,  JS_LNX,  JS_LNY,  JS_LPX,  KC_G,                    			          JS_10,   JS_11,   JS_12,   JS_13,   JS_14,   DB_TOGG,
-     JS_RNX,  JS_RPX,  KC_X,    KC_D,    KC_C,    KC_Z,                    			          JS_RNZ,  JS_RPZ,    KC_COMM, KC_DOT,  KC_SLSH, _______,
+     JS_RNX,  JS_RPX,  KC_X,    KC_D,    KC_C,    KC_Z,                    			          JS_RNZ,  JS_RPZ,  JS_RPY,  JS_RNY,  KC_SLSH, _______,
                                KC_LBRC, KC_RBRC, 								   						  	                            KC_MPRV, KC_MNXT,
 						                                 TG(_GMPD),KC_SPC, MO(_LALT),        KC_BSPC, KC_LSFT, KC_MPLY,
 									                                  KC_LCTL, KC_LALT,			 KC_ENT

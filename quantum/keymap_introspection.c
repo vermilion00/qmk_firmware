@@ -445,7 +445,7 @@ extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 
 matrix_row_t joystick_mask[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
-extern uint8_t thisHand;
+// extern uint8_t thisHand;
 extern uint8_t thatHand;
 #endif
 
@@ -457,7 +457,7 @@ void create_joystick_mask(uint8_t current_layer) {
         memset(&joystick_mask, 0, sizeof(joystick_mask));
         memset(&joystick_state.axes, 0, sizeof(joystick_state.axes));
         //TODO: Could set it to true here to trigger one last flush, to clear the values properly
-        joystick_state.dirty = false;
+        joystick_state.dirty = true;
         joystick_layer = false;
     }
 

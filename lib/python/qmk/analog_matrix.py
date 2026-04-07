@@ -94,16 +94,21 @@ def _transform_layout(info_data):
         cli.log.error("No ADC pins defined!")
         return info_data
 
-    max_channels = 1 << len(am_hardware.get('mux_pins', ''))
+    mux_channels = 1 << len(am_hardware.get('mux_pins', ''))
+    # If power pins are used instead of multiplexers, use their amount instead
+    if mux_channels == 1:
+        mux_channels = 1 << len(am_hardware.get('power_pins', ''))
     # Direct pins are functionally converted to a matrix with 1 row
     row_pins = max(len(am_hardware.get('row_pins', [])), 1)
     col_pins = len(am_hardware.get('col_pins', [])) + len(am_hardware.get('direct_pins', []))
     used_rc_positions = []
     matrix_size = [0, 0]
+    highest_adc = 0
+    highest_mux = 0
 
     # We only need one layout, hence the break at the end
     for layout_name, layout_data in info_data['layouts'].items():
-        mux_to_num = [[255 for _ in range(adc_pins)] for _ in range(max_channels)]
+        mux_to_num = [[255 for _ in range(adc_pins)] for _ in range(mux_channels)]
         num_to_matrix = [-1 for _ in range(len(layout_data['layout']))]
         rc_to_matrix = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
         key_index = 0
@@ -111,6 +116,9 @@ def _transform_layout(info_data):
         used_positions = []
         for key_data in layout_data['layout']:
             #TODO: Change the name from mux to a/m?
+            if key_data['mux'][0] > highest_adc: highest_adc = key_data['mux'][0]
+            if key_data['mux'][1] > highest_mux: highest_mux = key_data['mux'][1]
+
             if 'mux' in key_data:
                 adc, mux = key_data['mux']
                 mux_to_num[mux][adc] = key_index
@@ -127,8 +135,6 @@ def _transform_layout(info_data):
             elif 'rc' in key_data:
                 data = key_data['rc']
                 if type(data) == list:
-                #TODO: This doesn't work
-                # if type(data) == "<class 'list'>":
                     row, col = data
                 else:
                     row, col = [0, data]
@@ -151,13 +157,18 @@ def _transform_layout(info_data):
                 return info_data
         break
 
+    # Trim unnecessary adc, mux and power pins
+    info_data['analog_matrix']['hardware']['adc_pins'] = am_hardware['adc_pins'][:highest_adc+1]
+    if 'mux_pins' in am_hardware:
+        for n in range(1, 6):
+            if mux_channels < (1 << n):
+                info_data['analog_matrix']['hardware']['mux_pins'] = am_hardware['mux_pins'][:n+1]
+                break
+    if 'power_pins' in am_hardware:
+        info_data['analog_matrix']['hardware']['power_pins'] = am_hardware['power_pins'][:highest_mux+1]
+
     # Trim the mux_to_nums
-    last_row = 0
-    for num, row in enumerate(mux_to_num):
-        for idx in row:
-            if idx != 255:
-                last_row = num
-    mux_to_num = mux_to_num[:last_row + 1]
+    mux_to_num = [row[:highest_adc+1] for row in mux_to_num[:highest_mux+1]]
 
     # Trim the num_to_matrixes
     num_to_matrix = [i for i in num_to_matrix if i != -1]
@@ -192,12 +203,17 @@ def _transform_layout_split(info_data):
         cli.log.error("No ADC pins defined!")
         return info_data
     mux_channels = 1 << len(am_hardware.get('mux_pins', ''))
+    # If power pins are used instead of multiplexers, use their amount instead
+    if mux_channels == 1:
+        mux_channels = 1 << len(am_hardware.get('power_pins', ''))
     row_split = am_hardware['row_split']
     #TODO: This needs to be updated for possibly separate pin amounts per half
     row_pins = len(am_hardware.get('row_pins', []))
     col_pins = len(am_hardware.get('col_pins', []))
     used_rc_positions = []
     matrix_size = [0, 0]
+    highest_adc = 0
+    highest_mux = 0
 
     for layout_name, layout_data in info_data['layouts'].items():
         mux_to_num_l = [[255 for _ in range(adc_pin_num)] for _ in range(mux_channels)]
@@ -213,6 +229,9 @@ def _transform_layout_split(info_data):
         used_positions_r = []
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
+                if key_data['mux'][0] > highest_adc: highest_adc = key_data['mux'][0]
+                if key_data['mux'][1] > highest_mux: highest_mux = key_data['mux'][1]
+
                 if key_data['matrix'][0] < row_split:
                     adc, mux = key_data['mux']
                     mux_to_num_l[mux][adc] = key_index_l
@@ -270,24 +289,26 @@ def _transform_layout_split(info_data):
                 total_key_num += 1
 
             else: # No mux definition in key data
-                cli.log.error(f"Missing mux info on key {key_index_l + key_index_r} in layout {layout_name}!")
+                cli.log.error(f"Missing info on key {key_index_l + key_index_r} in layout {layout_name}!")
                 return info_data
         # We only need one layout
         break
 
-    # Trim mux_to_nums
-    last_row = 0
-    for num, row in enumerate(mux_to_num_l):
-        for idx in row:
-            if idx != 255:
-                last_row = num
-    mux_to_num_l = mux_to_num_l[:last_row + 1]
+    # Trim unnecessary adc, mux and power pins
+    for postfix in ['', '_right']:
+        if f'adc_pins{postfix}' in am_hardware:
+            info_data['analog_matrix']['hardware'][f'adc_pins{postfix}'] = am_hardware[f'adc_pins{postfix}'][:highest_adc+1]
+        if f'mux_pins{postfix}' in am_hardware:
+            for n in range(1, 6):
+                if mux_channels < (1 << n):
+                    info_data['analog_matrix']['hardware'][f'mux_pins{postfix}'] = am_hardware[f'mux_pins{postfix}'][:n+1]
+                    break
+        if f'power_pins{postfix}' in am_hardware:
+            info_data['analog_matrix']['hardware'][f'power_pins{postfix}'] = am_hardware[f'power_pins{postfix}'][:highest_mux+1]
 
-    for num, row in enumerate(mux_to_num_r):
-        for idx in row:
-            if idx !=255:
-                last_row = num
-    mux_to_num_r = mux_to_num_r[:last_row + 1]
+    # Trim mux_to_nums
+    mux_to_num_l = [row[:highest_adc+1] for row in mux_to_num_l[:highest_mux+1]]
+    mux_to_num_r = [row[:highest_adc+1] for row in mux_to_num_r[:highest_mux]]
 
     # Trim the num_to_matrixes
     num_to_matrix_l = [i for i in num_to_matrix_l if i != -1]
@@ -399,7 +420,6 @@ def get_matrix_to_mux(info_data, config_h_lines):
     return info_data
 
 
-# {{{0, 5}, {0, 6}}}
 #MARK: Matrix_to_rc
 def get_matrix_to_rc(info_data, config_h_lines):
     hardware = info_data['analog_matrix']['hardware']
@@ -857,12 +877,12 @@ def validate_analog_matrix_config(info_data):
         if len(am_hardware.get('mux_to_num', '')) != len(am_hardware.get('power_pins', '')) \
             and not am_hardware.get('custom_power_before_scan', False):
             valid = False
-            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as you use mux_channels.")
+            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as mux_channels are used.")
     if 'power_pins_right' in am_hardware:
         if len(am_hardware.get('mux_to_num_right', '')) != len(am_hardware.get('power_pins_right', '')) \
             and not am_hardware.get('custom_power_before_scan', False):
             valid = False
-            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as you mux_channels are used.")
+            cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as mux_channels are used.")
 
     if 'profiles' in am_json:
         profile = 0

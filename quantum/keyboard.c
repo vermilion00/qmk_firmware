@@ -690,11 +690,6 @@ void quantum_task(void) {
     if (!is_keyboard_master()) return;
 #endif
 
-#if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
-//TODO: Could I move axis checking to keyboard_task, which also runs on the slave?
-    analog_joystick_task();
-#endif
-
 #ifdef AUDIO_ENABLE
     audio_task();
 #endif
@@ -820,6 +815,11 @@ void keyboard_task(void) {
 
 #ifdef MIDI_ENABLE
     midi_task();
+#endif
+
+#if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+//TODO: Could I move axis checking to keyboard_task, which also runs on the slave?
+    analog_joystick_task();
 #endif
 
 //TODO: This means that an actual joystick is incompatible with analog matrix

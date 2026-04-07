@@ -55,6 +55,10 @@ Joystick:
     -joystick_flush() also continuously sends updates even with no keys pressed -> because joystick_state is always dirty somehow
 --> Syncing the pressed state of each switch to the matrix state fixes it
 Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
+Need to change the descriptor(?) to report the stuff the same way a gamepad would
+-They are currently visibly different
+-How does the receiver know whether both trigger components are maxed or at 0? Do gamepads send the changes in value instead of the absolute position?
+-Maybe also add a mode where the sticks send circular values instead of squares when together (sin/cos)
 
 
 MIDI:
@@ -187,6 +191,7 @@ Better init key scanning:
 
 Make sure that setting mux channels without defining mux pins works as long as we have an equal amount of power pins as mux channels
     -This is to allow scanning a diode separated matrix of sensors
+    -> If no mux pins are set, set mux_channels to be equal to the amount of power pins instead
 
 When the calibration values drift, do they tend to drift together or independently?
     -Would it make sense to save the travel distance instead of the bottom value?
@@ -195,9 +200,6 @@ When the calibration values drift, do they tend to drift together or independent
 
 Since the init and cal thresholds work off of the deadzone, I need to be careful when setting a high deadzone for tests
     -Or define a separate value as a fallback
-
-Since I'm already scanning the top value every time, I could just set a default offset as the bottom value if no other are given
-    -This is done, mention it in the docs
 
 Since I have new top values from calibration, I can calibrate until all bottom values have been read, then wait until every switch reads a value inside the top deadzone,
 then calibrate the top_deadzones automatically, instead of doing it separately.
@@ -227,6 +229,8 @@ Tinyuf2:
     -Does this mean it will only work with VBUS sensing?
     -Removing the NO_VBUS define compiles with warnings but doesn't work, even with voltage divider setup (2.2k and 10k, as 4.7k put the voltage too low)
 
+The part that prints newlines is line 145 in action.c
+
 
 !!! IMPORTANT !!!
 
@@ -237,14 +241,17 @@ Do I need to calculate the rt_threshold when switching profiles or not?
 Does running top_calibration mess up the bottom values?
     -Latest test didn't show this behaviour
 
-The joystick layer is sending constant updates (no keycodes are pressed though, just the console being spammed)
-    -Wasn't that fixed at one point? Is it due to the smoothing check being bypassed?
-    -How can I make it so that it only sends updates when an axis is updated?
-
 
 !!! Currently working on !!!
-Joystick slave axes
--With joystick slave axes, the 1 and . keys are registered as held
-    -> Those keys correspond to the axis keys on the slave when LALT layer is active
-    -> They aren't synced properly/don't reset properly
-    -Maybe need to change thisHand offset in joystick_mask? Probably not
+Still need to add right multipliers for slave half joystick
+    -The jitter problem is likely due to the missing smoothing, since the higher deadzones are still applied there
+
+Even without the constant printing, the joystick layer update speed is limited to 1000Hz
+    -It's not caused by printing without a newline, as the frequency message works without problems
+    ->Is this a limitation of the joystick API perhaps?
+
+For some reason, the slave joystick axes seem to bounce between their value and double that all the time
+    -Is something not resetting them correctly? Are they not resetting every scan?
+
+The matrix_to_num etc needs to be trimmed down, and then MUX_CHANNELS and ADC_PIN_NUM needs to be trimmed down to the actually needed amount
+-Make sure that the array size isn't set by ADC_PIN_NUM, or it'll fail

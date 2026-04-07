@@ -21,7 +21,7 @@ extern gpio_port_t* mux_port;
 
 //TODO: Change the port to point to the output register directly
 // STM32 needs GPIOx->ODR, AT32 needs GPIOx_ODT(?), AVR needs PORTx(?)
-#if MUX_CHANNELS > 1
+#ifdef MUX_PINS
 void set_mux_channel(uint8_t channel) {
 #if defined MUX_PIN_OFFSET && defined CONTINUOUS_MUX_PORT && !defined NO_MUX_OPTIMIZATION
 #if defined USE_BSRR
@@ -570,4 +570,4 @@ void set_mux_channel(uint8_t channel) {
     // If a delay is needed, wait for the defined amount of cycles
     wait_cycles(MUX_SELECT_DELAY);
 }
-#endif // if MUX_CHANNELS > 1
+#endif // ifdef MUX_PINS

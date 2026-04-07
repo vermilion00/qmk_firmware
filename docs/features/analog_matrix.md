@@ -41,8 +41,7 @@ Working features are:
         * This can be used to remedy less stable scan values on the slave
 * [Automatic](analog_matrix#profile-objects) and manual profile switching
 * [Analog joystick](analog_matrix#analog-joystick) mode
-    * Axes only work on the main half for split keyboards
-    * While the keyboard is detected as a gamepad on windows, many games don't automatically pick up inputs. I've found success in using steam input to bind the buttons as a workaround.
+    * While the keyboard is detected as a gamepad on windows, many games don't automatically pick up inputs. I've found success in using steam input to bind the buttons and axes as a workaround.
 * [SOCD / Snap Tap / Input Cleaner](analog_matrix#SOCD)*
     * This functionality is available as a separate module in QMK
     * A height-based priority can't be set, however.
@@ -72,7 +71,6 @@ Working features are:
 * GUI configurator
     * VIAL can be used with this branch to change the keymap and QMK settings only, no analog configuration
     * Full VIAL support is in the early stages of development
-* Joystick axes on the slave half
 * Controlling the sensor power via gpio pins<sup>1</sup>
 * High USB polling rates
     * Currently low priority
@@ -85,10 +83,9 @@ Working features are:
 ### Current TO-DO list
 
 Roughly in descending order of priority:
+* GUI confugurator (VIAL)
 * Velocity-sensitive MIDI keys
 * DKS
-* GUI confugurator (VIAL)
-* Joystick axes on slave half
 * Higher USB polling rates (> 1kHz)
 * Controlling sensor power via GPIO*
     * Support for two different modes exists but hasn't been fully tested yet
@@ -1210,9 +1207,8 @@ This feature is not very useful currently, as USB polling rates above 1k aren't 
 ### Analog Joystick
 
 ::: warning  
-This feature currently doesn't work that well. Most games don't recognize the keyboard as a controller, or only the movement axes work. <br>
-One workaround is to use Steam input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still add them to Steam to use Steam input. <br>
-On split keyboards, assigning joystick axes to the slave half doesn't work. You can still use it for joystick buttons.  
+Most games don't recognize the buttons natively. <br>
+One workaround is to use Steam Input to emulate a proper controller, this will recognize the buttons and axes. For non-steam games, you can still add them to Steam to use Steam Input. <br>
 :::
 
 The analog joystick feature can be enabled by simply configuring it in the keyboard.json. The buttons and axes follow the xbox naming convention by default, but the alias can be changed via the "layout" parameter.
@@ -1238,7 +1234,7 @@ The analog joystick feature can be enabled by simply configuring it in the keybo
     }
 }
 ```
-The axis buttons are split up by component. This means that for each axis (X, Y, Triggers, RX, RY, RZ) there are two buttons, one for the positive component, and one for the negative. When both buttons are released, the axis value is 0.
+The axis keys are split up by component. This means that for each axis (X, Y, Triggers, RX, RY, RZ) there are two keycodes, one for the positive component, and one for the negative. When both buttons are released, the axis value is 0.
 If the negative axis value is bottomed out, the axis component value -X will be 127, and the axis value will be -127. If both buttons are pressed simultaneously, the output is decided by the resolution method.
 
 ```json
@@ -1283,7 +1279,7 @@ Using this option will set the method for all axes. If you wish to set different
     "ry": "positive_dominant"
 }
 ```
-Any axis that isn't named in the "resolution_methods" object will default to "resolution_method", which in turn defaults to difference.
+Any axis that isn't named in the "resolution_methods" object will default to "resolution_method", which in turn defaults to "difference".
 
 ::: warning  
 The trigger buttons are two components of the z axis, with LB/L2 corresponding to the negative component of the Z axis and RB/R2 corresponding to the positive component.

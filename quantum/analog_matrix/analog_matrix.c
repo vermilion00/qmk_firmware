@@ -953,15 +953,18 @@ bool evaluate_value(uint8_t index, uint16_t value) {
     #if defined JOYSTICK_ENABLE
     if(joystick_layer) {
         if(key_config[index].axis_index < 255) {
+            //TODO: Remove unnecessary returns after switching to returning false
             if(!translate_joystick_axis(index, value)) return false;
             #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
             // On split keyboards, we can't update the axes like this since the slave axes won't be evaluated
             // Instead, we update all axes in the analog_joystick_task()
             joystick_state.dirty = true;
-            return true;
+            //TODO: I can return false here, as long as I can stop the sync from aborting if the slave matrix state hasn't changed
+            //      This allows me to skip the printing newlines part and the key state syncing, as they aren't desynced anymore
+            //      -> The last part is only true if the layer toggle key is different from the special keys
+            return false;
             #else
-            if(!evaluate_joystick_axis(key_config[index].axis_index)) return false;
-            return true;
+            evaluate_joystick_axis(key_config[index].axis_index) return false;
             #endif
         }
     }

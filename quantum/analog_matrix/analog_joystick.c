@@ -143,15 +143,16 @@ bool evaluate_joystick_axis(axis_component_t axis_component) {
 //MARK: Joystick task
 void analog_joystick_task(void) {
     // On split keyboards with slave axes, we need to evaluate those on the master as well
-    #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
-    if(!joystick_state.dirty) return;
+    if(is_keyboard_master()) {
+        #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
+        if(!joystick_state.dirty) return;
 
-    for(uint8_t axis = 0; axis < JOYSTICK_AXIS_COUNT; axis++) {
-        evaluate_joystick_axis(axis * 2);
+        for(uint8_t axis = 0; axis < JOYSTICK_AXIS_COUNT; axis++) {
+            evaluate_joystick_axis(axis * 2);
+        }
+        #endif
+        joystick_flush();
     }
-    #endif
-
-    joystick_flush();
 
     memset(&axis_values, 0, sizeof(axis_values));
 }
