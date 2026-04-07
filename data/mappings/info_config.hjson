@@ -78,6 +78,7 @@
     "RECALIBRATED_SWITCHES": {"info_key": "analog_matrix.config.recalibrated_switches", "value_type": "int"},
     "PRIORITY_LEVEL": {"info_key": "analog_matrix.config.priority_level", "value_type": "int"},
     "SLAVE_LOW_PRIORITY": {"info_key": "analog_matrix.config.slave_low_priority", "value_type": "flag"},
+    "ROUND_STICKS": {"info_key": "analog_matrix.joystick.round_sticks", "value_type": "flag"},
 
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},

@@ -741,6 +741,10 @@ void quantum_task(void) {
 #ifdef LAYER_LOCK_ENABLE
     layer_lock_task();
 #endif
+
+#if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
+    analog_joystick_task();
+#endif
 }
 
 /** \brief Main task that is repeatedly called as fast as possible. */
@@ -815,11 +819,6 @@ void keyboard_task(void) {
 
 #ifdef MIDI_ENABLE
     midi_task();
-#endif
-
-#if defined ANALOG_MATRIX_ENABLE && defined JOYSTICK_ENABLE
-//TODO: Could I move axis checking to keyboard_task, which also runs on the slave?
-    analog_joystick_task();
 #endif
 
 //TODO: This means that an actual joystick is incompatible with analog matrix

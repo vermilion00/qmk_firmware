@@ -17,6 +17,8 @@
 
 // #define NO_SLAVE_AXES
 
+// #define ROUND_STICKS
+
 #define DEBUG_MATRIX_SCAN_RATE
 
 // #define RIGHT_MULTIPLIER 2.0

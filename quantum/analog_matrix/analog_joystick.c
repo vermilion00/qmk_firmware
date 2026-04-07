@@ -140,19 +140,49 @@ bool evaluate_joystick_axis(axis_component_t axis_component) {
     return joystick_update_axis(axis, joystick_value);
 }
 
+
+//MARK: Post process
+#ifdef ROUND_STICKS
+#include "math.h"
+void post_process_sticks(void) {
+    // Process left stick (axes 0 and 1)
+    #if JOYSTICK_AXIS_COUNT >= 2
+    if(joystick_state.axes[0] != 0 && joystick_state.axes[1] != 0) {
+        float angle = fabs(atanf((float)joystick_state.axes[1] / joystick_state.axes[0]));
+        joystick_state.axes[0] *= cosf(angle);
+        joystick_state.axes[1] *= sinf(angle);
+    }
+    #endif
+
+    // Process right stick (axes 3 and 4)
+    #if JOYSTICK_AXIS_COUNT >= 5
+    if(joystick_state.axes[3] != 0 && joystick_state.axes[4] != 0) {
+        float angle = fabs(atanf((float)joystick_state.axes[4] / joystick_state.axes[3]));
+        joystick_state.axes[3] *= cosf(angle);
+        joystick_state.axes[4] *= sinf(angle);
+    }
+    #endif
+}
+#endif
+
+
 //MARK: Joystick task
 void analog_joystick_task(void) {
-    // On split keyboards with slave axes, we need to evaluate those on the master as well
-    if(is_keyboard_master()) {
-        #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
-        if(!joystick_state.dirty) return;
+    if (!joystick_state.dirty) return;
 
-        for(uint8_t axis = 0; axis < JOYSTICK_AXIS_COUNT; axis++) {
-            evaluate_joystick_axis(axis * 2);
-        }
-        #endif
-        joystick_flush();
+    // On split keyboards with slave axes, we need to evaluate those on the master as well
+    #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
+    for(uint8_t axis = 0; axis < JOYSTICK_AXIS_COUNT; axis++) {
+        evaluate_joystick_axis(axis * 2);
     }
+    #endif
+
+    #ifdef ROUND_STICKS
+    // Adjusts the output of the stick axes to output in a circle
+    post_process_sticks();
+    #endif
+
+    joystick_flush();
 
     memset(&axis_values, 0, sizeof(axis_values));
 }

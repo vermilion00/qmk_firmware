@@ -47,13 +47,7 @@ Split calibration:
     -To disable config checking, check for analog_matrix: true in json->features?
 
 Joystick:
--If multiple keys have the same axis keycode, |= their results? The first one should set, the second one should |?
 -Once VIAL support is done, I can remove the eval keymap checking, and just set the key mode automatically in VIAL
--Specifically the R key is updated much less frequently with a smoothing value set?
-    -Is it because the joystick value is calculated fairly choppily, and sending less frequent updates compounds that?
--Where the hell is the joystick state set to dirty? It's supposed to be reset after flushing, but the eval function keeps being called despite nothing setting it to true
-    -joystick_flush() also continuously sends updates even with no keys pressed -> because joystick_state is always dirty somehow
---> Syncing the pressed state of each switch to the matrix state fixes it
 Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
 Need to change the descriptor(?) to report the stuff the same way a gamepad would
 -They are currently visibly different
@@ -76,17 +70,23 @@ MIDI:
     -Will that work when other files are also dependent on the flag?
 
 Add mode for multiple actions on one key (DKS) somehow
-    -Use switch mode >= 10
-    -switch mode - 10 gives us the index in an array of dks structs, where up to 4 heights are mapped to 4 actions
     -Instead of actually setting the switch mode, use the same logic as joystick
         -Mask, checking it during scan to see if it's a DKS switch, bind DKS(0) as a keycode that triggers the function in that array of DKS structs
     -When a switch with that mode is scanned, send eval to another function
+    -Create a layout macro similar to keymap assignment
+    -Assign keycodes in keymap.c as well
+    -Get the amount of keys, and the amount of actions per key, from the json
+    -Do I need to set anything in the json besides the heights?
+        -The amount of keys and actions per key can be had from there anyway, that should be all
 
 -Allow associating a color with a profile?
     -Or just set them by layer
 
 -Make sure no conflicts happen with other features using the ADC somehow
     -Might not be possible on chips with one ADC, if the other feature needs different settings compared to analog matrix
+    -What features would that even be?
+        -Wireless (Battery level sensing) - rare
+        -normal joystick implementation using potentiometers - very rare
 
 -Go through all changed files and make sure that all new includes are actually necessary, and gate them if possible
 
@@ -164,11 +164,11 @@ Since the bottom left mux has problems on slave, check if that is actually the c
     -Probably just caused by a bad connection to the ADC pin or smth
 
 Can the layout macro be reworked, so that the mux param replaces the matrix parameter completely, since technically only the order matters?
-    -automatically place all keys in a row until it has 8 keys, then go to the next one
-    -Make sure it also works with mixed matrix, which it should
     -This would make it harder to set anything requiring the actual matrix position
         -Prio keys, debug position, init keys etc
     -Could do it as an optional thing, and set all of those via the index instead, but it's a lot of effort for little payoff in light off that
+    -automatically place all keys in a row until it has 8 keys, then go to the next one
+    -Make sure it also works with mixed matrix, which it should
 
 Bootmagic:
 -Does having bootmagic enabled still fail compilation due to invalid pins?
@@ -189,10 +189,6 @@ Better init key scanning:
 -If the difference between the avg top value and the lowest key is higher than 2 * second highest deviation, it's counted as pressed, otherwise not
     -This should be robust enough that only extreme cases don't work with it (high top value deviation AND low travel difference)
 
-Make sure that setting mux channels without defining mux pins works as long as we have an equal amount of power pins as mux channels
-    -This is to allow scanning a diode separated matrix of sensors
-    -> If no mux pins are set, set mux_channels to be equal to the amount of power pins instead
-
 When the calibration values drift, do they tend to drift together or independently?
     -Would it make sense to save the travel distance instead of the bottom value?
         -How would I check for init keys in that case?
@@ -206,17 +202,10 @@ then calibrate the top_deadzones automatically, instead of doing it separately.
 
 Add my keycodes to docs/keycodes.md with a link to my page
 
-If the slave boot key is pressed, go to bootloader on master? Would make it slower, since I have no way of knowing which half is master until after full init,
-so both halves will need to wait.
-
 Once VIA(L) is a thing, start top cal from there and keep it running until it's stopped on the PC
     -This allows you to jiggle the keys a bit for better readings
 
 Add top values to calibration printing
-
-The slave layer_state from the default layer sync transaction is delayed by 1 sync somehow
-The profile is only updated on the master when the higher layer is released?
-    -The update function is called immediately when the layer is selected
 
 At the end of top calibration, bring the lower deadzones up a bit according to the higher values?
     -Maybe instead of +30% of its deadzone, it should be +30% of the highest deadzone?
@@ -243,15 +232,6 @@ Does running top_calibration mess up the bottom values?
 
 
 !!! Currently working on !!!
-Still need to add right multipliers for slave half joystick
-    -The jitter problem is likely due to the missing smoothing, since the higher deadzones are still applied there
-
 Even without the constant printing, the joystick layer update speed is limited to 1000Hz
     -It's not caused by printing without a newline, as the frequency message works without problems
     ->Is this a limitation of the joystick API perhaps?
-
-For some reason, the slave joystick axes seem to bounce between their value and double that all the time
-    -Is something not resetting them correctly? Are they not resetting every scan?
-
-The matrix_to_num etc needs to be trimmed down, and then MUX_CHANNELS and ADC_PIN_NUM needs to be trimmed down to the actually needed amount
--Make sure that the array size isn't set by ADC_PIN_NUM, or it'll fail

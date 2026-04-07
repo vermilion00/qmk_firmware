@@ -642,7 +642,19 @@
                         "top_deadzones": {"$ref": "./definitions.jsonschema#/uint_array"},
                         "bottom_values": {"$ref": "./definitions.jsonschema#/uint_array"},
                         "top_deadzones_right": {"$ref": "./definitions.jsonschema#/uint_array"},
-                        "bottom_values_right": {"$ref": "./definitions.jsonschema#/uint_array"}
+                        "bottom_values_right": {"$ref": "./definitions.jsonschema#/uint_array"},
+                        "dynamic_keystroke": {
+                            "type": "object",
+                            "properties": {
+                                "heights": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array",
+                                        "items": { "type": "number" }
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 "joystick": {
@@ -667,6 +679,7 @@
                         "deadzone": { "type": "integer" },
                         "top_deadzone": { "type": "integer" },
                         "bottom_deadzone": { "type": "integer" },
+                        "round_sticks": { "type": "boolean" },
                         "resolution_method": {"$ref": "./definitions.jsonschema#/joystick_resolution_method"},
                         "resolution_methods": {
                             "type": "object",

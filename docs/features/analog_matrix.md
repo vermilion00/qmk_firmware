@@ -1219,9 +1219,10 @@ The analog joystick feature can be enabled by simply configuring it in the keybo
         "joystick": {
             "axes": 6,
             "buttons": 16,
-            "top_deadzone": 20,
+            "top_deadzone": 10,
             "bottom_deadzone": 0,
             "layout": "XBOX",
+            "round_sticks": false,
             "resolution_methods": {
                 "x": "difference",
                 "y": "lowest",
@@ -1240,7 +1241,7 @@ If the negative axis value is bottomed out, the axis component value -X will be 
 ```json
 "top_deadzone": 50
 ```
-This sets a deadzone to the top of the travel range, separate from the normal switch deadzone. While the switch is inside this deadzone, the axis is fully released. Defaults to 20. 
+This sets a deadzone to the top of the travel range, separate from the normal switch deadzone. While the switch is inside this deadzone, the axis is fully released. Defaults to 10. 
 
 ```json
 "bottom_deadzone": 50
@@ -1292,6 +1293,14 @@ I currently don't know if they work together.
 ```
 These options control the amount of axes and buttons that the descriptor will use. Trying to use a keycode for an axis that is outside of the range of the defined axis amount will crash the keyboard, while trying to use a button that is outside of that range will result in the button simply not working.
 Defaults to 6 axes and 16 buttons.
+
+
+As each stick axis can be controlled separately, it is possible to output higher diagonal values than a controller (X and Y at 127 simultaneously, for example). If this causes issues, you can scale the axis output down to a circle by putting
+```c
+#define ROUND_STICKS 
+```
+in your config.h. This will increase the firmware size by roughly 4.5 kB, but the output of the X/Y as well as RX/RY axes will behave like a gamepad stick.
+
 
 #### Keycodes
 All joystick keycodes are prefixed by JS_. You can use the layout parameter to change the button names to your preferred system, XBox naming convention is used by default.

@@ -1178,7 +1178,6 @@ static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t 
     // If we're not on a layer with joystick keys, we don't need to sync
     if(!joystick_layer) return true;
 
-    //TODO: There's gotta be a better way that doesn't involve resetting the entire array each time
     if(!transport_read(GET_JOYSTICK_CHECKSUM, &split_shmem->axis_data.checksum, sizeof(split_shmem->axis_data.checksum))) return true;
     if(checksum != split_shmem->axis_data.checksum) checksum = split_shmem->axis_data.checksum;
     else {
@@ -1186,26 +1185,26 @@ static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t 
             axis_values[index] += slave_data[index];
             axis_values[index] = axis_values[index] > 127 ? 127 : axis_values[index];
         }
+        return true;
     }
 
     if(transport_read(GET_JOYSTICK_DATA, split_shmem->axis_data.values, sizeof(split_shmem->axis_data.values))) {
         // Only copy the new values if the transaction is successful, else use the old data instead
+        split_shared_memory_lock();
         memcpy(&slave_data, &split_shmem->axis_data.values, sizeof(slave_data));
+        split_shared_memory_unlock();
     }
 
-    split_shared_memory_lock();
     for (uint8_t index = 0; index < JOYSTICK_AXIS_COUNT * 2; index++) {
         // Since all values are clamped to 0-127 before and after anyway, we don't have to worry about overflows by adding here
         axis_values[index] += slave_data[index];
         axis_values[index] = axis_values[index] > 127 ? 127 : axis_values[index];
     }
-    split_shared_memory_unlock();
 
     return true;
 }
 
 static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    //TODO: I feel like it would be better to handle the transaction on the master half, as it's busier in theory already
     if (!joystick_layer) return;
 
     if (!joystick_state.dirty) return;
@@ -1214,6 +1213,7 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
     memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
     split_shmem->axis_data.checksum = crc8(axis_values, sizeof(axis_values));
     split_shared_memory_unlock();
+    memset(&axis_values, 0, sizeof(axis_values));
 }
 
 #define TRANSACTIONS_AM_JOYSTICK_MASTER() TRANSACTION_HANDLER_MASTER(joystick)

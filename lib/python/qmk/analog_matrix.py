@@ -581,68 +581,6 @@ def transform_init_keys(info_data, config_h_lines):
     else:
         config_h_lines.append(generate_define('AM_INIT_KEY_NUM', 0))
 
-# def transform_init_keys(info_data, config_h_lines):
-#     use_init_keys = False
-#     hardware = info_data['analog_matrix']['hardware']
-#     rc_pos = hardware.get('used_rc_pos', [])
-#     rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
-#     used_pos = []
-
-
-#     for postfix in ['', '_right'] if split_keyboard else ['']:
-#         init_key_num = 0
-#         init_functions = []
-#         init_keys = []
-#         fix = '_R' if postfix == '_right' else ''
-#         matrix_to_num = hardware[f'matrix_to_num{postfix}']
-#         num_to_mux = hardware[f'num_to_mux{postfix}']
-#         matrix_to_rc_num = hardware.get(f'matrix_to_rc_num{postfix}', [])
-#         num_to_rc = hardware.get(f'num_to_rc{postfix}', [])
-#         rc_init_key_num = 0
-#         rc_init_keys = []
-#         rc_init_functions = []
-#         offset = rows if split_keyboard else 0
-
-#         for key in INIT_KEYS:
-#             path = INIT_KEYS[key] + postfix
-#             if path in info_data:
-#                 key_data = info_data[path]
-#                 # If only a single position is given, put it in a list
-#                 for key_pos in key_data if type(key_data[0]) == list else [key_data]:
-#                     if key_pos in used_pos:
-#                         cli.log.error(f"Key {key_pos} has multiple initialization functions! Skipping rest of {path}")
-#                         break
-#                     else:
-#                         used_pos.append(key_pos)
-
-#                     # Check if the position corresponds to a mechanical key
-#                     if key_pos in rc_pos:
-#                         rc = num_to_rc[matrix_to_rc_num[key_pos[0] - offset][key_pos[1]]]
-#                         rc_init_keys.append(rc)
-#                         rc_init_key_num += 1
-#                         rc_init_functions.append(INIT_FUNCTIONS[key])
-
-#                     else:
-#                         #TODO: Will this work if a mechanical key adds another row that doesn't exist in matrix_to_num? Or does matrix_to_num take it into account
-#                         key_mux = num_to_mux[matrix_to_num[key_pos[0] - offset][key_pos[1]]]
-#                         init_keys.append(key_mux)
-#                         init_key_num += 1
-#                         init_functions.append(INIT_FUNCTIONS[key])
-
-#         config_h_lines.append(generate_define(f'AM_INIT_KEY_NUM{fix}', init_key_num))
-#         if init_key_num > 0:
-#             config_h_lines.append(generate_define(f'AM_INIT_KEYS{fix}', str(init_keys).replace('[', '{').replace(']', '}')))
-#             config_h_lines.append(generate_define(f'AM_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, init_functions))} }}'))
-#             use_init_keys = True
-
-#         if rc_init_key_num > 0:
-#             config_h_lines.append(generate_define(f'RC_INIT_KEY_NUM{fix}', rc_init_key_num))
-#             config_h_lines.append(generate_define(f'RC_INIT_KEYS{fix}', str(rc_init_keys).replace('[', '{').replace(']', '}')))
-#             config_h_lines.append(generate_define(f'RC_INIT_FUNCTIONS{fix}', f'{{ {", ".join(map(str, rc_init_functions))} }}'))
-#             use_init_keys = True
-
-#     if use_init_keys: config_h_lines.append(generate_define('USE_INIT_KEYS'))
-
 
 #MARK: Profile config
 def generate_profile_config(info_data, config_h_lines):
@@ -1022,7 +960,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     split_layer_sync = False
     use_special_mode = False
-    if 'joystick' in objects and features.get('joystick', True):
+    if 'joystick' in objects or features.get('joystick', True):
         use_special_mode = True
         split_layer_sync = True
         generate_joystick_config(info_data, config_h_lines)
@@ -1168,12 +1106,12 @@ def check_pins(info_data, config_h_lines):
 def generate_joystick_config(info_data, config_h_lines):
     AXIS_INDICES = { "x": 0, "y": 1, "trigger": 2, "z": 2, "rx": 3, "ry": 4, "rz": 5 }
     RESOLUTION_NAMES = { "difference": 0, "lowest": 1, "positive_dominant": 2, "negative_dominant": 3, "cancel": 4 }
-    am_joystick = info_data['analog_matrix']['joystick']
+    am_joystick = info_data['analog_matrix'].get('joystick', {})
 
     config_h_lines.append(generate_define(f'{am_joystick.get('layout', 'XBOX').upper()}_LAYOUT'))
     config_h_lines.append(generate_define('JOYSTICK_AXIS_COUNT', am_joystick.get('axes', 6)))
     config_h_lines.append(generate_define('JOYSTICK_BUTTON_COUNT', am_joystick.get('buttons', 16)))
-    config_h_lines.append(generate_define('JS_TOP_DEADZONE', am_joystick.get('top_deadzone', 20)))
+    config_h_lines.append(generate_define('JS_TOP_DEADZONE', am_joystick.get('top_deadzone', 10)))
     config_h_lines.append(generate_define('JS_BOTTOM_DEADZONE', am_joystick.get('bottom_deadzone', 0)))
 
     method_config = am_joystick.get('resolution_methods', {})

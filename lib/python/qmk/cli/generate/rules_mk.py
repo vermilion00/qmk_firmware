@@ -111,8 +111,8 @@ def generate_rules_mk(cli):
         # Enable mixed matrix support
         if kb_info_json.get('analog_matrix', {}).get('hardware', {}).get('rc_to_matrix', []) != []:
             rules_mk_lines.append(generate_rule('MIXED_MATRIX_ENABLE', 'yes'))
-        # Set JOYSTICK, if needed, without needing to enable it as a feature
-        if 'joystick' in kb_info_json['analog_matrix'] and kb_info_json['features'].get('joystick') != False:
+        # Set JOYSTICK, if needed
+        if 'joystick' in kb_info_json['analog_matrix'] or kb_info_json['features'].get('joystick') != False:
             rules_mk_lines.append(generate_rule('JOYSTICK_ENABLE', 'yes'))
             rules_mk_lines.append(generate_rule('JOYSTICK_DRIVER', 'digital'))
 
