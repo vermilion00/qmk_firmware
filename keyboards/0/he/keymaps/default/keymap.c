@@ -14,18 +14,18 @@
 
 #define MOUSE_LAYER_TIME 200
 #define DRAGSCROLL_TIME 160
-
-#define _CLMK 0
-#define _GAME 1
-// #define _GMQW 2
-#define _GMPD 2
-#define _MOUSE 3
-#define _FN 4
-#define _LALT 5
-#define _FN2 6
-
 #define CARET_VAL 50
 #define SCROLL_VAL 30
+
+enum layers {
+    _CLMK,
+    _GAME,
+    _GMPD,
+    _MOUSE,
+    _FN,
+    _LALT,
+    _FN2
+};
 
 static bool mouse_lock = false;
 static bool mslk = false;

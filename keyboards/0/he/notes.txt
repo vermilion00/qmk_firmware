@@ -48,7 +48,6 @@ Split calibration:
 
 Joystick:
 -Once VIAL support is done, I can remove the eval keymap checking, and just set the key mode automatically in VIAL
-Why can't I remove joystick_mask? When I remove it, joystick stops working, but it's not actually used anywhere VSCode can find
 Need to change the descriptor(?) to report the stuff the same way a gamepad would
 -They are currently visibly different
 -How does the receiver know whether both trigger components are maxed or at 0? Do gamepads send the changes in value instead of the absolute position?
@@ -222,6 +221,8 @@ The part that prints newlines is line 145 in action.c
 
 !!! IMPORTANT !!!
 
+The _right stuff for debug mux doesn't work
+
 Do I need to calculate the rt_threshold when switching profiles or not?
     -Kinda seems like yes, but it hasn't been a problem yet
     -Likely need a high rt_press_value for it to matter
@@ -234,3 +235,10 @@ Does running top_calibration mess up the bottom values?
 Even without the constant printing, the joystick layer update speed is limited to 1000Hz
     -It's not caused by printing without a newline, as the frequency message works without problems
     ->Is this a limitation of the joystick API perhaps?
+
+
+VIAL:
+What do I need to save to storage?
+-All four heights per profile per switch
+    -Do I save heights that are explicitely disabled via define? I probably don't need to
+-The keymode per profile per switch

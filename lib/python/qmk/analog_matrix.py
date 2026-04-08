@@ -603,32 +603,37 @@ def generate_profile_config(info_data, config_h_lines):
             profile_data = am_profiles[f'profile_{profile_num}']
 
             # base_trigger_height is the default value that then gets masked by the trigger_height values if they're not 0
-            base_trigger_height = profile_data.get('base_trigger_height', 0)
+            # Multiply the heights by 100 to get rid of the floating point
+            base_trigger_height = int(profile_data.get('base_trigger_height', 0) * 100)
             trigger_height = profile_data.get('trigger_height', [0])
+            trigger_height = [int(val * 100) for val in trigger_height]
             if len(trigger_height) == 1:
                 trigger_height = [trigger_height[0] if trigger_height[0] > 0 else base_trigger_height for _ in range(switch_num)]
             trigger_heights.append(trigger_height)
 
             # If base_release_height is defined, it takes priority over offset, as the two values clash
             # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
-            base_release_height = profile_data.get('base_release_height', 0)
-            offset = -profile_data.get('release_offset', 0.2) if not from_bottom else profile_data.get('release_offset', 0.2)
+            base_release_height = int(profile_data.get('base_release_height', 0) * 100)
+            offset = -int(profile_data.get('release_offset', 0.2) * 100) if not from_bottom else int(profile_data.get('release_offset', 0.2) * 100)
             release_height = profile_data.get('release_height', [0])
+            release_height = [int(val * 100) for val in release_height]
             if len(release_height) == 1:
                 release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
             if base_release_height == 0:
                 release_height = [round(trigger_height[idx] + offset, 2) if release_height[idx] == 0 else release_height[idx] for idx in range(switch_num)]
             release_heights.append(release_height)
 
-            base_press_distance = profile_data.get('base_press_distance', 0)
+            base_press_distance = int(profile_data.get('base_press_distance', 0) * 100)
             rt_press_distance = profile_data.get('rt_press_distance', [0])
+            rt_press_distance = [int(val * 100) for val in rt_press_distance]
             if len(rt_press_distance) == 1:
                 rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
             rt_press_distance = [distance if distance > 0 else base_press_distance for distance in rt_press_distance]
 
-            base_release_distance = profile_data.get('base_release_distance', 0)
-            offset = profile_data.get('rt_release_offset', 0)
+            base_release_distance = int(profile_data.get('base_release_distance', 0) * 100)
+            offset = int(profile_data.get('rt_release_offset', 0) * 100)
             rt_release_distance = profile_data.get('rt_release_distance', [0])
+            rt_release_distance = [int(val * 100) for val in rt_release_distance]
             if len(rt_release_distance) == 1:
                 rt_release_distance = [rt_release_distance[0] if rt_release_distance[0] > 0 else base_release_distance for _ in range(switch_num)]
             if base_release_distance == 0:

@@ -241,12 +241,12 @@ bool special_layer = false;
 
 //TODO: Figure out proper guards here (keymap config, etc)
 #if defined USE_TRIGGER_HEIGHT
-extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-extern float CONFIG_MUTABLE rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern float CONFIG_MUTABLE rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_RT_DISTANCE
 
 #endif // defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
@@ -256,14 +256,14 @@ extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
 extern const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 #if !defined TRIGGER_HEIGHT && (defined USE_NONE)
+extern CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM];
 extern const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
 extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM];
 #endif
 #if !defined RT_PRESS_DISTANCE && (defined USE_CONSTANT_RAPID_TRIGGER)
-extern CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
-extern CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
+extern CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
 extern const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
@@ -339,8 +339,8 @@ void assign_config(bool side) {
 
         #if defined USE_TRIGGER_HEIGHT
         #ifdef TRIGGER_HEIGHT
-        const float trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
-        const float release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
+        const uint16_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
+        const uint16_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
         memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
         memcpy(&release_height, &release_height_r, sizeof(release_height_r));
         #else
@@ -354,8 +354,8 @@ void assign_config(bool side) {
         #endif
         #if defined USE_RT_DISTANCE
         #if defined RT_PRESS_DISTANCE
-        const float rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
-        const float rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
+        const uint16_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
+        const uint16_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
         memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
         memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
         #else
@@ -434,7 +434,6 @@ void assign_config(bool side) {
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Joystick
 
@@ -443,37 +442,27 @@ void assign_config(bool side) {
 
 extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 
-matrix_row_t joystick_mask[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
-// extern uint8_t thisHand;
 extern uint8_t thatHand;
 #endif
 
 //MARK: joystick mask
-// Creates a mask of all joystick keycodes in the layer
+// Sets the joystick axes of all keys on the layer
 void create_joystick_mask(uint8_t current_layer) {
-    // If the previous layer was a joystick layer, clear the joystick mask and joystick_state
+    // If the previous layer was a joystick layer, clear the joystick_state
     if (joystick_layer) {
-        memset(&joystick_mask, 0, sizeof(joystick_mask));
         memset(&joystick_state.axes, 0, sizeof(joystick_state.axes));
-        //TODO: Could set it to true here to trigger one last flush, to clear the values properly
-        joystick_state.dirty = true;
+        joystick_state.dirty = false;
         joystick_layer = false;
     }
 
     for(uint8_t key = 0; key < switch_num; key++) {
         const uint8_t row = key_config[key].row;
         const uint8_t col = key_config[key].col;
-
-        //TODO: Does this reset the correct keys, or do I need to subtract thisHand? I don't think so, matrix on slave should be the full one I think?
-        if((matrix[row]) & 1 << col) key_config[key].pressed = true;
-        else key_config[key].pressed = false;
-
         const uint16_t keycode = keymaps[current_layer][row][col];
+
         if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
             joystick_layer = true;
-            //TODO: Could it be that I need to do smth with thisHand offset here or below?
-            joystick_mask[row] |= 1 << col;
             key_config[key].axis_index = keycode - AM_JOYSTICK_RANGE;
         } else {
             key_config[key].axis_index = 255;
@@ -481,16 +470,17 @@ void create_joystick_mask(uint8_t current_layer) {
     }
 
     #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
-    // Check the slave half for joystick keys
-    if(is_keyboard_master()) {
+    // Check the slave half for joystick keys, skip if joystick_layer is already true
+    if(is_keyboard_master() && !joystick_layer) {
         for(uint8_t row = thatHand; row < (MATRIX_ROWS_PER_HAND + thatHand); row++) {
             for(uint8_t col = 0; col < MATRIX_COLS; col++) {
                 const uint16_t keycode = keymaps[current_layer][row][col];
                 if(IS_ANALOG_JOYSTICK_KEYCODE(keycode)) {
                     joystick_layer = true;
-                    joystick_mask[row] |= 1 << col;
+                    return;
                 }
             }
+            if(joystick_layer) return;
         }
     }
     #endif

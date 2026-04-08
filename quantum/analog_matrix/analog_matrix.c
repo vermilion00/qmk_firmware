@@ -62,7 +62,7 @@ extern matrix_row_t raw_matrix[MATRIX_ROWS];
 // Row offsets for each hand
 extern uint8_t thisHand, thatHand;
 #endif
-
+void reset_matrix_keys(void);
 #ifdef DYNAMIC_CALIBRATION
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
@@ -132,21 +132,21 @@ __attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITC
 
 #if defined USE_TRIGGER_HEIGHT
 #if defined TRIGGER_HEIGHT
-float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
-float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
+uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
+uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
 #else
-float trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-float release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
 #if defined RT_PRESS_DISTANCE
-float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
-float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
+uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
+uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
 #else
-float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
 #endif // if defined USE_RT_DISTANCE
@@ -192,11 +192,11 @@ __attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITC
 
 #if defined USE_TRIGGER_HEIGHT
 #if defined TRIGGER_HEIGHT
-__attribute__((weak)) CONFIG_MUTABLE float trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-__attribute__((weak)) CONFIG_MUTABLE float release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
+__attribute__((weak)) CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+__attribute__((weak)) CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
 #else
-__attribute__((weak)) float trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
-__attribute__((weak)) float release_height[AM_PROFILE_NUM][SWITCH_NUM];
+__attribute__((weak)) uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
+__attribute__((weak)) uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM];
 __attribute__((weak)) const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak, alias("trigger_height_config"))) extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
@@ -204,11 +204,11 @@ __attribute__((weak, alias("trigger_height_config"))) extern const float release
 
 #if defined USE_RT_DISTANCE
 #if defined RT_PRESS_DISTANCE
-__attribute__((weak)) CONFIG_MUTABLE float rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-__attribute__((weak)) CONFIG_MUTABLE float rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+__attribute__((weak)) CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+__attribute__((weak)) CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
 #else
-__attribute__((weak)) float rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) float rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+__attribute__((weak)) uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+__attribute__((weak)) uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 __attribute__((weak)) const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 __attribute__((weak, alias("rt_press_distance_config"))) extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
 #endif
@@ -484,12 +484,12 @@ void translate_mm_to_value(uint8_t index, bool init) {
     #ifdef INVERT_ADC
     const uint16_t top_value = init ? (key_config[index].top_value - top_deadzone) : (key_config[index].top_value - top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value + bottom_deadzone;
-    const uint16_t travel_unit = floor((float)(bottom_value - top_value) / (float)TRAVEL_DISTANCE);
+    const uint16_t travel_unit = floor((float)(bottom_value - top_value) / ((float)TRAVEL_DISTANCE * 100));
     #else
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
     const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
-    const uint16_t travel_unit = floor((float)(top_value - bottom_value) / (float)TRAVEL_DISTANCE);
+    const float travel_unit = floor((float)(top_value - bottom_value) / ((float)TRAVEL_DISTANCE * 100));
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
@@ -762,7 +762,6 @@ void calibrate_switches(bool init) {
             // Calibration is done
             LED_OFF;
             // Clear matrix and layer state to avoid stuck keys
-            void reset_matrix_keys(void);
             reset_matrix_keys();
             layer_state = default_layer_state;
             am_highest_layer = default_layer_state;
@@ -915,7 +914,6 @@ void calibrate_top_value(void) {
     LED_OFF;
     dprint("Top deadzone calibration finished\n");
     // Clear matrix and layer state to avoid stuck keys
-    void reset_matrix_keys(void);
     reset_matrix_keys();
     layer_state = default_layer_state;
     am_highest_layer = default_layer_state;

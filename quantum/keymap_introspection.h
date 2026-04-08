@@ -125,7 +125,6 @@ void change_layer_settings(uint8_t current_layer);
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 typedef uint8_t matrix_row_t;
 extern bool joystick_layer;
-extern matrix_row_t joystick_mask[MATRIX_ROWS];
 // Create a mask of all joystick axis keys in the highest active layer
 void create_joystick_mask(uint8_t current_layer);
 #else
