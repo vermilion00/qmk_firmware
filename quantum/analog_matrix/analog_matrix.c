@@ -112,108 +112,28 @@ void set_sensor_power(uint8_t index);
 uint8_t switch_num_slave = SWITCH_NUM_R;
 #endif
 
-//TODO: If I want to combine the definitions, I need to set defaults for all of these defines (ADC_PIN_NUM etc)
-
-//TODO: I'm pretty sure the right half can just be set to SWITCH_NUM_R, since we only copy SWITCH_NUM_R idxs over anyway
-//      I think it's currently done like that to be able to copy them over easily, but I should still know how much to copy over anyway SWITCH_NUM_R * sizeof(float)
-//      Also pretty sure it'd be less hassle defining stuff __attribute__((weak)) to let them be overridden with the MATRIX macros
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 analog_key_t key_config[SMAX(SWITCH_NUM)];
 uint8_t mux_to_num[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM;
 uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX;
 
-#if defined KEY_MODES
-__attribute__((weak)) uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES;
-#else
-// If they're not defined, assume they're set using the MATRIX macro, and copy stuff over from there at init
-__attribute__((weak)) uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
+uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES;
 
 #if defined USE_TRIGGER_HEIGHT
-#if defined TRIGGER_HEIGHT
-uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
-uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
-#else
-uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
+SPLIT_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
+SPLIT_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-#if defined RT_PRESS_DISTANCE
-uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
-uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
-#else
-uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
+SPLIT_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
+SPLIT_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
 #endif // if defined USE_RT_DISTANCE
 
-pin_t adc_pins[SMAX(ADC_PIN_NUM)] = ADC_PINS;
+SPLIT_MUTABLE pin_t adc_pins[SMAX(ADC_PIN_NUM)] = ADC_PINS;
 #if defined MUX_PINS
-pin_t mux_pins[SMAX(MUX_PIN_NUM)] = MUX_PINS;
-#endif
-#if defined POWER_PINS
-pin_t power_pins[SMAX(POWER_PIN_NUM)] = POWER_PINS;
-#endif
-
-#ifdef USE_MIXED_MATRIX
-uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX;
-const uint8_t rc_to_matrix_r[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX_R;
-#endif
-
-#else // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-// Either the keyboard isn't split, or the side has been set using the -s flag
-
-analog_key_t key_config[SWITCH_NUM];
-#ifdef MUX_PINS
 SPLIT_MUTABLE pin_t mux_pins[SMAX(MUX_PIN_NUM)] = MUX_PINS;
 #endif
-SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM] = ADC_PINS;
-#ifdef POWER_PINS
-SPLIT_MUTABLE pin_t power_pins[POWER_PIN_NUM] = POWER_PINS;
+#if defined POWER_PINS
+SPLIT_MUTABLE pin_t power_pins[SMAX(POWER_PIN_NUM)] = POWER_PINS;
 #endif
-
-// Used to translate from the ADC pin/Mux combination to the switch number
-SPLIT_MUTABLE uint8_t mux_to_num[MUX_CHANNELS][ADC_PIN_NUM] = MUX_TO_NUM;
-// Used to translate from the switch number to the QMK layout position
-SPLIT_MUTABLE uint8_t num_to_matrix[SWITCH_NUM][2] = NUM_TO_MATRIX;
-
-#ifdef KEY_MODES
-// Define stuff as weak so that it can be overridden by defining it in the keymap using the MATRIX macro
-// Split keyboards still need to set trigger_height_config etc instead of defining trigger_height directly
-__attribute__((weak)) CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM] = KEY_MODES;
-#else
-__attribute__((weak)) CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... SWITCH_NUM-1] = 0} };
-__attribute__((weak)) const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM] = { [0 ... AM_PROFILE_NUM-1] = {[0 ... TOTAL_SWITCH_NUM-1] = 0} };
-#endif
-
-#if defined USE_TRIGGER_HEIGHT
-#if defined TRIGGER_HEIGHT
-__attribute__((weak)) CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-__attribute__((weak)) CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
-#else
-__attribute__((weak)) uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
-__attribute__((weak)) uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM];
-__attribute__((weak)) const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-__attribute__((weak, alias("trigger_height_config"))) extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
-#endif // if defined USE_TRIGGER_HEIGHT
-
-#if defined USE_RT_DISTANCE
-#if defined RT_PRESS_DISTANCE
-__attribute__((weak)) CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-__attribute__((weak)) CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
-#else
-__attribute__((weak)) uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-__attribute__((weak)) const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-__attribute__((weak, alias("rt_press_distance_config"))) extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
-#endif
-#endif // if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN else
 
 // During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
 adc_mux adc_pin_mux[ADC_PIN_NUM];
@@ -245,9 +165,9 @@ __attribute__((weak)) void analog_matrix_init(void) {
     mixed_matrix_init();
     #endif
 
-    // Determine keyboard half, and assign heights if keymap config is used
-    #if (defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN) || defined KEYMAP_CONFIG
-    assign_config(is_keyboard_left());
+    #if (defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN)
+    // Assign the right half configuration if necessary
+    assign_side();
     #endif
 
     for(uint8_t i = 0; i < adc_pin_num; i++) {
@@ -946,7 +866,8 @@ bool evaluate_value(uint8_t index, uint16_t value) {
             joystick_state.dirty = true;
             return false;
             #else
-            evaluate_joystick_axis(key_config[index].axis_index) return false;
+            evaluate_joystick_axis(key_config[index].axis_index);
+             return false;
             #endif
         }
     }

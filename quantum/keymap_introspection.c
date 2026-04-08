@@ -183,11 +183,25 @@ __attribute__((weak)) const key_override_t* key_override_get(uint16_t key_overri
 
 #if defined(ANALOG_MATRIX_ENABLE)
 #include "analog_matrix.h"
-// #include "multiplexer.h"
-// #include "info_config.h"
 
-#ifdef SPLIT_KEYBOARD
-#if KEYBOARD_SIDE == UNKNOWN
+// Define *_layer variables here for easier usage
+#ifdef JOYSTICK_ENABLE
+bool joystick_layer = false;
+#else
+#   define joystick_layer false
+#endif
+#ifdef MIDI_ENABLE
+bool midi_layer = false;
+#else
+#   define midi_layer false
+#endif
+#ifdef USE_SPECIAL_MODE
+bool special_layer = false;
+#else
+#   define special_layer false
+#endif
+
+#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 extern uint8_t switch_num;
 extern uint8_t adc_pin_num;
 #ifdef MUX_PINS
@@ -198,9 +212,8 @@ extern uint8_t mux_pin_num;
 extern uint8_t mux_offset;
 extern stm32_gpio_t* mux_port;
 #endif
-#endif
-#endif
-#endif
+#endif // ifndef EQUAL_MUX_PINS
+#endif // ifdef MUX_PINS
 
 #ifdef POWER_PINS
 //TODO: Add power pin optimizations as well
@@ -221,218 +234,91 @@ extern uint8_t priority_index_num;
 extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
-// Define *_layer variables here for easier usage
-#ifdef JOYSTICK_ENABLE
-bool joystick_layer = false;
-#else
-const bool joystick_layer = false;
-#endif
-#ifdef MIDI_ENABLE
-bool midi_layer = false;
-#else
-const bool midi_layer = false;
-#endif
-#ifdef USE_SPECIAL_MODE
-bool special_layer = false;
-#else
-// const bool special_layer = false;
-#define special_layer false
-#endif
-
-//TODO: Figure out proper guards here (keymap config, etc)
 #if defined USE_TRIGGER_HEIGHT
-extern CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-extern CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_RT_DISTANCE
 
-#endif // defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+extern SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
 
-extern CONFIG_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
-#ifndef KEY_MODES
-extern const uint8_t key_modes_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
-#if !defined TRIGGER_HEIGHT && (defined USE_NONE)
-extern CONFIG_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM];
-extern CONFIG_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SWITCH_NUM];
-extern const float trigger_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern const float release_height_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
-#if !defined RT_PRESS_DISTANCE && (defined USE_CONSTANT_RAPID_TRIGGER)
-extern CONFIG_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM];
-extern CONFIG_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM];
-extern const float rt_press_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-extern const float rt_release_distance_config[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-#endif
-
-//TODO: I can likely simplify several cases here, some duplicate code
-//TODO: Instead of checking for keymap definitions on everything, just force defining everything in one place
 //MARK: Split side
 // Assigns the split side and copies arrays
-void assign_config(bool side) {
-#ifdef SPLIT_KEYBOARD
-    #if KEYBOARD_SIDE == UNKNOWN
-    if(side == RIGHT) {
-        switch_num = SWITCH_NUM_R;
-        adc_pin_num = ADC_PIN_NUM_R;
-        #ifdef MUX_PINS
-        mux_channel_num = MUX_CHANNELS_R;
-        #ifndef EQUAL_MUX_PINS
-        mux_pin_num = MUX_PIN_NUM_R;
-        //TODO: Test optimization defines here (port and offset)
-        #ifdef MUX_PINS_RIGHT_CONTINUOUS
-        mux_offset = MUX_PIN_RIGHT_OFFSET;
-        mux_port = CONTINUOUS_MUX_PORT_RIGHT;
-        #endif
-        #endif
-        #endif
-        #ifdef POWER_PINS
-        power_pin_num = POWER_PIN_NUM_R;
-        #endif
+void assign_side(void) {
+    if (is_keyboard_left()) return;
 
-        const uint8_t mux_to_num_r[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM_R;
-        memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
-        const uint8_t num_to_matrix_r[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX_R;
-        memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
-
-        #ifndef EQUAL_ADC_PINS
-        const pin_t adc_pins_r[ADC_PIN_NUM_R] = ADC_PINS_R;
-        memcpy(&adc_pins, &adc_pins_r, sizeof(adc_pins_r));
-        #endif
-        #if defined MUX_PINS && !defined EQUAL_MUX_PINS
-        const pin_t mux_pins_r[MUX_PIN_NUM_R] = MUX_PINS_R;
-        memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
-        #endif
-        #if defined POWER_PINS && !defined EQUAL_POWER_PINS
-        const pin_t power_pins_r[POWER_PIN_NUM_R] = POWER_PINS_R;
-        memcpy(&power_pins, &power_pins_r, sizeof(power_pins_r));
-        #endif
-
-        #if SMAX(AM_INIT_KEY_NUM) > 0
-        const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
-        const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
-        memcpy(&init_keys, &init_keys_r, sizeof(init_keys_r));
-        memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
-        #endif
-
-        //TODO: Test this
-        #ifdef PRIORITY_INDICES
-        const uint8_t priority_indices_r[SMAX(SWITCH_NUM)] = PRIORITY_INDICES_R;
-        const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
-        memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices));
-        priority_index_num = priority_index_num_r;
-        #endif
-
-
-        #if defined KEY_MODES
-        const uint8_t key_modes_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES_R;
-        memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
-        #else
-        //TODO: Test if this offset works, maybe it's SWITCH_NUM_L - 1
-        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            memcpy(&key_modes[profile], &key_mode_config[profile][SWITCH_NUM_L], SWITCH_NUM_R);
-        }
-        #endif
-
-        #if defined USE_TRIGGER_HEIGHT
-        #ifdef TRIGGER_HEIGHT
-        const uint16_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
-        const uint16_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
-        memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
-        memcpy(&release_height, &release_height_r, sizeof(release_height_r));
-        #else
-        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            memcpy(&trigger_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
-            // If release height hasn't been defined, it will be 0 here, so in that case we copy trigger_height instead
-            if(release_height_config[profile][0] == 0) { memcpy(&release_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            else { memcpy(&release_height[profile], &release_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-        }
-        #endif
-        #endif
-        #if defined USE_RT_DISTANCE
-        #if defined RT_PRESS_DISTANCE
-        const uint16_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
-        const uint16_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
-        memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
-        memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
-        #else
-        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
-            if(rt_release_distance_config[profile][0] == 0) { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            else { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-        }
-        #endif
-        #endif
-    }
-
-    // Keymap config assignment
-    #elif KEYBOARD_SIDE == RIGHT
-    if(side == RIGHT) {
-        // Copy the values for each profile
-        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            #ifndef KEY_MODES
-            memcpy(&key_modes[profile], &key_modes_config[profile][SWITCH_NUM_L], SWITCH_NUM_R);
-            #endif
-            #if defined USE_TRIGGER_HEIGHT
-            #ifndef TRIGGER_HEIGHT
-            memcpy(&trigger_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
-            if(release_height_config[profile][0] == 0) { memcpy(&release_height[profile], &trigger_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            else { memcpy(&release_height[profile], &release_height_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            #endif
-            #endif
-            #if defined USE_RT_DISTANCE
-            #ifndef RT_PRESS_DISTANCE
-            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float));
-            if(rt_release_distance_config[profile][0] == 0) { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            else { memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile][SWITCH_NUM_L], SWITCH_NUM_R * sizeof(float)); }
-            #endif
-            #endif
-        }
-    }
-    #elif KEYBOARD_SIDE == LEFT
-    if(side == LEFT) {
-        for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            #ifndef KEY_MODES
-            memcpy(&key_modes[profile], &key_modes_config[profile], SWITCH_NUM_L);
-            #endif
-            #if defined USE_TRIGGER_HEIGHT
-            #ifndef TRIGGER_HEIGHT
-            memcpy(&trigger_height[profile], &trigger_height_config[profile], SWITCH_NUM_L * sizeof(float));
-            memcpy(&release_height[profile], &release_height_config[profile], SWITCH_NUM_L * sizeof(float));
-            #endif
-            #endif
-            #if defined USE_RT_DISTANCE
-            #ifndef RT_PRESS_DISTANCE
-            memcpy(&rt_press_distance[profile], &rt_press_distance_config[profile], SWITCH_NUM_L * sizeof(float));
-            memcpy(&rt_release_distance[profile], &rt_release_distance_config[profile], SWITCH_NUM_L * sizeof(float));
-            #endif
-            #endif
-        }
-    }
-    #endif // if KEYBOARD_SIDE == UNKNOWN else
-#else // ifdef SPLIT_KEYBOARD
-    // Only the keymap config needs to be assigned
-    #ifndef KEY_MODES
-    memcpy(&key_modes, &key_modes_config, SWITCH_NUM * AM_PROFILE_NUM);
-    #endif
-    #if defined USE_TRIGGER_HEIGHT
-    #ifndef TRIGGER_HEIGHT
-    memcpy(&trigger_height, &trigger_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
-    memcpy(&release_height, &release_height_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
+    switch_num = SWITCH_NUM_R;
+    adc_pin_num = ADC_PIN_NUM_R;
+    #ifdef MUX_PINS
+    mux_channel_num = MUX_CHANNELS_R;
+    #ifndef EQUAL_MUX_PINS
+    mux_pin_num = MUX_PIN_NUM_R;
+    //TODO: Test optimization defines here (port and offset)
+    #ifdef MUX_PINS_RIGHT_CONTINUOUS
+    mux_offset = MUX_PIN_RIGHT_OFFSET;
+    mux_port = CONTINUOUS_MUX_PORT_RIGHT;
     #endif
     #endif
-    #if defined USE_RT_DISTANCE
-    #ifndef RT_PRESS_DISTANCE
-    memcpy(&rt_press_distance, &rt_press_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
-    memcpy(&rt_release_distance, &rt_release_distance_config, SWITCH_NUM * AM_PROFILE_NUM * sizeof(float));
     #endif
+    #ifdef POWER_PINS
+    power_pin_num = POWER_PIN_NUM_R;
     #endif
-#endif // ifdef SPLIT_KEYBOARD else
+
+    const uint8_t mux_to_num_r[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM_R;
+    memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
+    const uint8_t num_to_matrix_r[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX_R;
+    memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
+
+    #ifndef EQUAL_ADC_PINS
+    const pin_t adc_pins_r[ADC_PIN_NUM_R] = ADC_PINS_R;
+    memcpy(&adc_pins, &adc_pins_r, sizeof(adc_pins_r));
+    #endif
+    #if defined MUX_PINS && !defined EQUAL_MUX_PINS
+    const pin_t mux_pins_r[MUX_PIN_NUM_R] = MUX_PINS_R;
+    memcpy(&mux_pins, &mux_pins_r, sizeof(mux_pins_r));
+    #endif
+    #if defined POWER_PINS && !defined EQUAL_POWER_PINS
+    const pin_t power_pins_r[POWER_PIN_NUM_R] = POWER_PINS_R;
+    memcpy(&power_pins, &power_pins_r, sizeof(power_pins_r));
+    #endif
+
+    #if SMAX(AM_INIT_KEY_NUM) > 0
+    const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
+    const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
+    memcpy(&init_keys, &init_keys_r, sizeof(init_keys_r));
+    memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
+    #endif
+
+    //TODO: Test this
+    #ifdef PRIORITY_INDICES
+    const uint8_t priority_indices_r[SMAX(SWITCH_NUM)] = PRIORITY_INDICES_R;
+    const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
+    memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices));
+    priority_index_num = priority_index_num_r;
+    #endif
+
+    const uint8_t key_modes_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES_R;
+    memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
+
+    #ifdef USE_TRIGGER_HEIGHT
+    const uint16_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
+    const uint16_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
+    memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
+    memcpy(&release_height, &release_height_r, sizeof(release_height_r));
+    #endif
+    #if defined RT_PRESS_DISTANCE
+    const uint16_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
+    const uint16_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
+    memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
+    memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
+    #endif
 }
-
+#else
+#   define assign_side()
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Joystick

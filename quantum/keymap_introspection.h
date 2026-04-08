@@ -116,8 +116,8 @@ const key_override_t* key_override_get(uint16_t key_override_idx);
 // ANALOG_MATRIX
 
 #if defined(ANALOG_MATRIX_ENABLE)
-#if (defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN) || defined KEYMAP_CONFIG
-void assign_config(bool side);
+#if (defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN)
+void assign_side(void);
 #endif
 
 // This function creates masks for all used special functions on the layer (joystick, midi etc)

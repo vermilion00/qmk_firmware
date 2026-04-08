@@ -33,11 +33,7 @@ typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
 
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
 #   define SPLIT_MUTABLE
-#   define CONFIG_MUTABLE
 #else
-#   if !defined SPLIT_KEYBOARD || KEYBOARD_SIDE == LEFT
-    #   define CONFIG_MUTABLE const
-#   endif
 #   define SPLIT_MUTABLE const
 #endif
 
@@ -112,17 +108,19 @@ typedef struct Profile {
     #endif
 } Profile;
 
-// #ifdef VIA_ENABLE
-// // Switch data for one profile stored in EEPROM
-// // Heights are multiplied by 100 -> 2.5 mm becomes 250
-// typedef struct height_data_t {
-//     uint8_t mode;
-//     uint16_t trigger_height;
-//     uint16_t release_height;
-//     uint16_t rt_press_distance;
-//     uint16_t rt_release_distance;
-// } height_data_t;
-// #endif
+#ifdef VIA_ENABLE
+// Switch data for one profile stored in EEPROM
+// Heights are multiplied by 100 -> 2.5 mm becomes 250
+typedef struct _switch_data_t {
+    uint8_t mode[AM_PROFILE_NUM];
+    uint16_t trigger_height[AM_PROFILE_NUM];
+    uint16_t release_height[AM_PROFILE_NUM];
+    uint16_t rt_press_distance[AM_PROFILE_NUM];
+    uint16_t rt_release_distance[AM_PROFILE_NUM];
+} switch_data_t;
+
+extern switch_data_t am_keyboard_data[TOTAL_SWITCH_NUM];
+#endif
 
 //MARK: Key struct
 typedef struct analog_key_t {
@@ -348,7 +346,7 @@ void calibrate_switches(bool init);
 // Starts calibration of the top deadzone
 void calibrate_top_value(void);
 // Assigns side and configuration at init
-void assign_config(bool side);
+void assign_side(void);
 // Runs whenever the profile has changed
 #if AM_PROFILE_NUM > 1
 void profile_state_changed(uint8_t profile);

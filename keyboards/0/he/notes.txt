@@ -91,14 +91,6 @@ Add mode for multiple actions on one key (DKS) somehow
 Dynamic calibration:
 -A stronger mode might have a per switch counter that slightly moves the bounds together if x updates occurred without the bound being reached
 
-Height assignment through layout macro:
--Figure out how to delete the arrays (including const) after they're assigned (how do I use malloc and free?)
--Need to put in the USE_* defines somehow
--MATRIX macro needs to be extracted
-I shouldn't even need the fillers, I should be able to define TRIGGER_HEIGHT as {} and then copy into the normal definition, as long as it's not const
-Instead of making a separate gate for every height, it would be cleaner to assume that either all or none of the configs are defined through the keymap, and set a define
-that changes SPLIT_MUTABLE to not be const, if they're defined in keymap
-
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
 

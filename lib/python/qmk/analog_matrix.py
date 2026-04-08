@@ -324,8 +324,6 @@ def _transform_layout_split(info_data):
     info_data['analog_matrix']['hardware']['switch_num_l'] = len(num_to_matrix_l)
     info_data['analog_matrix']['hardware']['switch_num_right'] = len(num_to_matrix_r)
     info_data['analog_matrix']['hardware']['total_switch_num'] = len(num_to_matrix_l) + len(num_to_matrix_r)
-    info_data['analog_matrix']['hardware']['mux_channels'] = len(mux_to_num_l)
-    info_data['analog_matrix']['hardware']['mux_channels_right'] = len(mux_to_num_r)
     info_data['matrix_size'] = {}
     info_data['matrix_size']['rows'] = matrix_size[0] + 1
     info_data['matrix_size']['cols'] = matrix_size[1] + 1
@@ -930,8 +928,13 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         config_h_lines.append(generate_define('ANALOG_DEBOUNCE', 0))
         config_h_lines.append(generate_define('DEBOUNCE', 0))
 
-    # if split_keyboard:
-    #     info_data = check_right_side_pins(info_data, config_h_lines)
+    # Set default defines for the right half
+    #TODO: Set these in a better way, only set the needed ones
+    if not split_keyboard:
+        config_h_lines.append(generate_define('ADC_PIN_NUM_R', 0))
+        config_h_lines.append(generate_define('MUX_PIN_NUM_R', 0))
+        config_h_lines.append(generate_define('POWER_PIN_NUM_R', 0))
+        config_h_lines.append(generate_define('MUX_CHANNELS_R', 0))
 
     #MARK: Mixed matrix def
     if 'rc_to_matrix' in am_hardware:

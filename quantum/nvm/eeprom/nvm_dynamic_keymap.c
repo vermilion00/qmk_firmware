@@ -95,7 +95,7 @@ STATIC_ASSERT(DYNAMIC_KEYMAP_EEPROM_MAX_ADDR <= 65535, "DYNAMIC_KEYMAP_EEPROM_MA
 // #define VIAL_AM_EEPROM_ADDR (VIAL_ALT_REPEAT_KEY_EEPROM_ADDR + VIAL_ALT_REPEAT_KEY_SIZE)
 // #ifdef ANALOG_MATRIX_ENABLE
 // #   include "analog_matrix.h"
-// #   define VIAL_AM_EEPROM_SIZE ()
+// #   define VIAL_AM_EEPROM_SIZE (sizeof())
 // #else
 // #   define VIAL_AM_EEPROM_SIZE 0
 // #endif
