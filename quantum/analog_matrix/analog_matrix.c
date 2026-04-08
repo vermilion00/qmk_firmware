@@ -78,6 +78,8 @@ SPLIT_MUTABLE init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTI
 
 #if defined DEBUG_MUX_POSITION
 uint8_t debug_mux[2] = DEBUG_MUX_POSITION;
+#elif defined DEBUG_MUX_POSITION_R
+uint8_t debug_mux[2] = DEBUG_MUX_POSITION_R;
 #endif
 
 #ifdef USE_PRIORITY_MODE
