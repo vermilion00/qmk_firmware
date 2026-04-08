@@ -52,7 +52,6 @@ Why can't I remove joystick_mask? When I remove it, joystick stops working, but 
 Need to change the descriptor(?) to report the stuff the same way a gamepad would
 -They are currently visibly different
 -How does the receiver know whether both trigger components are maxed or at 0? Do gamepads send the changes in value instead of the absolute position?
--Maybe also add a mode where the sticks send circular values instead of squares when together (sin/cos)
 
 
 MIDI:

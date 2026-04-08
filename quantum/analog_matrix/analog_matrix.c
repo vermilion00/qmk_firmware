@@ -61,8 +61,6 @@ extern matrix_row_t raw_matrix[MATRIX_ROWS];
 #ifdef SPLIT_KEYBOARD
 // Row offsets for each hand
 extern uint8_t thisHand, thatHand;
-bool calibration_started = false;
-bool top_calibration_started = false;
 #endif
 
 #ifdef DYNAMIC_CALIBRATION
@@ -588,7 +586,7 @@ bool get_calibration_data(void) {
 
     for(uint8_t key = 0; key < switch_num; key++) {
         bool valid = true;
-        int16_t adjustment = 0;
+        int16_t bottom_adjustment = 0;
 
         #ifndef INVERT_ADC
         // Check if the top deadzone is valid
@@ -596,12 +594,13 @@ bool get_calibration_data(void) {
             // The overall top deadzone needs to be removed as well, as it's already applied at this stage
             key_config[key].top_value = key_config[key].top_value + top_deadzone - deadzone_value[key] - USER_TOP_DEADZONE;
         }
+
+        // Check if the switch data makes sense, start calibration or use fallback values if not
         if(key_config[key].top_value <= bottom_value[key]) valid = false;
         if(key_config[key].top_value - bottom_value[key] < INIT_THRESHOLD) valid = false;
         #ifdef DYNAMIC_CALIBRATION
-        adjustment = AM_DC_FACTOR * (key_config[key].top_value - bottom_value[key]);
+        bottom_adjustment = AM_DC_FACTOR * (key_config[key].top_value - bottom_value[key]) + bottom_deadzone;
         #endif
-        key_config[key].bottom_value = bottom_value[key] + adjustment + bottom_deadzone;
 
         #else
         if(deadzone_value[key] < 250 && deadzone_value[key] > 1) {
@@ -610,17 +609,13 @@ bool get_calibration_data(void) {
         if(key_config[key].top_value >= bottom_value[key]) valid = false;
         if(bottom_value[key] - key_config[key].top_value < INIT_THRESHOLD) valid = false;
         #ifdef DYNAMIC_CALIBRATION
-        adjustment = AM_DC_FACTOR * (bottom_value[key] - key_config[key].top_value);
+        adjustment = -(AM_DC_FACTOR * (bottom_value[key] - key_config[key].top_value) + bottom_deadzone);
         #endif
-        key_config[key].bottom_value = bottom_value[key] - adjustment - bottom_deadzone;
         #endif
 
-        // Check if the switch data makes sense, start calibration or use fallback values if not
-        // A fake mixed matrix will have top/bottom values of 4095 and 0
-        if(key_config[key].top_value < 100 && bottom_value[key] < 100)  valid = false;
-        if(key_config[key].top_value > 4000 && bottom_value[key] > 4000)  valid = false;
-        // No switch can have a valid value above 4095 due to the 12 bit ADC resolution
-        if(key_config[key].top_value > 4096 || bottom_value[key] > 4096) valid = false;
+        if(bottom_value[key] < 100 || bottom_value[key] > 4000)  valid = false;
+
+        key_config[key].bottom_value = bottom_value[key] + bottom_adjustment;
 
         if(!valid) {
             //TODO: What happens if the config is actually invalid? Will that erroneously trigger init keys, or not?
@@ -671,17 +666,15 @@ void calibrate_switches(bool init) {
         }
         #endif
 
-        calibration_started = true;
         // Force a synchronisation so that the slave starts calibrating as well
         uint8_t tries = 0;
         while (tries < 50) {
             // Start the transaction manually
-            if (!am_data_manual_transaction()) {
+            if (!am_data_manual_transaction(calibration_started)) {
                 wait_ms(10);
                 tries++;
             } else { break; }
         }
-        calibration_started = false;
         wait_ms(1000);
     }
     #endif
@@ -755,9 +748,6 @@ void calibrate_switches(bool init) {
                     scans_without_change = 0;
                 }
                 #endif // ifdef INVERT_ADC else
-                //TODO: Check how much the calibrated values deviate from the scan values, would matching the time help?
-                // Dummy evaluation, so that a calibration cycle takes about as long as a scan cycle
-                // evaluate_value(matrix_index, adc_value);
             }
 
             #if defined DEBUG_CALIBRATION || defined DEBUG_SCAN_VALUES
@@ -847,17 +837,15 @@ void calibrate_top_value(void) {
         }
         #endif
 
-        top_calibration_started = true;
         // Force a synchronisation so that the slave starts calibrating as well
         uint8_t tries = 0;
         while (tries < 50) {
             // Start the transaction manually
-            if (!am_data_manual_transaction()) {
+            if (!am_data_manual_transaction(top_calibration_started)) {
                 wait_ms(10);
                 tries++;
             } else { break; }
         }
-        top_calibration_started = false;
     }
     #endif
 
@@ -953,15 +941,11 @@ bool evaluate_value(uint8_t index, uint16_t value) {
     #if defined JOYSTICK_ENABLE
     if(joystick_layer) {
         if(key_config[index].axis_index < 255) {
-            //TODO: Remove unnecessary returns after switching to returning false
             if(!translate_joystick_axis(index, value)) return false;
             #if defined SPLIT_KEYBOARD && !defined NO_SLAVE_AXES
             // On split keyboards, we can't update the axes like this since the slave axes won't be evaluated
             // Instead, we update all axes in the analog_joystick_task()
             joystick_state.dirty = true;
-            //TODO: I can return false here, as long as I can stop the sync from aborting if the slave matrix state hasn't changed
-            //      This allows me to skip the printing newlines part and the key state syncing, as they aren't desynced anymore
-            //      -> The last part is only true if the layer toggle key is different from the special keys
             return false;
             #else
             evaluate_joystick_axis(key_config[index].axis_index) return false;
@@ -1280,9 +1264,22 @@ void get_switch_data(void) {
 }
 
 
-//MARK: Bootmagic
+//MARK: Init helpers
+void clear_calibration(void) {
+    memset(&calibration_data, 0, sizeof(calibration_data));
+    eeconfig_update_keyboard((uint16_t*)&calibration_data);
+    memset(&top_deadzones, 0, sizeof(top_deadzones));
+    eeconfig_update_deadzone((uint8_t*)&top_deadzones);
+
+    // Also clear the data on the slave
+    #ifdef SPLIT_KEYBOARD
+    if(is_keyboard_master()) am_data_manual_transaction(clear_calibration_values);
+    #endif
+}
+
 // Helper functions because the current init key implementation requires taking a bool for the calibration function
 void _bootmagic(bool init) {
+    clear_calibration();
     eeconfig_disable();
     bootloader_jump();
 }
@@ -1317,14 +1314,6 @@ void _bootloader_jump(bool init) {
     //     bootloader_jump();
     // }
 // }
-
-
-void clear_calibration(void) {
-    memset(&calibration_data, 0, sizeof(calibration_data));
-    eeconfig_update_keyboard((uint16_t*)&calibration_data);
-    memset(&top_deadzones, 0, sizeof(top_deadzones));
-    eeconfig_update_deadzone((uint8_t*)&top_deadzones);
-}
 
 
 //MARK: wait_cycles
@@ -1372,7 +1361,7 @@ void set_profile_lock(bool value) { manual_profile_lock = value; }
 // Makes all changes that need to happen on a profile change
 void profile_state_changed(uint8_t profile) {
     //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
-    // if(is_keyboard_master()) am_data_manual_transaction();
+    // if(is_keyboard_master()) am_data_manual_transaction(normal_transaction);
 
     #ifdef USE_PRIORITY_MODE
     priority_mode = profiles[active_profile].priority_profile;
@@ -1387,7 +1376,7 @@ void set_active_profile(uint8_t profile) {
         active_profile = profile;
 
         // Start the transaction
-        am_data_manual_transaction();
+        am_data_manual_transaction(normal_transaction);
     }
     profile_state_changed(profile);
 }
@@ -1443,7 +1432,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
 
     #if defined SPLIT_LAYER_SYNC
     // If the slave hasn't been synced at this point, do so manually
-    am_data_manual_transaction();
+    am_data_manual_transaction(normal_transaction);
     #endif
     return state;
 }

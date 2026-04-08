@@ -90,6 +90,13 @@ typedef uint32_t mech_row_t;
 #    error "COL_PIN_NUM: invalid value"
 #endif
 
+typedef enum _transaction_type_t {
+    normal_transaction = 0,
+    calibration_started,
+    top_calibration_started,
+    clear_calibration_values
+} transaction_type_t;
+
 typedef enum _key_mode_t: uint8_t {
     none = 0,
     rapid_trigger = 1,
@@ -100,7 +107,6 @@ typedef enum _key_mode_t: uint8_t {
 
 typedef struct Profile {
     layer_state_t layers;
-    //TODO: When the priority mode define is fully implemented, update this
     #ifdef USE_PRIORITY_MODE
     bool priority_profile;
     #endif
@@ -315,8 +321,6 @@ __attribute__((weak)) uint16_t adjust(uint16_t value);
 #endif
 
 #ifdef SPLIT_KEYBOARD
-extern bool calibration_started;
-extern bool top_calibration_started;
 #ifdef AM_NO_EEPROM
 extern uint8_t switch_num_slave;
 #endif

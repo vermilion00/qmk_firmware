@@ -110,25 +110,29 @@ void print_calibration_data(void) {
     }
     #endif
 
-    // The deadzone needs to be removed from the key_config values
-    #ifndef INVERT_ADC
-    int16_t adjustment = ADC_TOP_DEADZONE;
-    #else
-    int16_t adjustment = -ADC_TOP_DEADZONE;
-    #endif
-    printf("\"top_values%s\": [ %u", side, key_config[0].top_value + adjustment);
+    // The deadzones need to be removed from the key_config values
+    #ifdef INVERT_ADC
+    printf("\"top_values%s\": [ %u", side, key_config[0].top_value - top_deadzones[0]);
     if(switch_num > 1) {
         for(uint8_t index = 1; index < switch_num; index++){
-            printf(", %u", key_config[index].top_value + adjustment);
+            printf(", %u", key_config[index].top_value - top_deadzones[index]);
         }
     }
+    #else
+    printf("\"top_values%s\": [ %u", side, key_config[0].top_value + top_deadzones[0]);
+    if(switch_num > 1) {
+        for(uint8_t index = 1; index < switch_num; index++){
+            printf(", %u", key_config[index].top_value + top_deadzones[index]);
+        }
+    }
+    #endif
 
     #ifndef INVERT_ADC
-    adjustment = ADC_BOTTOM_DEADZONE;
+    uint16_t adjustment = -ADC_BOTTOM_DEADZONE;
     #else
-    adjustment = -ADC_BOTTOM_DEADZONE;
+    uint16_t adjustment = ADC_BOTTOM_DEADZONE;
     #endif
-    printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value - adjustment);
+    printf(" ],\n\"bottom_values%s\": [ %u", side, key_config[0].bottom_value + adjustment);
     if(switch_num > 1) {
         for(uint8_t index = 1; index < switch_num; index++){
             printf(", %u", key_config[index].bottom_value - adjustment);

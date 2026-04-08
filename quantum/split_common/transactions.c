@@ -924,7 +924,7 @@ static void detected_os_handlers_slave(matrix_row_t master_matrix[], matrix_row_
 //MARK: Manual trans
 #ifdef ANALOG_MATRIX_ENABLE
 
-bool manual_transaction_handler(bool (*handler)(void)) {
+bool manual_transaction_handler(bool (*handler)(transaction_type_t type), transaction_type_t type) {
     int num_retries = is_transport_connected() ? 10 : 1;
     for (int iter = 1; iter <= num_retries; ++iter) {
         if (iter > 1) {
@@ -932,7 +932,7 @@ bool manual_transaction_handler(bool (*handler)(void)) {
                 wait_us(10);
             }
         }
-        if(handler()) return true;
+        if(handler(type)) return true;
     }
     return false;
 }
@@ -943,27 +943,28 @@ bool manual_transaction_handler(bool (*handler)(void)) {
 //MARK: AM Data
 //TODO: Test just sending the profile here, applying it directly to active_profile, and not calling the slave_handler at all
 //      Since the memory needs to initialized, i'll probably need to use a profile_change() function that gets the new profile from split_shmem and updates a global var
-static bool am_data_manual_handler(void) {
-    static uint8_t last_profile = DEFAULT_PROFILE;
-    // bool changed = false;
-
-    // Data layout: unused | top_cal_start | calibration start | profile | layer
-    // uint16_t  0b  0000  |       1       |        1          |  11111  | 11111
+static bool am_data_manual_handler(transaction_type_t type) {
+    // Data layout: unused | clear cal | top_cal_start | calibration start | profile | layer
+    // uint16_t  0b  0000  |     1     |       1       |        1          |  11111  | 11111
     // Without layer sync:
-    // uint8_t   0b    0   |       1       |        1          |  11111
+    // uint8_t   0b        |     1     |       1       |        1          |  11111
     am_data_t data = active_profile;
 
-    if (active_profile != last_profile) {
-        last_profile = active_profile;
-    }
+    switch(type) {
+        case normal_transaction:
+        break;
 
-    //TODO: Since there's never a situation in which a calibration start happens at the same time as a layer sync/profile sync, I could just call transport_write from here
-    if(calibration_started) {
+        case calibration_started:
         data |= 32;
-    }
+        break;
 
-    if(top_calibration_started) {
+        case top_calibration_started:
         data |= 64;
+        break;
+
+        case clear_calibration_values:
+        data |= 128;
+        break;
     }
 
     #if defined SPLIT_LAYER_SYNC
@@ -975,8 +976,8 @@ static bool am_data_manual_handler(void) {
 }
 
 // Calling the manual_transaction_handler directly only works if I put every handler function I want to call in the header
-bool am_data_manual_transaction(void) {
-    return manual_transaction_handler(am_data_manual_handler);
+bool am_data_manual_transaction(transaction_type_t type) {
+    return manual_transaction_handler(am_data_manual_handler, type);
 }
 
 #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
@@ -1098,10 +1099,10 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     static am_data_t prev_data = 0;
     split_shared_memory_lock();
 
-    // Data layout: unused | top_cal_start | calibration start | profile | layer
-    // uint16_t  0b  0000  |       1       |        1          |  11111  | 11111
+    // Data layout: unused | clear cal | top_cal_start | calibration start | profile | layer
+    // uint16_t  0b  0000  |     1     |       1       |        1          |  11111  | 11111
     // Without layer sync:
-    // uint8_t   0b    0   |       1       |        1          |  11111
+    // uint8_t   0b        |     1     |       1       |        1          |  11111
     am_data_t data = split_shmem->am_data;
     split_shared_memory_unlock();
 
@@ -1142,6 +1143,10 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
         #endif
 
         calibrate_top_value();
+    }
+
+    if(data & 0b10000000) {
+        clear_calibration();
     }
 
     // Create a joystick mask for the slave

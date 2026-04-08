@@ -53,8 +53,9 @@ bool transaction_rpc_exec(int8_t transaction_id, uint8_t initiator2target_buffer
 #define transaction_rpc_recv(transaction_id, target2initiator_buffer_size, target2initiator_buffer) transaction_rpc_exec(transaction_id, 0, NULL, target2initiator_buffer_size, target2initiator_buffer)
 
 #ifdef ANALOG_MATRIX_ENABLE
+#include "analog_matrix.h"
 // Handler function to allow manual transactions on master
-bool am_data_manual_transaction(void);
+bool am_data_manual_transaction(transaction_type_t type);
 #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
 void sync_calibration_values(bool init);
 void sync_top_calibration(void);
