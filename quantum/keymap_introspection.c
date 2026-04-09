@@ -235,12 +235,12 @@ extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
 #if defined USE_TRIGGER_HEIGHT
-extern SPLIT_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern SPLIT_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE height_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE height_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-extern SPLIT_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern SPLIT_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+extern SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_RT_DISTANCE
 
 extern SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
@@ -304,14 +304,14 @@ void assign_side(void) {
     memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
 
     #ifdef USE_TRIGGER_HEIGHT
-    const uint16_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
-    const uint16_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
+    const height_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
+    const height_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
     memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
     memcpy(&release_height, &release_height_r, sizeof(release_height_r));
     #endif
     #if defined RT_PRESS_DISTANCE
-    const uint16_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
-    const uint16_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
+    const height_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
+    const height_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
     memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
     memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
     #endif

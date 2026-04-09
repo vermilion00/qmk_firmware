@@ -93,7 +93,7 @@ typedef enum _transaction_type_t {
     clear_calibration_values
 } transaction_type_t;
 
-typedef enum _key_mode_t: uint8_t {
+typedef enum _key_mode_t {
     none = 0,
     rapid_trigger = 1,
     continuous_rapid_trigger = 2,
@@ -108,18 +108,10 @@ typedef struct Profile {
     #endif
 } Profile;
 
-#ifdef VIA_ENABLE
-// Switch data for one profile stored in EEPROM
-// Heights are multiplied by 100 -> 2.5 mm becomes 250
-typedef struct _switch_data_t {
-    uint8_t mode[AM_PROFILE_NUM];
-    uint16_t trigger_height[AM_PROFILE_NUM];
-    uint16_t release_height[AM_PROFILE_NUM];
-    uint16_t rt_press_distance[AM_PROFILE_NUM];
-    uint16_t rt_release_distance[AM_PROFILE_NUM];
-} switch_data_t;
-
-extern switch_data_t am_keyboard_data[TOTAL_SWITCH_NUM];
+#ifdef HIGH_HEIGHT_RESOLUTION
+typedef uint16_t height_t;
+#else
+typedef uint8_t height_t;
 #endif
 
 //MARK: Key struct

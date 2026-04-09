@@ -104,12 +104,6 @@ gpio_port_t* mux_port = CONTINUOUS_MUX_PORT;
 #endif
 #endif
 
-#ifdef POWER_PINS
-SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
-// Set the sensor power pins and wait, if defined
-void set_sensor_power(uint8_t index);
-#endif
-
 #if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
 uint8_t switch_num_slave = SWITCH_NUM_R;
 #endif
@@ -121,12 +115,12 @@ uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX;
 uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES;
 
 #if defined USE_TRIGGER_HEIGHT
-SPLIT_MUTABLE uint16_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
-SPLIT_MUTABLE uint16_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
+SPLIT_MUTABLE height_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
+SPLIT_MUTABLE height_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
 #endif // if defined USE_TRIGGER_HEIGHT
 #if defined USE_RT_DISTANCE
-SPLIT_MUTABLE uint16_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
-SPLIT_MUTABLE uint16_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
+SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
+SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
 #endif // if defined USE_RT_DISTANCE
 
 SPLIT_MUTABLE pin_t adc_pins[SMAX(ADC_PIN_NUM)] = ADC_PINS;
@@ -135,6 +129,9 @@ SPLIT_MUTABLE pin_t mux_pins[SMAX(MUX_PIN_NUM)] = MUX_PINS;
 #endif
 #if defined POWER_PINS
 SPLIT_MUTABLE pin_t power_pins[SMAX(POWER_PIN_NUM)] = POWER_PINS;
+SPLIT_MUTABLE uint8_t power_pin_num = POWER_PIN_NUM;
+// Set the sensor power pins and wait, if defined
+void set_sensor_power(uint8_t index);
 #endif
 
 // During initialization, the adc pins are translated to the adc mux combination that the adc_read function uses
@@ -403,15 +400,22 @@ __attribute__((weak)) uint8_t matrix_scan(void) { return false; }
 //MARK: Translate
 // Translate the heights of all keys into the corresponding ADC values
 void translate_mm_to_value(uint8_t index, bool init) {
+    #ifdef HIGH_HEIGHT_RESOLUTION
+    // 0.001 mm resolution
+    #   define HEIGHT_MULT 1000
+    #else
+    // 0.02 mm resolution -> 4mm = 200
+    #   define HEIGHT_MULT 50
+    #endif
     #ifdef INVERT_ADC
     const uint16_t top_value = init ? (key_config[index].top_value - top_deadzone) : (key_config[index].top_value - top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value + bottom_deadzone;
-    const uint16_t travel_unit = floor((float)(bottom_value - top_value) / ((float)TRAVEL_DISTANCE * 100));
+    const float travel_unit = floor((float)(bottom_value - top_value) / ((float)TRAVEL_DISTANCE * HEIGHT_MULT));
     #else
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
     const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
-    const float travel_unit = floor((float)(top_value - bottom_value) / ((float)TRAVEL_DISTANCE * 100));
+    const float travel_unit = floor((float)(top_value - bottom_value) / ((float)TRAVEL_DISTANCE * HEIGHT_MULT));
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
