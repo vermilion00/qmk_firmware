@@ -939,7 +939,6 @@ def generate_analog_matrix_config(info_data, config_h_lines):
 
     #MARK: Mixed matrix def
     if 'rc_to_matrix' in am_hardware:
-        config_h_lines.append(generate_define('USE_MIXED_MATRIX'))
         rc_to_matrix = am_hardware['rc_to_matrix']
         config_h_lines.append(generate_define('RC_TO_MATRIX', str(rc_to_matrix).replace('[', '{').replace(']', '}')))
         if split_keyboard:

@@ -243,7 +243,7 @@ extern SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)
 extern SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_RT_DISTANCE
 
-#if defined MATRIX_TO_NUM_DEF
+#ifdef MATRIX_TO_NUM_DEF
 extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #endif
 

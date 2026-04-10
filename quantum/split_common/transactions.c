@@ -1243,11 +1243,24 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
 // 1 uint8_t as the switch index, 3 bits to decide what should change (mode, 4 heights, prio), uint16_t value -> 32 bits in total
 // If the value is always uint16_t, the layer_state can be transferred in it easily
 
-#if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
+// #if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
 #include "analog_matrix_via.h"
 
+bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_split_id, layer_state_t), uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
+    int num_retries = is_transport_connected() ? 10 : 1;
+    for (int iter = 1; iter <= num_retries; ++iter) {
+        if (iter > 1) {
+            for (int i = 0; i < iter * iter; ++i) {
+                wait_us(10);
+            }
+        }
+        if(handler(index, profile, id, value)) return true;
+    }
+    return false;
+}
+
 // value is of type layer_state_t to automatically scale with the max amount of layers
-bool am_vial_handlers_master(uint8_t index, uint8_t profile, am_vial_split_id id, layer_state_t value) {
+bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
     am_via_data_t config = {.index = index, .id = profile << 4 | id, .value = value};
     split_shmem->am_via.checksum = crc8(&config, sizeof(config));
     if(!transport_write(PUT_VIA_CHECKSUM, &split_shmem->am_via.checksum, sizeof(uint8_t))) return false;
@@ -1269,42 +1282,54 @@ static void am_vial_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sl
     //TODO: This implementation only supports 16 profiles (which should be enough though, I could adjust the other things)
     //      If I only need 8 IDs I could make it 32 profiles without any adjustments
     const uint8_t profile = config.id >> 4;
-    const am_vial_split_id id = config.id & 00001111;
+    const am_via_split_id id = config.id & 00001111;
     const uint16_t value = config.value;
     const uint8_t index = config.index;
     switch(id) {
-        case set_trigger_height:
-        case set_release_height:
-        case set_rt_press:
-        case set_rt_release:
+        case split_trigger_height:
+        case split_release_height:
+        case split_rt_press:
+        case split_rt_release:
             // Need to mask the values so that only that height gets set
-            am_keyboard_data.key[index].profile[profile].raw &= AM_HEIGHT_MASK << (8 * sizeof(height_t) * id);
-            am_keyboard_data.key[index].profile[profile].raw |= value << (8 * sizeof(height_t) * id);
+            am_keyboard_data.key[index].profile[profile].raw_height &= ~(AM_HEIGHT_MASK << (8 * sizeof(height_t) * id));
+            am_keyboard_data.key[index].profile[profile].raw_height |= value << (8 * sizeof(height_t) * id);
             translate_mm_to_value(index, false);
             break;
 
-        case set_key_mode:
+        case split_key_mode:
             am_keyboard_data.key[index].profile[profile].mode = value;
             // If a key on the current profile has changed to a special key, update the layer settings
             //TODO: I also need to do this if a keycode has changed
             if(profile == active_profile && value > constant_rapid_trigger) change_layer_settings(am_highest_layer);
             break;
 
-        case profile_layers:
+        case split_profile_layers:
             am_keyboard_data.profile_layers[profile] = value;
             break;
 
-        case priority_profiles:
+        case split_priority_profiles:
             am_keyboard_data.priority_profiles = value;
             break;
+
+        case split_deadzone:
+            switch(index) {
+                case 0:
+                    am_keyboard_data.top_deadzone = value;
+                    break;
+                case 1:
+                    am_keyboard_data.bottom_deadzone = value;
+                    break;
+                case 2:
+                    am_keyboard_data.smoothing = value;
+            }
     }
 }
 
-bool am_via_manual_transaction(transaction_type_t type) {
-    return manual_transaction_handler(am_via_handlers_master, type);
+bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
+    return manual_via_transaction_handler(am_via_handlers_master, index, profile, id, value);
 }
 
-#   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_vial)
+#   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_via)
 #   define TRANSACTIONS_AM_VIA_REGISTRATIONS \
     [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.checksum), \
     [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data),

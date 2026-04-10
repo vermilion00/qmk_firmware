@@ -18,11 +18,13 @@ typedef uint16_t am_raw_t;
 
 #define RAW_HID_SIZE 32
 
+#define CLAMP8(value) (value > 255 ? 255 : value)
+
 // The EEPROM data of one switch in one single profile
 typedef struct PACKED am_switch_profile_t {
     uint8_t mode; // MSB contains priority_mode
     union {
-        am_raw_t raw;
+        am_raw_t raw_height;
         struct {
             #ifdef USE_TRIGGER_HEIGHT
             height_t trigger_height;
@@ -45,11 +47,24 @@ typedef struct PACKED am_switch_t {
 // The EEPROM data of the entire keyboard
 typedef struct PACKED am_keyboard_t {
     am_switch_t key[TOTAL_SWITCH_NUM];
+    uint8_t smoothing; // If split multipliers are used, this is the non-multiplied value
+    uint8_t top_deadzone;
+    uint8_t bottom_deadzone;
+    uint8_t top_mult;
+    #ifdef SPLIT_KEYBOARD
+    uint8_t right_mult;
+    uint8_t slave_mult;
+    #endif
     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
     #endif
     #ifdef USE_PRIORITY_MODE
     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
+    #endif
+    #ifdef DYNAMIC_CALIBRATION
+    uint8_t dc_switch_num;
+    uint8_t dc_factor;
+    uint8_t dc_delta;
     #endif
 } am_keyboard_t;
 
@@ -60,26 +75,34 @@ typedef enum height_addr_t {
     rt_release_addr = 3
 } height_addr_t;
 
-typedef enum am_vial_id {
+typedef enum am_via_id {
     // Default data ends at 0x13, 0xFE and 0xFF are also taken
     get_keyboard_size = 0x20, // Get the length of the keyboard data
+    get_keyboard_options,
     get_keyboard_data,
+    get_mixed_matrix,
     get_switch_profile,
     set_switch_profile,
     set_profile_layers,
+    set_priority_profiles,
+    set_dynamic_calibration,
+    set_deadzone,
     clear_calibration_data,
     reset_keyboard_data, // Resets all data to json defaults
-} am_vial_id;
+} am_via_id;
 
-typedef enum am_vial_split_id {
-    set_trigger_height,
-    set_release_height,
-    set_rt_press,
-    set_rt_release,
-    set_key_mode,
-    profile_layers,
-    priority_profiles,
-} am_vial_split_id;
+//TODO: Remove this and just use the am_via_id instead
+typedef enum am_via_split_id {
+    split_trigger_height,
+    split_release_height,
+    split_rt_press,
+    split_rt_release,
+    split_key_mode,
+    split_profile_layers,
+    split_priority_profiles,
+    split_deadzone,
+    split_keyboard_data
+} am_via_split_id;
 
 extern am_keyboard_t am_keyboard_data;
 
@@ -89,5 +112,7 @@ bool get_switch_priority_mode(uint8_t key, uint8_t profile);
 void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, height_t value);
 void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode);
 void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
+
+void analog_matrix_via_init(void);
 // VIA(L) app HID command handling
 void analog_matrix_handle_hid(uint8_t *data, uint8_t length);

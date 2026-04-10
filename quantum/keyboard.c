@@ -491,6 +491,10 @@ void keyboard_init(void) {
     matrix_init();
 //MARK: Init call
 #ifdef ANALOG_MATRIX_ENABLE
+// Run via init first to get the bootmagic keys from eeprom
+#   ifdef VIA_ENABLE
+    analog_matrix_via_init();
+#   endif
     analog_matrix_init();
 #   ifdef JOYSTICK_ENABLE
     analog_joystick_init();

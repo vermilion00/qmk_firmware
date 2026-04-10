@@ -9,7 +9,6 @@
 
 #define clamp_axis(value) (value < 0 ? 0 : (value > 127 ? 127 : value))
 
-//TODO: Add curve option
 #ifndef MATRIX_TO_NUM_DEF
 SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
 #   define MATRIX_TO_NUM_DEF

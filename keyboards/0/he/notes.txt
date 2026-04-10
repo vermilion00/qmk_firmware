@@ -262,11 +262,12 @@ Is there a callback for VIA(L) app communication start/end?
   in that callback?
 ->If there isn't one, I should change try to change the values in the config struct first and update eeprom after x time with no changes
     -> Is there a way to do that efficiently? Deferred execution would be too much probably
+->Could there be a callback for the keyboard lock? Maybe I could use that, if the keyboard locks after a certain time without communication/when communication stops?
 
 How am I going to assign the values?
 -Do I send over num_to_matrix
 -Do I keep it in the json
--Do I just assign through row/col and translate the index through matrix_to_num?
+-Do I just assign through row/col and translate the index through matrix_to_num? -> Currently assuming this
 
 When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
     ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
@@ -302,8 +303,28 @@ If more profiles than that are needed, how do I properly handle this?
             -Assuming the largest data size, we're looking at 12 transactions for one switch, which doesn't fit into the 3 bits left
             -Another thing currently assumes only 16 profiles max anyway, so just force that? More than enough anyway
 
-Just limit profliles to 16, to many things would currently need changes for 32
+Just limit profliles to 16, too many things would currently need changes for 32
 
 The current absolute max is below 30000 bytes for am_keyboard_t
 
 Make sure that the row/col values sent by the GUI are split compatible
+
+Add additional stuff to VIA config
+-Dynamic calibration toggling, switch amount, delta and factor
+-Right and slave multipliers (multiply by 10)
+-Deadzones and smoothing
+-Top deadzone multiplier
+-Bootmagic keys
+*->Filter strengths
+-SOCD config, if possible
+    -Should ask getreuer if I can just extend his stuff, would be the easiest
+    -If not, then just save/recall it outside of proper config
+
+Mixed matrix on/off and which keys are normal -> So that the AM menus aren't shown for those
+-Doesn't need to be saved to eeprom, this is just part of the static keyboard definition
+
+Release offsets and base values should just be set in the GUI, then transmit the actual values
+
+->
+Instead of running the transaction inside of every ID, try changing the value, then calling the split transaction after for every ID that needs it (most of them)
+Also combine the split IDs and VIA IDs
