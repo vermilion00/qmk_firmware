@@ -344,6 +344,7 @@ ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
     QUANTUM_LIB_SRC += analog.c
 
 	ifeq ($(strip $(MIXED_MATRIX_ENABLE)), yes)
+        OPT_DEFS += -DMIXED_MATRIX_ENABLE
         SRC += $(QUANTUM_DIR)/analog_matrix/mixed_matrix.c
 	endif
 

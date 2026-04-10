@@ -213,7 +213,10 @@ The part that prints newlines is line 145 in action.c
 
 !!! IMPORTANT !!!
 
-The _right stuff for debug mux doesn't work
+This should come first:
+========
+
+========
 
 Do I need to calculate the rt_threshold when switching profiles or not?
     -Kinda seems like yes, but it hasn't been a problem yet

@@ -16,7 +16,7 @@
 #if ANALOG_DEBOUNCE > 0
 #include "debounce.h"
 #endif
-#ifdef USE_MIXED_MATRIX
+#ifdef MIXED_MATRIX_ENABLE
 #include "mixed_matrix.h"
 #include "debounce.h"
 #endif
@@ -160,7 +160,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
     clear_calibration();
     #endif
 
-    #ifdef USE_MIXED_MATRIX
+    #ifdef MIXED_MATRIX_ENABLE
     mixed_matrix_init();
     #endif
 
@@ -273,7 +273,7 @@ bool scan_init_keys(void) {
 uint8_t matrix_scan(void) {
     bool matrix_has_changed = false;
 
-    #ifdef USE_MIXED_MATRIX
+    #ifdef MIXED_MATRIX_ENABLE
     matrix_has_changed |= mixed_matrix_scan();
     #endif
 
@@ -1329,7 +1329,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
     // Update the switch save data during a layer change to cause less disruption during scanning
     #ifdef DYNAMIC_CALIBRATION
     // Not the cleanest way to allow disabling the update check
-    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM)
+    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM) && RECALIBRATED_SWITCHES > 0
     if(recalibrated_switches >= RECALIBRATED_SWITCHES) {
         eeconfig_update_keyboard((uint16_t*)&calibration_data);
         recalibrated_switches = 0;

@@ -116,10 +116,9 @@ def _transform_layout(info_data):
         used_positions = []
         for key_data in layout_data['layout']:
             #TODO: Change the name from mux to a/m?
-            if key_data['mux'][0] > highest_adc: highest_adc = key_data['mux'][0]
-            if key_data['mux'][1] > highest_mux: highest_mux = key_data['mux'][1]
-
             if 'mux' in key_data:
+                if key_data['mux'][0] > highest_adc: highest_adc = key_data['mux'][0]
+                if key_data['mux'][1] > highest_mux: highest_mux = key_data['mux'][1]
                 adc, mux = key_data['mux']
                 mux_to_num[mux][adc] = key_index
                 num_to_matrix[key_index] = key_data['matrix']
@@ -207,10 +206,9 @@ def _transform_layout_split(info_data):
     if mux_channels == 1:
         mux_channels = 1 << len(am_hardware.get('power_pins', ''))
     row_split = am_hardware['row_split']
-    #TODO: This needs to be updated for possibly separate pin amounts per half
-    row_pins = len(am_hardware.get('row_pins', []))
-    col_pins = len(am_hardware.get('col_pins', []))
-    used_rc_positions = []
+    # Direct pins are functionally converted to a matrix with 1 row
+    row_pins = max(len(am_hardware.get('row_pins', [])), 1)
+    col_pins = len(am_hardware.get('col_pins', [])) + len(am_hardware.get('direct_pins', []))
     matrix_size = [0, 0]
     highest_adc = 0
     highest_mux = 0
@@ -227,6 +225,8 @@ def _transform_layout_split(info_data):
         total_key_num = 0
         used_positions_l = []
         used_positions_r = []
+        used_rc_positions_l = []
+        used_rc_positions_r = []
         for key_data in layout_data['layout']:
             if 'mux' in key_data:
                 if key_data['mux'][0] > highest_adc: highest_adc = key_data['mux'][0]
@@ -258,31 +258,35 @@ def _transform_layout_split(info_data):
             elif 'rc' in key_data:
                 if key_data['matrix'][0] < row_split:
                     data = key_data['rc']
-                    if type(data) == "<class 'list'>":
+                    if type(data) == list:
                         row, col = data
                     else:
                         row, col = [0, data]
-                    if row > row_pins:
+                    if row >= row_pins:
                         cli.log.error(f"Row index {row} for key {total_key_num} is too high!")
-                    if col > col_pins:
+                    if col >= col_pins:
                         cli.log.error(f"Col index {col} for key {total_key_num} is too high!")
-                    if [row, col] not in used_rc_positions:
-                        used_rc_positions.append([row, col])
+                    if [row, col] not in used_rc_positions_l:
+                        used_rc_positions_l.append([row, col])
                         rc_to_matrix_l[row][col] = key_data['matrix']
                     else:
-                        cli.log.error(f"Matrix combination {[row, col]} appears multiple times in the layout!")
+                        cli.log.error(f"RC combination {[row, col]} appears multiple times in the layout!")
                     matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
                 else:
-                    row, col = key_data['rc']
-                    if row > row_pins:
+                    data = key_data['rc']
+                    if type(data) == list:
+                        row, col = data
+                    else:
+                        row, col = [0, data]
+                    if row >= row_pins:
                         cli.log.error(f"Row index {row} for key {total_key_num} is too high!")
-                    if col > col_pins:
+                    if col >= col_pins:
                         cli.log.error(f"Col index {col} for key {total_key_num} is too high!")
-                    if [row, col] not in used_rc_positions:
-                        used_rc_positions.append([row, col])
+                    if [row, col] not in used_rc_positions_r:
+                        used_rc_positions_r.append([row, col])
                         rc_to_matrix_r[row][col] = key_data['matrix']
                     else:
-                        cli.log.error(f"Matrix combination {[row, col]} appears multiple times in the layout!")
+                        cli.log.error(f"RC combination {[row, col]} appears multiple times in the layout!")
                     matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
                     matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
 
@@ -329,7 +333,7 @@ def _transform_layout_split(info_data):
     info_data['matrix_size']['cols'] = matrix_size[1] + 1
     info_data['matrix_size']['analog_rows'] = max([i[0] for i in num_to_matrix_r]) + 1
     info_data['matrix_size']['analog_cols'] = max(max([i[1] for i in num_to_matrix_l]) + 1, max([i[1] for i in num_to_matrix_r]) + 1)
-    if used_rc_positions != []:
+    if used_rc_positions_l != [] or used_rc_positions_r != []:
         info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix_l
         info_data['analog_matrix']['hardware']['rc_to_matrix_right'] = rc_to_matrix_r
         info_data['analog_matrix']['hardware']['rc_switch_num'] = len([key for row in rc_to_matrix_l for key in row])
@@ -358,29 +362,22 @@ def _get_split_config(info_data):
 
     # Generate global to local index transformation
     g_to_l_index = []
-    l_to_g_index = [[], []]
     l_index_r = 0
     l_index_l = 0
-    g_index = 0
     for layout_name, layout_data in info_data['layouts'].items():
         for key_data in layout_data['layout']:
-            if 'matrix' in key_data:
+            #TODO: If I ever need the equivalent for RC keys, add them here
+            if 'matrix' in key_data and 'mux' in key_data:
                 if key_data['matrix'][0] >= row_split:
                     g_to_l_index.append([1, l_index_r])
-                    l_to_g_index[1].append(g_index)
                     l_index_r += 1
 
                 else:
                     g_to_l_index.append([0, l_index_l])
-                    l_to_g_index[0].append(g_index)
                     l_index_l += 1
-
-                g_index += 1
         break
 
     info_data['analog_matrix']['hardware']['global_to_local_index'] = g_to_l_index
-    info_data['analog_matrix']['hardware']['local_to_global_index'] = l_to_g_index[0]
-    info_data['analog_matrix']['hardware']['local_to_global_index_right'] = l_to_g_index[1]
 
     return info_data
 
@@ -716,13 +713,13 @@ def generate_profile_config(info_data, config_h_lines):
     # Split up the height configs if necessary
     if split_keyboard:
         g_to_l_index = info_data['analog_matrix']['hardware']['global_to_local_index']
-        profile_num = len(trigger_heights)
+        profile_num = len(key_modes)
         split_trigger_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_release_heights = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_press_distances = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_release_distances = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
         split_key_modes = [[[] for _ in range(profile_num)], [[] for _ in range(profile_num)]]
-        for idx, _ in enumerate(trigger_heights[0]):
+        for idx, _ in enumerate(key_modes[0]):
             for profile in range(profile_num):
                 if g_to_l_index[idx][0] == 0:
                     split_trigger_heights[0][profile].append(trigger_heights[profile][idx])
