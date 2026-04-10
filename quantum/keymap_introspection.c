@@ -243,6 +243,10 @@ extern SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)
 extern SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
 #endif // if defined USE_RT_DISTANCE
 
+#if defined MATRIX_TO_NUM_DEF
+extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+#endif
+
 extern SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
 
 //MARK: Split side
@@ -271,6 +275,12 @@ void assign_side(void) {
     memcpy(&mux_to_num, &mux_to_num_r, sizeof(mux_to_num_r));
     const uint8_t num_to_matrix_r[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX_R;
     memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
+
+    // Since matrix_to_num is needed by multiple special features, a define is set when it is first declared
+    #ifdef MATRIX_TO_NUM_DEF
+    const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
+    memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num));
+    #endif
 
     #ifndef EQUAL_ADC_PINS
     const pin_t adc_pins_r[ADC_PIN_NUM_R] = ADC_PINS_R;

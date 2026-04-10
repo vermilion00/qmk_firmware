@@ -10,10 +10,9 @@
 #define clamp_axis(value) (value < 0 ? 0 : (value > 127 ? 127 : value))
 
 //TODO: Add curve option
+#ifndef MATRIX_TO_NUM_DEF
 SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
-#ifdef SPLIT_KEYBOARD
-uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
-const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
+#   define MATRIX_TO_NUM_DEF
 #endif
 
 // Double the amount of axes, since every axis is represented by two components
@@ -41,18 +40,6 @@ void analog_joystick_init(void) {
         key_config[index].joystick_travel = travel;
         #endif // ifdef USE_JOYSTICK
     }
-
-    #ifdef SPLIT_KEYBOARD
-    if(is_keyboard_master() && !is_keyboard_left()) {
-        memcpy(&matrix_to_num_slave, matrix_to_num, sizeof(matrix_to_num_slave));
-    }
-
-    #if KEYBOARD_SIDE == UNKNOWN
-    if(!is_keyboard_left()) {
-        memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num));
-    }
-    #endif
-    #endif
 }
 
 
