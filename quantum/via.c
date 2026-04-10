@@ -437,6 +437,12 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         }
 #endif
         default: {
+            //TOOD: How does the vial prefix work? Is it automatically attached to every command sent?
+            //      If so, I need to extend vial_handle_cmd instead, or I could check for the second byte, if that's 0x69 then it's am instead
+            #ifdef ANALOG_MATRIX_ENABLE
+            #   include "analog_matrix_via.h"
+            analog_matrix_handle_cmd(data, length);
+            #endif
             // The command ID is not known let the keyboard implement it
             raw_hid_receive_kb(data, length);
             break;

@@ -9,6 +9,37 @@
 #include "util.h"
 #include "multiplexer.h"
 
+// If VIA is enabled, all modes should be included by default unless specifically turned off
+#ifdef VIA_ENABLE
+#if !defined USE_NONE && !defined NO_NONE
+#   define USE_NONE
+#else
+#   undef USE_NONE
+#endif
+#if !defined USE_RAPID_TRIGGER && !defined NO_RAPID_TRIGGER
+#   define USE_RAPID_TRIGGER
+#else
+#   undef USE_RAPID_TRIGGER
+#endif
+#if !defined USE_CONTINUOUS_RAPID_TRIGGER && !defined NO_CONTINUOUS_RAPID_TRIGGER
+#   define USE_CONTINUOUS_RAPID_TRIGGER
+#else
+#   undef USE_CONTINUOUS_RAPID_TRIGGER
+#endif
+#if !defined USE_CONSTANT_RAPID_TRIGGER && !defined NO_CONSTANT_RAPID_TRIGGER
+#   define USE_CONSTANT_RAPID_TRIGGER
+#else
+#   undef USE_CONSTANT_RAPID_TRIGGER
+#endif
+
+#if !defined USE_TRIGGER_HEIGHT && (defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER)
+#   define USE_TRIGGER_HEIGHT
+#endif
+#if !defined USE_RT_DISTANCE && (defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER)
+#   define USE_RT_DISTANCE
+#endif
+#endif
+
 typedef void (* init_func_t)(bool init);
 typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
 
@@ -76,29 +107,20 @@ gpio_write_pin_low(LED_PIN)
 #endif
 
 //MARK: Structs
-#if (COL_PIN_NUM <= 8)
-typedef uint8_t mech_row_t;
-#elif (COL_PIN_NUM <= 16)
-typedef uint16_t mech_row_t;
-#elif (COL_PIN_NUM <= 32)
-typedef uint32_t mech_row_t;
-#else
-#    error "COL_PIN_NUM: invalid value"
-#endif
-
-typedef enum _transaction_type_t {
+typedef enum transaction_type_t {
     normal_transaction = 0,
     calibration_started,
     top_calibration_started,
     clear_calibration_values
 } transaction_type_t;
 
-typedef enum _key_mode_t {
+typedef enum key_mode_t {
     none = 0,
     rapid_trigger = 1,
     continuous_rapid_trigger = 2,
     constant_rapid_trigger = 3,
-    joystick = 4
+    joystick = 4,
+    midi = 5
 } key_mode_t;
 
 typedef struct Profile {
@@ -110,8 +132,12 @@ typedef struct Profile {
 
 #ifdef HIGH_HEIGHT_RESOLUTION
 typedef uint16_t height_t;
+#   define HEIGHT_MULT 1000.0
+#   define AM_HEIGHT_MASK 0b1111111111111111
 #else
 typedef uint8_t height_t;
+#   define HEIGHT_MULT 50.0
+#   define AM_HEIGHT_MASK 0b11111111
 #endif
 
 //MARK: Key struct
@@ -327,7 +353,7 @@ bool evaluate_value(uint8_t index, uint16_t value);
 // Populates the calibrated values from eeprom or hardcoded values, and applies deadzones
 bool get_calibration_data(void);
 // Get the switch data configured in the json
-void get_switch_data(void);
+void get_key_config(void);
 // Scans the init keys defined in the info.json
 //TODO: Does this work if no init keys have been defined? I should just set the top left key as default if none are defined tbh
 bool scan_init_keys(void);

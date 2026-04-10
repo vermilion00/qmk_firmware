@@ -348,9 +348,12 @@ ifeq ($(strip $(ANALOG_MATRIX_ENABLE)), yes)
         SRC += $(QUANTUM_DIR)/analog_matrix/mixed_matrix.c
 	endif
 
-    JOYSTICK_ENABLE ?= no
 	ifeq ($(strip $(JOYSTICK_ENABLE)), yes)
         SRC += $(QUANTUM_DIR)/analog_matrix/analog_joystick.c
+	endif
+
+	ifeq ($(strip $(VIA_ENABLE)), yes)
+        SRC += $(QUANTUM_DIR)/analog_matrix/analog_matrix_via.c
 	endif
 endif
 

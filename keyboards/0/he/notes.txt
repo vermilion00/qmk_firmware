@@ -218,12 +218,17 @@ This should come first:
 
 ========
 
+Update the height docs with the resolution info
+
 Do I need to calculate the rt_threshold when switching profiles or not?
     -Kinda seems like yes, but it hasn't been a problem yet
     -Likely need a high rt_press_value for it to matter
 
 Does running top_calibration mess up the bottom values?
     -Latest test didn't show this behaviour
+
+Move EEPROM address definition out of core, should be applied the same way VIAL is
+->Then remove the special calibration clear stuff and clear sync, as it will be handled by normal EEPROM clear now
 
 
 !!! Currently working on !!!
@@ -233,7 +238,72 @@ Even without the constant printing, the joystick layer update speed is limited t
 
 
 VIAL:
+Current implementation details:
+-All key modes are enabled unless explicitely disabled by defining NO_* instead of USE_*
+    -If NO_* is defined but the keymode is selected in the json, it's currently undefined in analog_matrix.h
+-If e.g. all modes with normal trigger height are disabled, then it won't be included in the save data
+    -> This means that enabling them would need re-init of the AM VIA data
+    -> Make sure that the json also contains the disabled options (maybe define them in a common place instead of separately?)
+-Since the GUI should only show options that aren't disabled, it needs to know about their state
+    -Could request state via transaction easily, or define in the json
+-Try to sync the HEIGHT_RESOLUTION, if possible.
+    -If the heights can be adjusted via a slider, try to set the step size to the resolution value
+    -If there is value checking, then round the value according to resolution
+
 What do I need to save to storage?
 -All four heights per profile per switch
     -Do I save heights that are explicitely disabled via define? I probably don't need to
 -The keymode per profile per switch
+-The priority state per profile
+-The layers per profile
+
+Is there a callback for VIA(L) app communication start/end?
+->Can I just send the new data per switch per profile when it's changed, and set it in the config struct first, then save the entirety of the changes to eeprom at once
+  in that callback?
+->If there isn't one, I should change try to change the values in the config struct first and update eeprom after x time with no changes
+    -> Is there a way to do that efficiently? Deferred execution would be too much probably
+
+How am I going to assign the values?
+-Do I send over num_to_matrix
+-Do I keep it in the json
+-Do I just assign through row/col and translate the index through matrix_to_num?
+
+When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
+    ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
+
+Instead applying the heights from the arrays, I should copy the contents from the contents into am_keyboard_data at start
+Actually, I should redo the defines to just apply all contents as one at startup, and if the half is the right one I just copy the entirety of it at once
+    -> This would make the reset function simple as well, since I'd just copy the define into the struct again, adjust side, then translate values
+
+Since only a very limited amount of data can be transmitted over HID, how is it handled?
+-Does it poll the state of each var of each profile of each switch one after another, or is there a batch mode I could use?
+    -I could poll the keyboard for the amount of profiles used (if it's not predeclared anyway, which it probably is)
+    -Then just start the function on both ends, which automatically transmits all values one after another in a predefined order
+-The VIAL get_def function fills the message up fully with raw data, and repeats that transaction until all data has been transferred
+    -The section is encoded with 2 bytes and sent over, I should use the same strat
+
+Check if there's a benefit to only need a small amount of data
+->I don't think think so, it probably will still send 32 bytes even if I only need four
+->VIA probably just does it like this because it sends every update instantly instead of bundling, so there's no need to use a lot of data for setters
+    ->I don't see them using getters with a lot of data either though?
+
+I don't call the _send function when handling, I just modify the buffer via the pointer, the send function is called automatically by the handler
+
+We need 4 bytes of info (id, row, col, profile) (maybe 5 because of vial prefix?)
+Each switch is currently a max of 9 bytes (when HIRES is used), up to 3 profiles can be transmitted at once over HID (one byte left)
+If LORES is used, it's up to 5 bytes -> 5 profiles with 3 bytes left
+Lets just always assume that all heights are used
+    -Can I though? Since the transaction from the GUI will include those otherwise, I need to account for them anyway if I allow disabling them
+If more profiles than that are needed, how do I properly handle this?
+    -Since every switch variation has one byte left over, I could include the profile offset in the transaction and run it twice
+    -Make sure I actually have one over though
+    -Since the VIAL app probably needs an extra one, that might mean that HIRES with all heights can only handle two profiles at once
+        -> Since we only allow 32 profiles anyway, I could also bitmap the uint8_t there with that info
+            -Assuming the largest data size, we're looking at 12 transactions for one switch, which doesn't fit into the 3 bits left
+            -Another thing currently assumes only 16 profiles max anyway, so just force that? More than enough anyway
+
+Just limit profliles to 16, to many things would currently need changes for 32
+
+The current absolute max is below 30000 bytes for am_keyboard_t
+
+Make sure that the row/col values sent by the GUI are split compatible

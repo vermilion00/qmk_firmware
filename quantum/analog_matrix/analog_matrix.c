@@ -201,7 +201,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
     #endif
     #endif
 
-    get_switch_data();
+    get_key_config();
 
     //TODO: Add mode to check init keys based on deviation larger than 2* the avg diff between them (or smth like that), because right now init keys don't work without saved bottom values
     //      Also being unable to save cali values properly, due to a small difference between top & bottom values or a misconfigured storage, means that the keyboard keeps looping endlessly
@@ -400,22 +400,15 @@ __attribute__((weak)) uint8_t matrix_scan(void) { return false; }
 //MARK: Translate
 // Translate the heights of all keys into the corresponding ADC values
 void translate_mm_to_value(uint8_t index, bool init) {
-    #ifdef HIGH_HEIGHT_RESOLUTION
-    // 0.001 mm resolution
-    #   define HEIGHT_MULT 1000
-    #else
-    // 0.02 mm resolution -> 4mm = 200
-    #   define HEIGHT_MULT 50
-    #endif
     #ifdef INVERT_ADC
     const uint16_t top_value = init ? (key_config[index].top_value - top_deadzone) : (key_config[index].top_value - top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value + bottom_deadzone;
-    const float travel_unit = floor((float)(bottom_value - top_value) / ((float)TRAVEL_DISTANCE * HEIGHT_MULT));
+    const float travel_unit = floor((float)(bottom_value - top_value) / (TRAVEL_DISTANCE * HEIGHT_MULT));
     #else
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
     const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
-    const float travel_unit = floor((float)(top_value - bottom_value) / ((float)TRAVEL_DISTANCE * HEIGHT_MULT));
+    const float travel_unit = floor((float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT));
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
@@ -1103,7 +1096,7 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
 
 //MARK: Switch data
 // Populates the key matrix with the static config params, heights are populated separately
-void get_switch_data(void) {
+void get_key_config(void) {
     // Slave values are less stable than master values, this allows easily setting separate values per half
     #ifdef SPLIT_KEYBOARD
     #ifdef RIGHT_MULTIPLIER

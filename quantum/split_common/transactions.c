@@ -937,13 +937,11 @@ bool manual_transaction_handler(bool (*handler)(transaction_type_t type), transa
     return false;
 }
 
-//TODO: Since I'm calling this manually anyway, just trust that something changed instead of checking?
-//TODO: Perhaps split this up into separate transactions for layer, profile etc?
-//TODO: Instead of checking if 3 different things have changed, change them and then check if it needs to be sent over?
 //MARK: AM Data
+//TODO: Perhaps split this up into separate transactions for layer, profile etc?
 //TODO: Test just sending the profile here, applying it directly to active_profile, and not calling the slave_handler at all
 //      Since the memory needs to initialized, i'll probably need to use a profile_change() function that gets the new profile from split_shmem and updates a global var
-static bool am_data_manual_handler(transaction_type_t type) {
+bool am_data_manual_handler(transaction_type_t type) {
     // Data layout: unused | clear cal | top_cal_start | calibration start | profile | layer
     // uint16_t  0b  0000  |     1     |       1       |        1          |  11111  | 11111
     // Without layer sync:
@@ -1076,6 +1074,7 @@ void sync_top_calibration(void) {
     else { manual_transaction_handler(top_cal_data_slave_manual_handler); }
 }
 
+// Since the transactions are handled manually, we don't need to declare them
 //TODO: Consolidate all analog matrix fallback defines into one place
 #define TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS \
         [GET_CAL_DATA] = trans_target2initiator_initializer(cal_data), \
@@ -1106,7 +1105,7 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     am_data_t data = split_shmem->am_data;
     split_shared_memory_unlock();
 
-    if (data == prev_data) return;
+    if (prev_data == data) return;
     prev_data = data;
 
     #ifdef SPLIT_LAYER_SYNC
@@ -1134,7 +1133,7 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
         calibrate_switches(false);
     }
 
-    if(data & 0b01000000) {
+    else if(data & 0b01000000) {
         #ifdef AM_NO_EEPROM
         // Remove the old calibration data from the buffer, else the master will get the old values
         split_shared_memory_lock();
@@ -1145,11 +1144,11 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
         calibrate_top_value();
     }
 
-    if(data & 0b10000000) {
+    else if(data & 0b10000000) {
         clear_calibration();
     }
 
-    // Create a joystick mask for the slave
+    // Create a special layer mask for the slave
     #ifdef SPLIT_LAYER_SYNC
     static uint8_t prev_layer = 0;
     if(prev_layer != am_highest_layer) {
@@ -1159,6 +1158,7 @@ __attribute__((unused)) static void am_data_handlers_slave(matrix_row_t master_m
     #endif
 }
 
+// Since the master handler is called manually, we don't need to declare it here
 #   define TRANSACTIONS_AM_DATA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_data)
 #   define TRANSACTIONS_AM_DATA_REGISTRATIONS [PUT_AM_DATA] = trans_initiator2target_initializer(am_data),
 
@@ -1210,9 +1210,7 @@ static bool joystick_handlers_master(matrix_row_t master_matrix[], matrix_row_t 
 }
 
 static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    if (!joystick_layer) return;
-
-    if (!joystick_state.dirty) return;
+    if (!joystick_layer || !joystick_state.dirty) return;
 
     split_shared_memory_lock();
     memcpy(split_shmem->axis_data.values, axis_values, sizeof(split_shmem->axis_data.values));
@@ -1227,11 +1225,96 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
     [GET_JOYSTICK_DATA]     = trans_target2initiator_initializer(axis_data.values), \
     [GET_JOYSTICK_CHECKSUM] = trans_target2initiator_initializer(axis_data.checksum),
 
-#else
+#else // defined(ANALOG_MATRIX_ENABLE) && defined(JOYSTICK_ENABLE) && !defined NO_SLAVE_AXES
 #   define TRANSACTIONS_AM_JOYSTICK_MASTER()
 #   define TRANSACTIONS_AM_JOYSTICK_SLAVE()
 #   define TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS
 #endif
+
+
+//MARK: AM VIA
+////////////////////////////////////////////////////
+// Analog Matrix VIA synchronisation
+
+//TODO: Since the regular via transactions aren't handled here, are they using a better way than constant auto transfer? Definitely need checksums though
+//      Instead of sending all data through, I could call transactions for one switch from the HID receive function
+//      How would the slave know when to receive though? Can't really check checksums, since it would change all the time
+//      I could send over a separate value, and the slave handler checks if it has changed
+// 1 uint8_t as the switch index, 3 bits to decide what should change (mode, 4 heights, prio), uint16_t value -> 32 bits in total
+// If the value is always uint16_t, the layer_state can be transferred in it easily
+
+#if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
+#include "analog_matrix_via.h"
+
+// value is of type layer_state_t to automatically scale with the max amount of layers
+bool am_vial_handlers_master(uint8_t index, uint8_t profile, am_vial_split_id id, layer_state_t value) {
+    am_via_data_t config = {.index = index, .id = profile << 4 | id, .value = value};
+    split_shmem->am_via.checksum = crc8(&config, sizeof(config));
+    if(!transport_write(PUT_VIA_CHECKSUM, &split_shmem->am_via.checksum, sizeof(uint8_t))) return false;
+
+    return transport_write(PUT_VIA_DATA, &config, sizeof(am_via_data_t));
+}
+
+static void am_vial_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    static uint8_t prev_checksum = 0;
+
+    if(prev_checksum == split_shmem->am_via.checksum) return;
+    prev_checksum = split_shmem->am_via.checksum;
+
+    am_via_data_t config;
+    split_shared_memory_lock();
+    memcpy(&config, &split_shmem->am_via.data, sizeof(am_via_data_t));
+    split_shared_memory_unlock();
+
+    //TODO: This implementation only supports 16 profiles (which should be enough though, I could adjust the other things)
+    //      If I only need 8 IDs I could make it 32 profiles without any adjustments
+    const uint8_t profile = config.id >> 4;
+    const am_vial_split_id id = config.id & 00001111;
+    const uint16_t value = config.value;
+    const uint8_t index = config.index;
+    switch(id) {
+        case set_trigger_height:
+        case set_release_height:
+        case set_rt_press:
+        case set_rt_release:
+            // Need to mask the values so that only that height gets set
+            am_keyboard_data.key[index].profile[profile].raw &= AM_HEIGHT_MASK << (8 * sizeof(height_t) * id);
+            am_keyboard_data.key[index].profile[profile].raw |= value << (8 * sizeof(height_t) * id);
+            translate_mm_to_value(index, false);
+            break;
+
+        case set_key_mode:
+            am_keyboard_data.key[index].profile[profile].mode = value;
+            // If a key on the current profile has changed to a special key, update the layer settings
+            //TODO: I also need to do this if a keycode has changed
+            if(profile == active_profile && value > constant_rapid_trigger) change_layer_settings(am_highest_layer);
+            break;
+
+        case profile_layers:
+            am_keyboard_data.profile_layers[profile] = value;
+            break;
+
+        case priority_profiles:
+            am_keyboard_data.priority_profiles = value;
+            break;
+    }
+}
+
+bool am_via_manual_transaction(transaction_type_t type) {
+    return manual_transaction_handler(am_via_handlers_master, type);
+}
+
+#   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_vial)
+#   define TRANSACTIONS_AM_VIA_REGISTRATIONS \
+    [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.checksum), \
+    [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data),
+
+#else // defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLED
+#   define TRANSACTIONS_AM_VIA_MASTER()
+#   define TRANSACTIONS_AM_VIA_SLAVE()
+#   define TRANSACTIONS_AM_VIA_REGISTRATIONS
+#endif
+
 
 ////////////////////////////////////////////////////
 
@@ -1266,6 +1349,7 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
     TRANSACTIONS_AM_DATA_REGISTRATIONS
     TRANSACTIONS_AM_CALIBRATION_REGISTRATIONS
     TRANSACTIONS_AM_JOYSTICK_REGISTRATIONS
+    TRANSACTIONS_AM_VIA_REGISTRATIONS
 // clang-format on
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
@@ -1278,7 +1362,6 @@ split_transaction_desc_t split_transaction_table[NUM_TOTAL_TRANSACTIONS] = {
 
 //MARK: Transactions master
 bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    TRANSACTIONS_AM_JOYSTICK_MASTER();
     TRANSACTIONS_SLAVE_MATRIX_MASTER();
     TRANSACTIONS_MASTER_MATRIX_MASTER();
     TRANSACTIONS_ENCODERS_MASTER();
@@ -1298,12 +1381,11 @@ bool transactions_master(matrix_row_t master_matrix[], matrix_row_t slave_matrix
     TRANSACTIONS_HAPTIC_MASTER();
     TRANSACTIONS_ACTIVITY_MASTER();
     TRANSACTIONS_DETECTED_OS_MASTER();
+    TRANSACTIONS_AM_JOYSTICK_MASTER();
     return true;
 }
 
 void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    TRANSACTIONS_AM_DATA_SLAVE();
-    TRANSACTIONS_AM_JOYSTICK_SLAVE();
     TRANSACTIONS_SLAVE_MATRIX_SLAVE();
     TRANSACTIONS_MASTER_MATRIX_SLAVE();
     TRANSACTIONS_ENCODERS_SLAVE();
@@ -1323,6 +1405,9 @@ void transactions_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[
     TRANSACTIONS_HAPTIC_SLAVE();
     TRANSACTIONS_ACTIVITY_SLAVE();
     TRANSACTIONS_DETECTED_OS_SLAVE();
+    TRANSACTIONS_AM_DATA_SLAVE();
+    TRANSACTIONS_AM_JOYSTICK_SLAVE();
+    TRANSACTIONS_AM_VIA_SLAVE();
 }
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

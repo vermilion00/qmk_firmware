@@ -146,6 +146,20 @@ typedef struct _joystick_slave_axis_sync_t {
     uint8_t values[JOYSTICK_AXIS_COUNT * 2];
 } joystick_sync_t;
 #endif // defined(JOYSTICK_ENABLE)
+
+// #if defined(VIA_ENABLED)
+#   include "analog_matrix_via.h"
+typedef struct _am_via_data_t {
+    uint8_t index;
+    am_vial_split_id id;
+    layer_state_t value;
+} am_via_data_t;
+
+typedef struct _am_via_trans_t {
+    uint8_t checksum;
+    am_via_data_t data;
+} am_via_trans_t;
+// #endif // defined(VIA_ENABLED)
 #endif // defined(ANALOG_MATRIX_ENABLE)
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
@@ -247,6 +261,10 @@ typedef struct _split_shared_memory_t {
 #   if defined(JOYSTICK_ENABLE) && !defined (NO_SLAVE_AXES)
     joystick_sync_t axis_data;
 #   endif // defined(JOYSTICK_ENABLE)
+// #   if defined(VIA_ENABLE)
+    am_via_trans_t am_via;
+// #   endif
+
 #endif // defined(ANALOG_MATRIX_ENABLE)
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)
