@@ -14,7 +14,6 @@
 #else
 #define CONFIG_MUTABLE
 #endif
-#define SPLIT_MUTABLE const
 
 #undef ADC_PINS
 #define ADC_PINS ADC_PINS_R

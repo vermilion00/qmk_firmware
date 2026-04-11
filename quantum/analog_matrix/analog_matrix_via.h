@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+#include "action_layer.h"
+#include "via_bindings.h"
+
 #include "analog_matrix.h"
 
 #ifdef HIGH_HEIGHT_RESOLUTION
@@ -21,52 +25,97 @@ typedef uint16_t am_raw_t;
 #define CLAMP8(value) (value > 255 ? 255 : value)
 
 // The EEPROM data of one switch in one single profile
-typedef struct PACKED am_switch_profile_t {
-    uint8_t mode; // MSB contains priority_mode
-    union {
-        am_raw_t raw_height;
-        struct {
-            #ifdef USE_TRIGGER_HEIGHT
-            height_t trigger_height;
-            height_t release_height;
-            #endif
-            #ifdef USE_RT_DISTANCE
-            height_t rt_press_distance;
-            height_t rt_release_distance;
-            #endif
-        };
-    };
-} am_switch_profile_t;
+// typedef struct PACKED am_switch_profile_t {
+//     uint8_t mode; // MSB contains priority_mode
+//     union {
+//         am_raw_t raw_height;
+//         struct {
+//             #ifdef USE_TRIGGER_HEIGHT
+//             height_t trigger_height;
+//             height_t release_height;
+//             #endif
+//             #ifdef USE_RT_DISTANCE
+//             height_t rt_press_distance;
+//             height_t rt_release_distance;
+//             #endif
+//         };
+//     };
+// } am_switch_profile_t;
 
 // The EEPROM data of one switch across all profiles
-typedef struct PACKED am_switch_t {
-    am_switch_profile_t profile[AM_PROFILE_NUM];
-    // uint8_t priority_state[(TOTAL_SWITCH_NUM / 8) + 1]; // Each bit represents a switch
-} am_switch_t;
+// typedef struct PACKED am_switch_t {
+//     am_switch_profile_t profile[AM_PROFILE_NUM];
+//     // uint8_t priority_state[(TOTAL_SWITCH_NUM / 8) + 1]; // Each bit represents a switch
+// } am_switch_t;
 
 // The EEPROM data of the entire keyboard
-typedef struct PACKED am_keyboard_t {
-    am_switch_t key[TOTAL_SWITCH_NUM];
-    uint8_t smoothing; // If split multipliers are used, this is the non-multiplied value
-    uint8_t top_deadzone;
-    uint8_t bottom_deadzone;
-    uint8_t top_mult;
-    #ifdef SPLIT_KEYBOARD
-    uint8_t right_mult;
-    uint8_t slave_mult;
+// typedef struct PACKED am_keyboard_t {
+//     am_switch_t key[TOTAL_SWITCH_NUM];
+//     uint8_t smoothing; // If split multipliers are used, this is the non-multiplied value
+//     uint8_t top_deadzone;
+//     uint8_t bottom_deadzone;
+//     uint8_t top_mult;
+//     #ifdef SPLIT_KEYBOARD
+//     uint8_t right_mult;
+//     uint8_t slave_mult;
+//     #endif
+//     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
+//     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
+//     #endif
+//     #ifdef USE_PRIORITY_MODE
+//     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
+//     #endif
+//     #ifdef DYNAMIC_CALIBRATION
+//     uint8_t dc_switch_num;
+//     uint8_t dc_factor;
+//     uint8_t dc_delta;
+//     #endif
+// } am_keyboard_t;
+
+typedef struct am_keyboard_t {
+    #ifdef USE_TRIGGER_HEIGHT
+    height_t trigger_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    height_t release_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
     #endif
-    #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
+    #ifdef USE_RT_DISTANCE
+    height_t rt_press_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    height_t rt_release_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    #endif
+    uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    uint8_t profile_num;
+    uint8_t profile_config;
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
+
+    // The deadzone values are only the USER_DEADZONES, not the ADC_DEADZONES
+    uint8_t top_deadzone; // Base values pre multiplication
+    uint8_t bottom_deadzone;
+    uint8_t smoothing;
+    uint8_t top_mult; // Multiplied by 100
+    #ifdef VIA_FILTER_STRENGTH
+    uint8_t filter_strength;
     #endif
+
     #ifdef USE_PRIORITY_MODE
     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
     #endif
     #ifdef DYNAMIC_CALIBRATION
     uint8_t dc_switch_num;
-    uint8_t dc_factor;
+    uint8_t dc_factor; // Multiplied by 100
     uint8_t dc_delta;
     #endif
+
+    #ifdef SPLIT_KEYBOARD
+    #ifdef VIA_FILTER_STRENGTH
+    uint8_t split_filter_strength; // The first 4 bits show the slave strength, the right 4 the right strength
+    #endif
+    uint8_t right_mult; // Multiplied by 10
+    uint8_t slave_mult; // Multiplied by 10
+    #endif // ifdef SPLIT_KEYBOARD
 } am_keyboard_t;
+
+extern am_keyboard_t am_keyboard_data;
+
+// uint32_t size_test = sizeof(am_keyboard_t);
 
 typedef enum height_addr_t {
     trigger_height_addr = 0,
@@ -86,12 +135,14 @@ typedef enum am_via_id {
     set_profile_layers,
     set_priority_profiles,
     set_dynamic_calibration,
-    set_deadzone,
+    set_deadzone, // Set one of top_deadzone, bottom_deadzone or smoothing value, according to the index passed
     clear_calibration_data,
     reset_keyboard_data, // Resets all data to json defaults
 } am_via_id;
 
 //TODO: Remove this and just use the am_via_id instead
+//      I'd have to use a default case to catch unused IDs, but probably still cleaner anyways
+//      Would also allow me to just call a general transaction at the end of the HID handler, instead of the current impl
 typedef enum am_via_split_id {
     split_trigger_height,
     split_release_height,
@@ -104,7 +155,18 @@ typedef enum am_via_split_id {
     split_keyboard_data
 } am_via_split_id;
 
+typedef struct _am_via_data_t {
+    uint8_t index;
+    am_via_split_id id;
+    layer_state_t value;
+} am_via_data_t;
+
 extern am_keyboard_t am_keyboard_data;
+
+#ifndef MATRIX_TO_NUM_DEF
+extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+// #   define MATRIX_TO_NUM_DEF
+#endif
 
 height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height);
 uint8_t get_switch_mode(uint8_t key, uint8_t profile);

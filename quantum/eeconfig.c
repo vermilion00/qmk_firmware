@@ -39,10 +39,6 @@
 #    include "connection.h"
 #endif // CONNECTION_ENABLE
 
-#ifdef ANALOG_MATRIX_ENABLE
-// #   include "analog_matrix.h"
-#endif // ANALOG_MATRIX_ENABLE
-
 #ifdef VIA_ENABLE
 bool via_eeprom_is_valid(void);
 void via_eeprom_set_valid(bool valid);

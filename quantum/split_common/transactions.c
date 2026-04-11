@@ -1243,7 +1243,7 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
 // 1 uint8_t as the switch index, 3 bits to decide what should change (mode, 4 heights, prio), uint16_t value -> 32 bits in total
 // If the value is always uint16_t, the layer_state can be transferred in it easily
 
-// #if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
+#if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
 #include "analog_matrix_via.h"
 
 bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_split_id, layer_state_t), uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
@@ -1268,7 +1268,7 @@ bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, 
     return transport_write(PUT_VIA_DATA, &config, sizeof(am_via_data_t));
 }
 
-static void am_vial_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
     static uint8_t prev_checksum = 0;
 
     if(prev_checksum == split_shmem->am_via.checksum) return;
@@ -1279,28 +1279,39 @@ static void am_vial_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sl
     memcpy(&config, &split_shmem->am_via.data, sizeof(am_via_data_t));
     split_shared_memory_unlock();
 
-    //TODO: This implementation only supports 16 profiles (which should be enough though, I could adjust the other things)
-    //      If I only need 8 IDs I could make it 32 profiles without any adjustments
+    //TODO: If I need more than 16 transactions I need to split them up
     const uint8_t profile = config.id >> 4;
     const am_via_split_id id = config.id & 00001111;
     const uint16_t value = config.value;
     const uint8_t index = config.index;
     switch(id) {
+        #ifdef USE_TRIGGER_HEIGHT
         case split_trigger_height:
-        case split_release_height:
-        case split_rt_press:
-        case split_rt_release:
-            // Need to mask the values so that only that height gets set
-            am_keyboard_data.key[index].profile[profile].raw_height &= ~(AM_HEIGHT_MASK << (8 * sizeof(height_t) * id));
-            am_keyboard_data.key[index].profile[profile].raw_height |= value << (8 * sizeof(height_t) * id);
+            am_keyboard_data.trigger_height[profile][index] = value;
             translate_mm_to_value(index, false);
             break;
+        case split_release_height:
+            am_keyboard_data.release_height[profile][index] = value;
+            translate_mm_to_value(index, false);
+            break;
+        #endif
+        #ifdef USE_RT_DISTANCE
+        case split_rt_press:
+            am_keyboard_data.rt_release_distance[profile][index] = value;
+            translate_mm_to_value(index, false);
+            break;
+        case split_rt_release:
+            am_keyboard_data.rt_release_distance[profile][index] = value;
+            translate_mm_to_value(index, false);
+            break;
+        #endif
 
         case split_key_mode:
-            am_keyboard_data.key[index].profile[profile].mode = value;
+            //TODO: Since the MSB is the prio state, make sure I'm on the same page on it everywhere
+            am_keyboard_data.key_mode[profile][index] = value;
             // If a key on the current profile has changed to a special key, update the layer settings
             //TODO: I also need to do this if a keycode has changed
-            if(profile == active_profile && value > constant_rapid_trigger) change_layer_settings(am_highest_layer);
+            if(profile == active_profile) change_layer_settings(am_highest_layer);
             break;
 
         case split_profile_layers:
@@ -1322,6 +1333,8 @@ static void am_vial_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sl
                 case 2:
                     am_keyboard_data.smoothing = value;
             }
+        default:
+            break;
     }
 }
 

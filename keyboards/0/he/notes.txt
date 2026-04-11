@@ -230,12 +230,11 @@ Does running top_calibration mess up the bottom values?
 Move EEPROM address definition out of core, should be applied the same way VIAL is
 ->Then remove the special calibration clear stuff and clear sync, as it will be handled by normal EEPROM clear now
 
-
-!!! Currently working on !!!
 Even without the constant printing, the joystick layer update speed is limited to 1000Hz
     -It's not caused by printing without a newline, as the frequency message works without problems
     ->Is this a limitation of the joystick API perhaps?
 
+!!! Currently working on !!!
 
 VIAL:
 Current implementation details:
@@ -263,6 +262,7 @@ Is there a callback for VIA(L) app communication start/end?
 ->If there isn't one, I should change try to change the values in the config struct first and update eeprom after x time with no changes
     -> Is there a way to do that efficiently? Deferred execution would be too much probably
 ->Could there be a callback for the keyboard lock? Maybe I could use that, if the keyboard locks after a certain time without communication/when communication stops?
+-If there isn't a callback, I could also update the eeprom during a layer state
 
 How am I going to assign the values?
 -Do I send over num_to_matrix
@@ -305,7 +305,7 @@ If more profiles than that are needed, how do I properly handle this?
 
 Just limit profliles to 16, too many things would currently need changes for 32
 
-The current absolute max is below 30000 bytes for am_keyboard_t
+The current absolute max is below 32000 bytes for am_keyboard_t
 
 Make sure that the row/col values sent by the GUI are split compatible
 
@@ -328,3 +328,59 @@ Release offsets and base values should just be set in the GUI, then transmit the
 ->
 Instead of running the transaction inside of every ID, try changing the value, then calling the split transaction after for every ID that needs it (most of them)
 Also combine the split IDs and VIA IDs
+
+Add a field for profile num
+-> AM_PROFILE_NUM will be the maximum allowed profiles, while profile_num is the amount of used profiles
+    -0..n-1 will be usable
+    -Since the data for all profiles will be saved anyway, a newly added profile will just have the previous config
+      ->Do I reset the state to a default state instead? Probably makes sense
+
+
+How do I check if VIA is enabled in rules.mk from the json? The standard ways only seem to work if they're defined in the json in the first place
+->Aren't the rules.mk/config.h things also put into the dict? Maybe it's just the config.h stuff
+
+Could add a field for the joystick roundness setting, but even with it disabled it would take +4.5k size, so put it behind an additional gate at least
+->Same for the filter strength
+
+Make sure I understand pointer offset casts correctly
+(void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile))
+
+
+
+typedef struct am_keyboard_t {
+    #ifdef USE_TRIGGER_HEIGHT
+    height_t trigger_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    height_t release_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    #endif
+    #ifdef USE_RT_DISTANCE
+    height_t rt_press_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    height_t rt_release_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    #endif
+    uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
+    uint8_t profile_switch_mode;
+    layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
+
+    uint8_t top_deadzone; // Base values pre multiplication
+    uint8_t bottom_deadzone;
+    uint8_t smoothing;
+    uint8_t top_mult; // Multiplied by 100
+    #ifdef VIA_FILTER_STRENGTH
+    uint8_t filter_strength;
+    #endif
+
+    #ifdef USE_PRIORITY_MODE
+    uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
+    #endif
+    #ifdef DYNAMIC_CALIBRATION
+    uint8_t dc_switch_num;
+    uint8_t dc_factor; // Multiplied by 100
+    uint8_t dc_delta;
+    #endif
+    #ifdef SPLIT_KEYBOARD
+    uint8_t right_mult; // Multiplied by 10
+    uint8_t slave_mult; // Multiplied by 10
+    #ifdef VIA_FILTER_STRENGTH
+    uint8_t split_filter_strength; // The MSB 4 bits show the slave strength, the LSB 4 the right strength
+    #endif
+    #endif
+} am_keyboard_t;

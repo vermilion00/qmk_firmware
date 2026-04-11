@@ -60,8 +60,8 @@ bool am_data_manual_transaction(transaction_type_t type);
 void sync_calibration_values(bool init);
 void sync_top_calibration(void);
 #   endif
-// #   ifdef VIA_ENABLE
+#   ifdef VIA_ENABLE
 #   include "analog_matrix_via.h"
 bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value);
-// #   endif
+#   endif
 #endif

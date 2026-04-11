@@ -102,7 +102,7 @@ STATIC_ASSERT(DYNAMIC_KEYMAP_EEPROM_MAX_ADDR <= 65535, "DYNAMIC_KEYMAP_EEPROM_MA
 
 // Dynamic macro
 #ifndef DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR
-#    define DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR (VIAL_AM_EEPROM_ADDR + VIAL_AM_EEPROM_SIZE)
+#    define DYNAMIC_KEYMAP_MACRO_EEPROM_ADDR (VIAL_ANALOG_MATRIX_EEPROM_ADDR + VIAL_ANALOG_MATRIX_EEPROM_SIZE)
 #endif
 
 // Sanity check that dynamic keymaps fit in available EEPROM
@@ -397,84 +397,69 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 }
 #endif
 
-//MARK: AM VIAL functions
+//MARK: AM functions
 //TODO: Can't make these in am_via.c because the ADDRESS is only locally defined
 #ifdef ANALOG_MATRIX_ENABLE
-#define AM_VIAL_SWITCH_ADDR(index) (VIAL_ANALOG_MATRIX_EEPROM_ADDR + (index * sizeof(am_switch_t)))
-#define AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) (AM_VIAL_SWITCH_ADDR(index) + (profile * sizeof(am_switch_profile_t)))
-#define AM_VIAL_SWITCH_MODE_ADDR(index, profile) AM_VIAL_SWITCH_PROFILE_ADDR(index, profile)
-#define AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height) (AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) + (height * sizeof(height_t)) + 1) // +1 to skip the modes
+//TODO: Redo these once decided
+// #define AM_VIAL_SWITCH_ADDR(index) (VIAL_ANALOG_MATRIX_EEPROM_ADDR + (index * sizeof(am_switch_t)))
+// #define AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) (AM_VIAL_SWITCH_ADDR(index) + (profile * sizeof(am_switch_profile_t)))
+// #define AM_VIAL_SWITCH_MODE_ADDR(index, profile) AM_VIAL_SWITCH_PROFILE_ADDR(index, profile)
+// #define AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height) (AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) + (height * sizeof(height_t)) + 1) // +1 to skip the modes
 //TODO: Instead of having separate set/get functions for every option, just use getters and setters for am_keyboard_data
+
+//TODO: Make sure that these index correctly
 void nvm_get_analog_matrix_config(void) {
-    eeprom_read_block(&am_keyboard_data, VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
-}
-
-void nvm_get_analog_switch_config(uint8_t index) {
-    if(index >= TOTAL_SWITCH_NUM) return;
-    eeprom_read_block(&am_keyboard_data.key[index], AM_VIAL_SWITCH_ADDR(index), sizeof(am_switch_t));
-}
-
-void nvm_get_analog_switch_profile(uint8_t index, uint8_t profile) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM) return;
-    eeprom_read_block(&am_keyboard_data.key[index].profile[profile], AM_VIAL_SWITCH_PROFILE_ADDR(index, profile), sizeof(am_switch_profile_t));
-}
-
-uint8_t nvm_get_analog_switch_mode(uint8_t index, uint8_t profile) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM) return 255;
-    return eeprom_read_byte(AM_VIAL_SWITCH_PROFILE_ADDR(index, profile));
-}
-
-height_t nvm_get_analog_switch_height(uint8_t index, uint8_t profile, height_addr_t height) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM || height > 3) return 0;
-    #ifdef HIGH_HEIGHT_RESOLUTION
-    return eeprom_read_word(AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height)); // +1 to skip the modes
-    #else
-    return eeprom_read_byte(AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height));
-    #endif
+    eeprom_read_block(&am_keyboard_data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
 void nvm_set_analog_matrix_config(void) {
-    eeprom_update_block(&am_keyboard_data, VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
+    eeprom_update_block(&am_keyboard_data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
-//TODO: Make sure this offsets correctly, do I need to multiply profile by sizeof(layer_state_t)?
-void nvm_set_analog_profile_layers(uint8_t profile, layer_state_t layers) {
-    #ifdef LAYER_STATE_16BIT
-    eeprom_update_word(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile), layers);
+void nvm_set_profile_config(uint8_t config) {
+    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)offsetof(am_keyboard_t, profile_config)), config);
+}
+
+//TODO: Make sure this offsets correctly
+void nvm_set_profile_layers(uint8_t profile, layer_state_t profile_layers) {
+    #if defined LAYER_STATE_8BIT
+    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
+    #elif defined LAYER_STATE_16BIT
+    eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
     #elif defined LAYER_STATE_32BIT
-    eeprom_update_dword(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile), layers);
-    #elif defined LAYER_STATE_8BIT
-    eeprom_update_byte(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile), layers);
+    eeprom_update_dword((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
     #endif
 }
 
-//TODO: This is limited to 16 profiles
+// 0 = Top, 1 = Bottom, 2 = Smoothing, 3 = Multiplier, 4 = Filter strength
+void nvm_set_deadzone(uint8_t index, uint8_t value) {
+    #ifndef VIA_FILTER_STRENGTH
+    if(index > 3) return; // Index 4 should only be used if it's enabled
+    #endif
+    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, top_deadzone)) + index), value);
+}
+
+#ifdef USE_PRIORITY_MODE
 void nvm_set_priority_profiles(uint16_t profile_state) {
-    eeprom_update_word(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint16_t*)offsetof(am_keyboard_t, priority_profiles), profile_state);
-}
-
-// If possible, these should not be used. Instead, write to am_keyboard_data[] and update the entire config at once when configuration is done
-void nvm_set_analog_switch_config(uint8_t index) {
-    if(index >= TOTAL_SWITCH_NUM) return;
-    eeprom_update_block(&am_keyboard_data.key[index], AM_VIAL_SWITCH_ADDR(index), sizeof(am_switch_t));
-}
-
-void nvm_set_analog_switch_profile(uint8_t index, uint8_t profile) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM) return;
-    eeprom_update_block(&am_keyboard_data.key[index].profile[profile], AM_VIAL_SWITCH_PROFILE_ADDR(index, profile), sizeof(am_switch_profile_t));
-}
-
-void nvm_set_analog_switch_mode(uint8_t index, uint8_t profile, key_mode_t mode) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM) return;
-    eeprom_update_byte(AM_VIAL_SWITCH_MODE_ADDR(index, profile), mode);
-}
-
-void nvm_set_analog_switch_height(uint8_t index, uint8_t profile, height_addr_t height, height_t value) {
-    if(index >= TOTAL_SWITCH_NUM || profile >= AM_PROFILE_NUM || height > 3) return;
-    #ifdef HIGH_HEIGHT_RESOLUTION
-    eeprom_update_word(AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height), value);
-    #else
-    eeprom_update_byte(AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height), value);
-    #endif
+    eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint16_t*)offsetof(am_keyboard_t, priority_profiles)), profile_state);
 }
 #endif
+
+#ifdef DYNAMIC_CALIBRATION
+// 0 = switch_num, 1 = factor * 100, 2 = delta
+void nvm_set_dynamic_calibration_config(uint8_t index, uint8_t value) {
+    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, dc_switch_num)) + index), value);
+}
+#endif
+
+#ifdef SPLIT_KEYBOARD
+// 0 = right mult, 1 = slave mult, 2 = right filter, 3 = slave filter
+void nvm_set_split_config(uint8_t index, uint8_t value) {
+    #ifdef VIA_FILTER_STRENGTH
+    if(index == 3) value <<= 4; // Even though this is a bitmap, we only use either/or anyway
+    #endif
+    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, right_mult)) + index), value);
+}
+#endif
+
+#endif // ifdef ANALOG_MATRIX_ENABLE

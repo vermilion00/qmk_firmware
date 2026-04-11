@@ -9,47 +9,41 @@
 #include "util.h"
 #include "multiplexer.h"
 
-// If VIA is enabled, all modes should be included by default unless specifically turned off
+#ifdef HIGH_HEIGHT_RESOLUTION
+typedef uint16_t height_t;
+#   define HEIGHT_MULT 1000.0
+#   define AM_HEIGHT_MASK 0b1111111111111111
+#else
+typedef uint8_t height_t;
+#   define HEIGHT_MULT 50.0
+#   define AM_HEIGHT_MASK 0b11111111
+#endif
+
+typedef enum key_mode_t {
+    none = 0,
+    rapid_trigger = 1,
+    continuous_rapid_trigger = 2,
+    constant_rapid_trigger = 3,
+    joystick = 4,
+    midi = 5
+} key_mode_t;
+
+#if (defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN)
+#   define SPLIT_MUTABLE
+#else
+#   define SPLIT_MUTABLE const
+#endif
+
 #ifdef VIA_ENABLE
-#if !defined USE_NONE && !defined NO_NONE
-#   define USE_NONE
-#elif defined NO_NONE
-#   undef USE_NONE
+#   include "via_bindings.h"
+#   include "analog_matrix_via.h"
+#else
+#   ifdef SPLIT_KEYBOARD
+#       define SPLIT_VIA_MUT
+#   else
+#       define SPLIT_VIA_MUT const
+#   endif
 #endif
-#if !defined USE_RAPID_TRIGGER && !defined NO_RAPID_TRIGGER
-#   define USE_RAPID_TRIGGER
-#elif defined NO_RAPID_TRIGGER
-#   undef USE_RAPID_TRIGGER
-#endif
-#if !defined USE_CONTINUOUS_RAPID_TRIGGER && !defined NO_CONTINUOUS_RAPID_TRIGGER
-#   define USE_CONTINUOUS_RAPID_TRIGGER
-#elif defined NO_CONTINUOUS_RAPID_TRIGGER
-#   undef USE_CONTINUOUS_RAPID_TRIGGER
-#endif
-#if !defined USE_CONSTANT_RAPID_TRIGGER && !defined NO_CONSTANT_RAPID_TRIGGER
-#   define USE_CONSTANT_RAPID_TRIGGER
-#elif defined NO_CONSTANT_RAPID_TRIGGER
-#   undef USE_CONSTANT_RAPID_TRIGGER
-#endif
-
-#if !defined USE_TRIGGER_HEIGHT && (defined USE_NONE || defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER)
-#   define USE_TRIGGER_HEIGHT
-#endif
-#if !defined USE_RT_DISTANCE && (defined USE_RAPID_TRIGGER || defined USE_CONTINUOUS_RAPID_TRIGGER || defined USE_CONSTANT_RAPID_TRIGGER)
-#   define USE_RT_DISTANCE
-#endif
-
-#if !defined NO_DYNAMIC_CALIBRATION && !defined DYNAMIC_CALIBRATION
-#   define DYNAMIC_CALIBRATION
-#endif
-
-#if !defined NO_PRIORITY_MODE && !defined USE_PRIORITY_MODE
-#   define USE_PRIORITY_MODE
-#endif
-
-extern uint16_t bottom_deadzone;
-extern uint16_t smoothing;
-#endif // ifdef VIA_ENABLE
 
 typedef void (* init_func_t)(bool init);
 typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
@@ -71,12 +65,6 @@ typedef uint16_t (* adc_filter_t)(uint16_t value, uint8_t index);
 
 #ifndef KEYBOARD_SIDE
 #   define KEYBOARD_SIDE UNKNOWN
-#endif
-
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-#   define SPLIT_MUTABLE
-#else
-#   define SPLIT_MUTABLE const
 #endif
 
 #ifndef RC_INIT_KEY_NUM_R
@@ -125,15 +113,6 @@ typedef enum transaction_type_t {
     clear_calibration_values
 } transaction_type_t;
 
-typedef enum key_mode_t {
-    none = 0,
-    rapid_trigger = 1,
-    continuous_rapid_trigger = 2,
-    constant_rapid_trigger = 3,
-    joystick = 4,
-    midi = 5
-} key_mode_t;
-
 typedef struct Profile {
     layer_state_t layers;
     #ifdef USE_PRIORITY_MODE
@@ -141,15 +120,35 @@ typedef struct Profile {
     #endif
 } Profile;
 
-#ifdef HIGH_HEIGHT_RESOLUTION
-typedef uint16_t height_t;
-#   define HEIGHT_MULT 1000.0
-#   define AM_HEIGHT_MASK 0b1111111111111111
-#else
-typedef uint8_t height_t;
-#   define HEIGHT_MULT 50.0
-#   define AM_HEIGHT_MASK 0b11111111
-#endif
+// If VIA isn't enabled, we only include these fields in the struct
+#ifndef VIA_ENABLE
+typedef struct am_keyboard_t {
+    #ifdef USE_TRIGGER_HEIGHT
+    SPLIT_VIA_MUT height_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    SPLIT_VIA_MUT height_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    #endif
+    #ifdef USE_RT_DISTANCE
+    SPLIT_VIA_MUT height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    SPLIT_VIA_MUT height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    #endif
+    SPLIT_VIA_MUT uint8_t key_mode[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    const uint8_t profile_config; // 4 MSB = default_profile, 4 LSB = switch mode
+    const uint8_t top_deadzone;
+    const uint8_t bottom_deadzone;
+    #ifdef DYNAMIC_CALIBRATION
+    const uint8_t dc_switch_num;
+    #endif
+    #ifdef SPLIT_KEYBOARD
+    const uint8_t right_mult;
+    const uint8_t slave_mult;
+    #endif
+    #ifdef PRIORITY_PROFILES
+    const uint16_t priority_profiles;
+    #endif
+} am_keyboard_t;
+
+extern SPLIT_VIA_MUT am_keyboard_t am_keyboard_data;
+#endif // ifdef VIA_ENABLE
 
 //MARK: Key struct
 typedef struct analog_key_t {
@@ -316,7 +315,6 @@ volatile static const Profile profiles[AM_PROFILE_NUM] = AM_PROFILE_CONFIG;
 extern matrix_row_t matrix[MATRIX_ROWS];
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
-extern PROFILE_MUTABLE uint8_t active_profile;
 extern SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM];
 extern adc_mux adc_pin_mux[ADC_PIN_NUM];
 #if defined MUX_PINS || defined MUX_PINS_R

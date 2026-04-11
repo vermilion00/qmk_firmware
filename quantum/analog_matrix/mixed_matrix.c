@@ -43,9 +43,9 @@ static SPLIT_MUTABLE pin_t col_pins[COL_PIN_NUM] = AM_COL_PINS;
 SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2] = RC_TO_MATRIX;
 #ifdef RC_INIT_KEYS
 //TODO: Adjust this for different _R sizes
-SPLIT_MUTABLE uint8_t rc_init_keys[SMAX(RC_INIT_KEY_NUM)][2] = RC_INIT_KEYS;
-static SPLIT_MUTABLE init_func_t rc_init_functions[SMAX(RC_INIT_KEY_NUM)] = RC_INIT_FUNCTIONS;
-SPLIT_MUTABLE uint8_t rc_init_key_num = RC_INIT_KEY_NUM;
+SPLIT_VIA_MUT uint8_t rc_init_keys[SMAX(RC_INIT_KEY_NUM)][2] = RC_INIT_KEYS;
+static SPLIT_VIA_MUT init_func_t rc_init_functions[SMAX(RC_INIT_KEY_NUM)] = RC_INIT_FUNCTIONS;
+SPLIT_VIA_MUT uint8_t rc_init_key_num = RC_INIT_KEY_NUM;
 #endif
 
 static inline uint8_t readMatrixPin(pin_t pin) {

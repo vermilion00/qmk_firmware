@@ -222,8 +222,6 @@ extern uint8_t power_pin_num;
 extern SPLIT_MUTABLE uint8_t mux_to_num[SMAX(MUX_CHANNELS)][ADC_PIN_NUM];
 extern SPLIT_MUTABLE uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2];
 
-extern SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-
 #if AM_INIT_KEY_NUM > 0
 extern uint8_t init_keys[AM_INIT_KEY_NUM][2];
 extern init_func_t init_functions[AM_INIT_KEY_NUM];
@@ -234,20 +232,9 @@ extern uint8_t priority_index_num;
 extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
-#if defined USE_TRIGGER_HEIGHT
-extern SPLIT_MUTABLE height_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern SPLIT_MUTABLE height_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-#endif // if defined USE_TRIGGER_HEIGHT
-#if defined USE_RT_DISTANCE
-extern SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-extern SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
-#endif // if defined USE_RT_DISTANCE
-
 #ifdef MATRIX_TO_NUM_DEF
 extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
 #endif
-
-extern SPLIT_MUTABLE uint8_t key_modes[AM_PROFILE_NUM][SWITCH_NUM];
 
 //MARK: Split side
 // Assigns the split side and copies arrays
@@ -295,6 +282,7 @@ void assign_side(void) {
     memcpy(&power_pins, &power_pins_r, sizeof(power_pins_r));
     #endif
 
+    //TODO: Test if this works with uneven amounts per half
     #if SMAX(AM_INIT_KEY_NUM) > 0
     const uint8_t init_keys_r[AM_INIT_KEY_NUM_R][2] = AM_INIT_KEYS_R;
     const init_func_t init_functions_r[AM_INIT_KEY_NUM_R] = AM_INIT_FUNCTIONS_R;
@@ -304,27 +292,46 @@ void assign_side(void) {
 
     //TODO: Test this
     #ifdef PRIORITY_INDICES
-    const uint8_t priority_indices_r[SMAX(SWITCH_NUM)] = PRIORITY_INDICES_R;
-    const uint8_t priority_index_num_r = PRIORITY_INDEX_NUM_R;
-    memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices));
-    priority_index_num = priority_index_num_r;
+    const uint8_t priority_indices_r[SWITCH_NUM_R] = PRIORITY_INDICES_R;
+    memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices_r));
+    priority_index_num = PRIORITY_INDEX_NUM_R;
     #endif
 
-    const uint8_t key_modes_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES_R;
-    memcpy(&key_modes, &key_modes_r, sizeof(key_modes_r));
+    const uint8_t key_modes_r[AM_PROFILE_NUM][SWITCH_NUM_R] = KEY_MODES_R;
+    memcpy(&am_keyboard_data.key_mode, &key_modes_r, sizeof(key_modes_r));
 
     #ifdef USE_TRIGGER_HEIGHT
-    const height_t trigger_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT_R;
-    const height_t release_height_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT_R;
-    memcpy(&trigger_height, &trigger_height_r, sizeof(trigger_height_r));
-    memcpy(&release_height, &release_height_r, sizeof(release_height_r));
+    const height_t trigger_height_r[AM_PROFILE_NUM][SWITCH_NUM_R] = TRIGGER_HEIGHT_R;
+    const height_t release_height_r[AM_PROFILE_NUM][SWITCH_NUM_R] = RELEASE_HEIGHT_R;
+    memcpy(&am_keyboard_data.trigger_height, &trigger_height_r, sizeof(trigger_height_r));
+    memcpy(&am_keyboard_data.release_height, &release_height_r, sizeof(release_height_r));
     #endif
     #if defined RT_PRESS_DISTANCE
-    const height_t rt_press_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE_R;
-    const height_t rt_release_distance_r[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE_R;
-    memcpy(&rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
-    memcpy(&rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
+    const height_t rt_press_distance_r[AM_PROFILE_NUM][SWITCH_NUM_R] = RT_PRESS_DISTANCE_R;
+    const height_t rt_release_distance_r[AM_PROFILE_NUM][SWITCH_NUM_R] = RT_RELEASE_DISTANCE_R;
+    memcpy(&am_keyboard_data.rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
+    memcpy(&am_keyboard_data.rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
     #endif
+
+    // If VIA is enabled, then both halves have the data of the entire keyboard, but offset so that its data comes first
+    #ifdef VIA_ENABLE
+    #ifdef USE_TRIGGER_HEIGHT
+    const height_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+    const height_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
+    for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+        memcpy(&am_keyboard_data.trigger_height[profile] + SWITCH_NUM_R, &trigger_height[profile], sizeof(trigger_height[0]));
+        memcpy(&am_keyboard_data.release_height[profile] + SWITCH_NUM_R, &release_height[profile], sizeof(trigger_height[0]));
+    }
+    #endif
+    #ifdef USE_RT_DISTANCE
+    const height_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+    const height_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+    for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+        memcpy((height_t*)(am_keyboard_data.rt_press_distance[profile] + SWITCH_NUM_R), &rt_press_distance[profile], sizeof(rt_press_distance[0]));
+        memcpy((height_t*)(am_keyboard_data.rt_release_distance[profile] + SWITCH_NUM_R), &rt_release_distance[profile], sizeof(rt_release_distance[0]));
+    }
+    #endif
+    #endif // ifdef VIA_ENABLE
 }
 #else
 #   define assign_side()

@@ -27,6 +27,36 @@
 #include "analog_midi.h"
 #endif
 
+#ifdef VIA_ENABLE
+// If VIA is enabled, an external definition is used instead
+extern am_keyboard_t am_keyboard_data;
+#else
+SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
+    #ifdef USE_TRIGGER_HEIGHT
+    .trigger_height = TRIGGER_HEIGHT,
+    .release_height = RELEASE_HEIGHT,
+    #endif
+    #ifdef USE_RT_DISTANCE
+    .rt_press_distance = RT_PRESS_DISTANCE,
+    .rt_release_distance = RT_RELEASE_DISTANCE,
+    #endif
+    .key_mode = KEY_MODES,
+    .profile_config = AM_DEFAULT_PROFILE << 4 | PROFILE_SWITCH_MODE,
+    .top_deadzone = USER_TOP_DEADZONE,
+    .bottom_deadzone = USER_BOTTOM_DEADZONE,
+    #ifdef DYNAMIC_CALIBRATION
+    .dc_switch_num = RECALIBRATED_SWITCHES,
+    #endif
+    #ifdef SPLIT_KEYBOARD
+    .right_mult = RIGHT_MULTIPLIER * 100,
+    .slave_mult = SLAVE_MULTIPLIER * 100,
+    #endif
+    #ifdef PRIORITY_PROFILES
+    .priority_profiles = PRIORITY_PROFILES,
+    #endif
+};
+#endif
+
 #ifdef SPLIT_KEYBOARD
 #include "transactions.h"
 uint16_t top_deadzone = ADC_TOP_DEADZONE;
@@ -72,8 +102,8 @@ __attribute__((unused)) uint8_t recalibrated_switches = 0;
 // Initialize the keys to be checked at initialization
 void _bootloader_jump(bool init);
 void _bootmagic(bool init);
-SPLIT_MUTABLE uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
-SPLIT_MUTABLE init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
+SPLIT_VIA_MUT uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
+SPLIT_VIA_MUT init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
 #endif
 
 #if defined DEBUG_MUX_POSITION
@@ -88,6 +118,7 @@ bool priority_mode = false;
 #   define priority_mode false
 #endif
 
+//TODO: Remove PROFILE_MUTABLE?
 PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
 uint8_t am_highest_layer = 0;
 
@@ -111,17 +142,6 @@ uint8_t switch_num_slave = SWITCH_NUM_R;
 analog_key_t key_config[SMAX(SWITCH_NUM)];
 uint8_t mux_to_num[SMAX(MUX_CHANNELS)][ADC_PIN_NUM] = MUX_TO_NUM;
 uint8_t num_to_matrix[SMAX(SWITCH_NUM)][2] = NUM_TO_MATRIX;
-
-uint8_t key_modes[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = KEY_MODES;
-
-#if defined USE_TRIGGER_HEIGHT
-SPLIT_MUTABLE height_t trigger_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = TRIGGER_HEIGHT;
-SPLIT_MUTABLE height_t release_height[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RELEASE_HEIGHT;
-#endif // if defined USE_TRIGGER_HEIGHT
-#if defined USE_RT_DISTANCE
-SPLIT_MUTABLE height_t rt_press_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_PRESS_DISTANCE;
-SPLIT_MUTABLE height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)] = RT_RELEASE_DISTANCE;
-#endif // if defined USE_RT_DISTANCE
 
 SPLIT_MUTABLE pin_t adc_pins[SMAX(ADC_PIN_NUM)] = ADC_PINS;
 #if defined MUX_PINS
@@ -148,8 +168,8 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 #if defined PRIORITY_INDICES || defined SLAVE_LOW_PRIORITY
 uint8_t scan_amt = 0;
 #ifdef PRIORITY_INDICES
-uint8_t priority_indices[SMAX(SWITCH_NUM)] = PRIORITY_INDICES;
-SPLIT_MUTABLE uint8_t priority_index_num = PRIORITY_INDEX_NUM;
+SPLIT_VIA_MUT uint8_t priority_indices[SMAX(SWITCH_NUM)] = PRIORITY_INDICES;
+SPLIT_VIA_MUT uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 #endif
 #endif
 
@@ -412,48 +432,46 @@ void translate_mm_to_value(uint8_t index, bool init) {
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-        #ifndef INVERT_ADC
         #ifdef USE_TRIGGER_HEIGHT
+        const height_t* trigger_height = am_keyboard_data.trigger_height[profile];
+        const height_t* release_height = am_keyboard_data.release_height[profile];
+        #ifndef INVERT_ADC
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
         //      Would need to find something for RT distances though, which probably would render it redundant
         //TODO: Test this, add INVERT_ADC values
-        key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[profile][index])) - smoothing;
-        key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height[profile][index])) + smoothing;
+        key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[index])) - smoothing;
+        key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height[index])) + smoothing;
 
         #else // ifndef DISTANCE_FROM_BOTTOM
-        key_config[index].trigger_value[profile] = adjust(travel_unit * trigger_height[profile][index] + bottom_value) - smoothing;
-        key_config[index].release_value[profile] = adjust(travel_unit * release_height[profile][index] + bottom_value) + smoothing;
+        key_config[index].trigger_value[profile] = adjust(travel_unit * trigger_height[index] + bottom_value) - smoothing;
+        key_config[index].release_value[profile] = adjust(travel_unit * release_height[index] + bottom_value) + smoothing;
         #endif // ifndef DISTANCE_FROM_BOTTOM else
-        #endif
 
         #else // ifndef INVERT_ADC
         //Inverted ADC -> Lower switch means higher value
-
-        #if defined USE_TRIGGER_HEIGHT
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Is this correct
-        key_config[index].trigger_value[profile] = adjust(top_value + (travel_unit * trigger_height[profile][index])) + smoothing;
-        key_config[index].release_value[profile] = adjust(top_value + (travel_unit * release_height[profile][index])) - smoothing;
+        key_config[index].trigger_value[profile] = adjust(top_value + (travel_unit * trigger_height[index])) + smoothing;
+        key_config[index].release_value[profile] = adjust(top_value + (travel_unit * release_height[index])) - smoothing;
 
         #else // ifndef DISTANCE_FROM_BOTTOM
-        key_config[index].trigger_value[profile] = adjust(bottom_value - (travel_unit * trigger_height[profile][index])) + smoothing;
-        key_config[index].release_value[profile] = adjust(bottom_value - (travel_unit * release_height[profile][index])) - smoothing;
+        key_config[index].trigger_value[profile] = adjust(bottom_value - (travel_unit * trigger_height[index])) + smoothing;
+        key_config[index].release_value[profile] = adjust(bottom_value - (travel_unit * release_height[index])) - smoothing;
         #endif // ifndef DISTANCE_FROM_BOTTOM else
-        #endif // if RAPID_TRIGGER_TYPE != CONSTANT_RAPID_TRIGGER
         #endif // ifndef INVERT_ADC else
+        #endif // ifdef USE_TRIGGER_HEIGHT
 
         #if defined USE_RT_DISTANCE
-        const uint16_t press_value = travel_unit * rt_press_distance[profile][index];
+        const uint16_t press_value = travel_unit * am_keyboard_data.rt_press_distance[profile][index];
         key_config[index].rt_press_value[profile] = (press_value > ADC_SMOOTHING) ? press_value : ADC_SMOOTHING;
-        const uint16_t release_value = travel_unit * rt_release_distance[profile][index];
+        const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index];
         key_config[index].rt_release_value[profile] = (release_value > ADC_SMOOTHING) ? release_value : ADC_SMOOTHING;
+
         // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
+        //TODO: Need to do this anytime the profile changes
         if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
         #endif
-
-        // Assign the switch mode
-        key_config[index].mode[profile] = key_modes[profile][index];
     }
 }
 
@@ -1101,9 +1119,10 @@ void get_key_config(void) {
     #ifdef SPLIT_KEYBOARD
     #ifdef RIGHT_MULTIPLIER
     if(!is_keyboard_left()){
-        top_deadzone *= RIGHT_MULTIPLIER;
-        bottom_deadzone *= RIGHT_MULTIPLIER;
-        smoothing *= RIGHT_MULTIPLIER;
+        top_deadzone *= (float)(am_keyboard_data.right_mult / 100.0);
+        bottom_deadzone *= (float)(am_keyboard_data.right_mult / 100.0);
+        smoothing *= (float)(am_keyboard_data.right_mult / 100.0);
+        //TODO: Update this for VIA_FILTER stuff
         #if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
         adc_filter = adc_slave_filter;
         #endif
@@ -1112,17 +1131,17 @@ void get_key_config(void) {
     #if defined SLAVE_MULTIPLIER
     if(!is_keyboard_master()){
         //TODO: Test how rounding is handled
-        top_deadzone *= SLAVE_MULTIPLIER;
-        bottom_deadzone *= SLAVE_MULTIPLIER;
-        smoothing *= SLAVE_MULTIPLIER;
+        top_deadzone *= (float)(am_keyboard_data.slave_mult / 100.0);
+        bottom_deadzone *= (float)(am_keyboard_data.slave_mult / 100.0);
+        smoothing *= (float)(am_keyboard_data.slave_mult / 100.0);
         #if !defined RIGHT_FILTER_STRENGTH && (FILTER_STRENGTH != SLAVE_FILTER_STRENGTH)
         adc_filter = adc_slave_filter;
         #endif
     }
     #endif
     // After the ADC deadzones have been multiplied, add the user deadzones
-    top_deadzone += USER_TOP_DEADZONE;
-    bottom_deadzone += USER_BOTTOM_DEADZONE;
+    top_deadzone += am_keyboard_data.top_deadzone;
+    bottom_deadzone += am_keyboard_data.bottom_deadzone;
     for (uint8_t key = 0; key < switch_num; key++) top_deadzones[key] = top_deadzone < 255 ? top_deadzone : 255;
     #endif
 
@@ -1170,7 +1189,8 @@ void get_key_config(void) {
             key_config[index].col = num_to_matrix[index][1];
 
             for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++){
-                key_config[index].mode[profile] = key_modes[profile][index];
+                // The MSB contains the priority state
+                key_config[index].mode[profile] = am_keyboard_data.key_mode[profile][index] & 0b01111111;
             }
 
             #if defined JOYSTICK_ENABLE
@@ -1268,21 +1288,25 @@ void wait_cycles(uint16_t delay) {
 
 //MARK: Profiles
 // If true, layer_state_set doesn't update the profile together with the layer.
-PROFILE_MUTABLE bool manual_profile_lock = false;
-
-uint8_t get_active_profile(void) { return active_profile; }
-
-void toggle_profile_lock(void) { manual_profile_lock = !manual_profile_lock; }
-void set_profile_lock(bool value) { manual_profile_lock = value; }
 
 #if AM_PROFILE_NUM > 1
+bool manual_profile_lock = false;
+uint8_t get_active_profile(void) { return active_profile; }
+void toggle_profile_lock(void) { manual_profile_lock = !manual_profile_lock; }
+void set_profile_lock(bool value) { manual_profile_lock = value; }
 // Makes all changes that need to happen on a profile change
 void profile_state_changed(uint8_t profile) {
     //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
     // if(is_keyboard_master()) am_data_manual_transaction(normal_transaction);
 
     #ifdef USE_PRIORITY_MODE
-    priority_mode = profiles[active_profile].priority_profile;
+    // priority_mode = profiles[active_profile].priority_profile;
+    priority_mode = !!(am_keyboard_data.priority_profiles & 1 << profile);
+
+    // If VIA is enabled, the priority indices are assigned per profile
+    #if defined VIA_ENABLE && defined PRIORITY_INDICES
+    for(uint8_t key = 0; key < switch_num; key++) priority_indices[key] = !!(am_keyboard_data.key_mode[profile][key] & 1 << 7);
+    #endif
     #endif
 }
 
@@ -1299,9 +1323,14 @@ void set_active_profile(uint8_t profile) {
     profile_state_changed(profile);
 }
 #endif // ifndef SPLIT_KEYBOARD else
+
 #else // if AM_PROFILE_NUM > 1
-#define set_active_profile(profile)
-#define profile_state_changed(profile)
+#   define set_active_profile(profile)
+#   define profile_state_changed(profile)
+#   define manual_profile_lock false
+#   define get_active_profile 0
+#   define toggle_profile_lock()
+#   define set_profile_lock(value)
 #endif // if AM_PROFILE_NUM > 1
 
 
@@ -1322,15 +1351,16 @@ layer_state_t layer_state_set_am(layer_state_t state) {
     // Update the switch save data during a layer change to cause less disruption during scanning
     #ifdef DYNAMIC_CALIBRATION
     // Not the cleanest way to allow disabling the update check
-    #if !defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM) && RECALIBRATED_SWITCHES > 0
-    if(recalibrated_switches >= RECALIBRATED_SWITCHES) {
+    #if (!defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM) && RECALIBRATED_SWITCHES > 0) || defined VIA_ENABLE
+    if(recalibrated_switches >= am_keyboard_data.dc_switch_num) {
         eeconfig_update_keyboard((uint16_t*)&calibration_data);
         recalibrated_switches = 0;
     }
     #endif
-    #endif
+    #endif // ifdef DYNAMIC_CALIBRATION
 
     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
+    if((am_keyboard_data.profile_config & 0x0F) == MANUAL_PROFILE) return state;
     if (!manual_profile_lock) {
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             // If the highest active layer is in the layers list of that profile, activate it
@@ -1341,10 +1371,10 @@ layer_state_t layer_state_set_am(layer_state_t state) {
             }
         }
         // If profile switch mode is default, switch to the default profile if layer is not set for any profile
-        #if PROFILE_SWITCH_MODE == DEFAULT_PROFILE
-        set_active_profile(AM_DEFAULT_PROFILE);
-        return state;
-        #endif
+        if((am_keyboard_data.profile_config & 0x0F) == DEFAULT_PROFILE) {
+            set_active_profile(am_keyboard_data.profile_config >> 4);
+            return state;
+        }
     }
     #endif // if PROFILE_SWITCH_MODE != MANUAL_PROFILE
 

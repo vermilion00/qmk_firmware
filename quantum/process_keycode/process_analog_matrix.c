@@ -87,19 +87,6 @@ extern uint8_t thisHand;
 const uint8_t thisHand = 0;
 #endif
 
-//MARK: Joystick
-// #ifdef JOYSTICK_ENABLE
-// bool process_analog_joystick(uint16_t keycode) {
-//     switch (keycode) {
-//         case ANALOG_JOYSTICK_KEYCODE_RANGE:
-//             // Subtract the first axis keycode to get the axis index
-//             evaluate_joystick_axis(keycode - AM_JOYSTICK_RANGE);
-//             return false;
-//     }
-//     return false;
-// }
-// #endif
-
 
 void print_calibration_data(void) {
     char side[7] = "";

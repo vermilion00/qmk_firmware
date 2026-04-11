@@ -109,10 +109,10 @@ enum serial_transaction_id {
     GET_JOYSTICK_CHECKSUM,
     GET_JOYSTICK_DATA,
 #   endif // JOYSTICK_ENABLE
-// #   if defined(VIA_ENABLE)
+#   if defined(VIA_ENABLE)
     PUT_VIA_CHECKSUM,
     PUT_VIA_DATA,
-// #   endif
+#   endif
 #endif //ANALOG_MATRIX_ENABLE
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

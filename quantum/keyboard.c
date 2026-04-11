@@ -21,9 +21,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //MARK: Include
 #ifdef ANALOG_MATRIX_ENABLE
 #   include "analog_matrix.h"
-#   include "quantum.h"
+// #   include "quantum.h"
+#   ifdef VIA_ENABLE
+#       include "analog_matrix_via.h"
+#   endif
 #   ifdef JOYSTICK_ENABLE
-#       include "process_analog_matrix.h"
 #       include "analog_joystick.h"
 #   endif
 #else

@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "analog_joystick.h"
 #include "analog_matrix.h"
+#include "analog_joystick.h"
 #include "info_config.h"
 #include "keyboard.h"
 #include "matrix.h"
@@ -10,7 +10,7 @@
 #define clamp_axis(value) (value < 0 ? 0 : (value > 127 ? 127 : value))
 
 #ifndef MATRIX_TO_NUM_DEF
-SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
+__attribute__((weak)) SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
 #   define MATRIX_TO_NUM_DEF
 #endif
 

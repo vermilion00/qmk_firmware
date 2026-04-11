@@ -587,6 +587,8 @@ def generate_profile_config(info_data, config_h_lines):
     press_distances = []
     release_distances = []
     profile_config = []
+    profile_layer_data = []
+    priority_profiles = 0 # Stored as a bitmap
     key_modes = []
     profile_num = 0
     from_bottom = info_data['analog_matrix']['config'].get('distance_from_bottom', False)
@@ -642,18 +644,23 @@ def generate_profile_config(info_data, config_h_lines):
             release_distances.append(rt_release_distance)
 
             # Rest of the profile config
+            #TODO: Can probably remove profile_config
             profile_config.append([])
             if 'layers' in profile_data:
                 profile_layers = 0
                 for num in profile_data['layers']:
                     profile_layers |= (1 << num)
                 profile_config[profile_num].append(profile_layers)
+                profile_layer_data.append(profile_layers)
             else:
                 profile_config[profile_num].append(0)
+                profile_layer_data.append(0)
 
             # Priority profile data
             if use_priority_mode:
                 profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
+                if profile_data.get('priority_profile', False):
+                    priority_profiles |= 1 << profile_num
 
             #MARK: Key modes
             if 'rapid_trigger_type' in profile_data:
@@ -698,6 +705,14 @@ def generate_profile_config(info_data, config_h_lines):
             if RT_NAMES[mode] not in used_modes:
                 used_modes.append(RT_NAMES[mode])
 
+    #TODO: This doesn't work for items defined in rules.mk
+    if features.get('via', False): print("\n\n\nTESTESETANIRSTNI\n\n\n")
+
+    # Apply the priority state to the key mode
+    if use_priority_mode:
+        priority_indices = info_data['analog_matrix']['config'].get('priority_indices', [0 for _ in range(switch_num)]) # This has left and right combined
+        key_modes = [[mode | (priority_indices[idx] << 7) for idx, mode in enumerate(profile)] for profile in key_modes]
+
     # Check default profile
     if 'profile_switch_mode' in am_profiles:
         config_h_lines.append(generate_define('PROFILE_SWITCH_MODE', f'{am_profiles['profile_switch_mode'].upper()}_PROFILE'))
@@ -737,15 +752,21 @@ def generate_profile_config(info_data, config_h_lines):
         # Only define these if they're actually configured in the json
         for index, postfix in enumerate(['', '_R']):
             if [idx for side in split_trigger_heights for profile in side for idx in profile].count(0) != switch_num * profile_num:
-                    config_h_lines.append(generate_define(f'TRIGGER_HEIGHT{postfix}', f'{str(split_trigger_heights[index]).replace('[', '{').replace(']', '}')}'))
-                    config_h_lines.append(generate_define(f'RELEASE_HEIGHT{postfix}', f'{str(split_release_heights[index]).replace('[', '{').replace(']', '}')}'))
+                config_h_lines.append(generate_define(f'TRIGGER_HEIGHT{postfix}', f'{str(split_trigger_heights[index]).replace('[', '{').replace(']', '}')}'))
+                config_h_lines.append(generate_define(f'RELEASE_HEIGHT{postfix}', f'{str(split_release_heights[index]).replace('[', '{').replace(']', '}')}'))
+                #TODO: Check if I can see via status here
+                if index == 0: config_h_lines.append(generate_define('TOTAL_TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
+                if index == 0: config_h_lines.append(generate_define('TOTAL_RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_press_distances for profile in side for idx in profile].count(0) != switch_num * profile_num:
-                    config_h_lines.append(generate_define(f'RT_PRESS_DISTANCE{postfix}', f'{str(split_press_distances[index]).replace('[', '{').replace(']', '}')}'))
-                    config_h_lines.append(generate_define(f'RT_RELEASE_DISTANCE{postfix}', f'{str(split_release_distances[index]).replace('[', '{').replace(']', '}')}'))
+                config_h_lines.append(generate_define(f'RT_PRESS_DISTANCE{postfix}', f'{str(split_press_distances[index]).replace('[', '{').replace(']', '}')}'))
+                config_h_lines.append(generate_define(f'RT_RELEASE_DISTANCE{postfix}', f'{str(split_release_distances[index]).replace('[', '{').replace(']', '}')}'))
+                if index == 0: config_h_lines.append(generate_define('TOTAL_RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
+                if index == 0: config_h_lines.append(generate_define('TOTAL_RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_key_modes for profile in side for idx in profile].count(-1) != switch_num * profile_num:
                 config_h_lines.append(generate_define(f'KEY_MODES{postfix}', f'{str(split_key_modes[index]).replace('[', '{').replace(']', '}')}'))
+                if index == 0: config_h_lines.append(generate_define('TOTAL_KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Not a split keyboard
     else:
@@ -764,6 +785,8 @@ def generate_profile_config(info_data, config_h_lines):
     config_h_lines.append(generate_define('AM_PROFILE_NUM', profile_num))
     config_h_lines.append(generate_define('AM_DEFAULT_PROFILE', default_profile))
     config_h_lines.append(generate_define('AM_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define('PROFILE_LAYERS', f'{str(profile_layer_data).replace('[', '{').replace(']', '}')}'))
+    config_h_lines.append(generate_define('PRIORITY_PROFILES', priority_profiles))
 
     use_height = False
     use_distance = False
@@ -961,7 +984,7 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     # Transform init key matrix positions to mux combinations
     transform_init_keys(info_data, config_h_lines)
 
-    get_priority_features(info_data, config_h_lines)
+    info_data = get_priority_features(info_data, config_h_lines)
 
     if am_config.get('adc_scan_delay', 0) + am_config.get('mux_select_delay', 0) + am_config.get('power_select_delay', 0) > 0:
         config_h_lines.append(generate_define('AM_USE_DELAY'))
@@ -986,28 +1009,29 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         debug_matrix_position(info_data, config_h_lines)
 
     switch_num = am_hardware.get('total_switch_num')
+    #TODO: Remove config height definition stuff, no need for it
     # Only get the heights from the config if no profiles are defined
-    if 'profiles' not in am_json:
-        #Config stuff
-        if 'trigger_height' in am_json['config']:
-            trigger_height = am_json['config']['trigger_height']
-            if len(trigger_height) == 1:
-                height = trigger_height[0]
-                trigger_height = [height for _ in range(switch_num)]
-            config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
+    # if 'profiles' not in am_json:
+    #     #Config stuff
+    #     if 'trigger_height' in am_json['config']:
+    #         trigger_height = am_json['config']['trigger_height']
+    #         if len(trigger_height) == 1:
+    #             height = trigger_height[0]
+    #             trigger_height = [height for _ in range(switch_num)]
+    #         config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
 
-            if 'release_height' in am_json['config']:
-                release_height = am_json['config']['release_height']
-                if len(release_height) == 1:
-                    height = release_height[0]
-                    release_height = [height for _ in range(switch_num)]
-                config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, release_height))} }}}}'))
-            #If no release height is defined, set it to the trigger height
-            else:
-                config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
+    #         if 'release_height' in am_json['config']:
+    #             release_height = am_json['config']['release_height']
+    #             if len(release_height) == 1:
+    #                 height = release_height[0]
+    #                 release_height = [height for _ in range(switch_num)]
+    #             config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, release_height))} }}}}'))
+    #         #If no release height is defined, set it to the trigger height
+    #         else:
+    #             config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
 
-    else: # Profiles are configured
-        generate_profile_config(info_data, config_h_lines)
+    # else: # Profiles are configured
+    generate_profile_config(info_data, config_h_lines)
 
 
     if split_keyboard and split_layer_sync == True:
@@ -1137,7 +1161,7 @@ def get_priority_features(info_data, config_h_lines):
     if 'priority_keys' in info_data['analog_matrix']['config']:
         use_priority_mode = True
         # Transform priority key matrix positions to key indices
-        get_priority_keys(info_data, config_h_lines)
+        info_data = get_priority_keys(info_data, config_h_lines)
 
     if info_data['analog_matrix']['config'].get('slave_low_priority', False):
         use_priority_mode = True
@@ -1148,6 +1172,8 @@ def get_priority_features(info_data, config_h_lines):
     if use_priority_mode:
         config_h_lines.append(generate_define("USE_PRIORITY_MODE"))
 
+    return info_data
+
 
 #MARK: Priority idx
 def get_priority_keys(info_data, config_h_lines):
@@ -1155,7 +1181,7 @@ def get_priority_keys(info_data, config_h_lines):
         return info_data
 
     switch_num = info_data['analog_matrix']['hardware']['switch_num']
-    switch_num_r = info_data['analog_matrix']['hardware'].get('switch_num_r', 0)
+    switch_num_r = info_data['analog_matrix']['hardware'].get('switch_num_right', 0)
     priority_keys = info_data['analog_matrix']['config']['priority_keys']
     matrix_to_num = info_data['analog_matrix']['hardware']['matrix_to_num']
     rows = info_data['matrix_size']['rows']
@@ -1173,6 +1199,7 @@ def get_priority_keys(info_data, config_h_lines):
 
     config_h_lines.append(generate_define("PRIORITY_INDICES", f'{str(priority_idx).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define("PRIORITY_INDEX_NUM", priority_idx.count(1)))
+    info_data['analog_matrix']['config']['priority_indices'] = priority_idx + priority_idx_r
 
     if row_split != rows:
         config_h_lines.append(generate_define("PRIORITY_INDICES_R", f'{str(priority_idx_r).replace('[', '{').replace(']', '}')}'))
@@ -1180,6 +1207,8 @@ def get_priority_keys(info_data, config_h_lines):
         # Assume the slave is the half with no priority keys
         if priority_idx.count(1) == 0 or priority_idx_r.count(1) == 0:
             config_h_lines.append(generate_define("SLAVE_LOW_PRIORITY"))
+
+    return info_data
 
 
 #MARK: Priority keys
