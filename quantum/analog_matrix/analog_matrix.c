@@ -13,18 +13,21 @@
 #include "keymap_introspection.h"
 #include "debug.h"
 #include "print.h"
+#ifdef SPLIT_KEYBOARD
+#   include "transactions.h"
+#endif
 #if ANALOG_DEBOUNCE > 0
-#include "debounce.h"
+#   include "debounce.h"
 #endif
 #ifdef MIXED_MATRIX_ENABLE
-#include "mixed_matrix.h"
-#include "debounce.h"
+#   include "mixed_matrix.h"
+#   include "debounce.h"
 #endif
 #ifdef JOYSTICK_ENABLE
-#include "analog_joystick.h"
+#   include "analog_joystick.h"
 #endif
 #ifdef MIDI_ENABLE
-#include "analog_midi.h"
+#   include "analog_midi.h"
 #endif
 
 #ifdef VIA_ENABLE
@@ -44,6 +47,7 @@ SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
     .profile_config = AM_DEFAULT_PROFILE << 4 | PROFILE_SWITCH_MODE,
     .top_deadzone = USER_TOP_DEADZONE,
     .bottom_deadzone = USER_BOTTOM_DEADZONE,
+    .top_mult = TOP_DEADZONE_MULT * 100,
     #ifdef DYNAMIC_CALIBRATION
     .dc_switch_num = RECALIBRATED_SWITCHES,
     #endif
@@ -57,8 +61,7 @@ SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
 };
 #endif
 
-#ifdef SPLIT_KEYBOARD
-#include "transactions.h"
+#if defined SPLIT_KEYBOARD || defined VIA_ENABLE
 uint16_t top_deadzone = ADC_TOP_DEADZONE;
 uint16_t bottom_deadzone = ADC_BOTTOM_DEADZONE;
 //TODO: Once smoothing calibration is a thing, also do a USER_SMOOTHING thing
@@ -68,17 +71,16 @@ adc_filter_t adc_filter = adc_filter_function;
 #else
 const adc_filter_t adc_filter = adc_filter_function;
 #endif
-#else
+#else // ifdef SPLIT_KEYBOARD || defined VIA_ENABLE
 const uint16_t top_deadzone = ADC_TOP_DEADZONE + USER_TOP_DEADZONE;
 const uint16_t bottom_deadzone = ADC_BOTTOM_DEADZONE + USER_BOTTOM_DEADZONE;
 const uint16_t smoothing = ADC_SMOOTHING;
 const adc_filter_t adc_filter = adc_filter_function;
-#endif
+#endif // if defined SPLIT_KEYBOARD || defined VIA_ENABLE else
 
 #ifndef AM_NO_EEPROM
 uint16_t calibration_data[SMAX(SWITCH_NUM)];
 #endif
-//TODO: Do I need this as a global always on thing?
 uint8_t top_deadzones[SMAX(SWITCH_NUM)] = {[0 ... SMAX(SWITCH_NUM) - 1] = ADC_TOP_DEADZONE};
 
 extern matrix_row_t matrix[MATRIX_ROWS];
@@ -529,7 +531,7 @@ bool get_calibration_data(void) {
         // Check if the top deadzone is valid
         if(deadzone_value[key] < 250 && deadzone_value[key] > 1) {
             // The overall top deadzone needs to be removed as well, as it's already applied at this stage
-            key_config[key].top_value = key_config[key].top_value + top_deadzone - deadzone_value[key] - USER_TOP_DEADZONE;
+            key_config[key].top_value = key_config[key].top_value + top_deadzone - deadzone_value[key] - am_keyboard_data.top_deadzone;
         }
 
         // Check if the switch data makes sense, start calibration or use fallback values if not
@@ -541,7 +543,7 @@ bool get_calibration_data(void) {
 
         #else
         if(deadzone_value[key] < 250 && deadzone_value[key] > 1) {
-            key_config[key].top_value = key_config[key].top_value - top_deadzone + deadzone_value[key] + USER_TOP_DEADZONE;
+            key_config[key].top_value = key_config[key].top_value - top_deadzone + deadzone_value[key] + am_keyboard_data.top_deadzone;
         }
         if(key_config[key].top_value >= bottom_value[key]) valid = false;
         if(bottom_value[key] - key_config[key].top_value < INIT_THRESHOLD) valid = false;
@@ -730,10 +732,10 @@ void calibrate_switches(bool init) {
             // Apply deadzones
             for(uint8_t key = 0; key < switch_num; key++) {
                 #ifndef INVERT_ADC
-                key_config[key].top_value -= (top_deadzones[key] + USER_TOP_DEADZONE);
+                key_config[key].top_value -= (top_deadzones[key] + am_keyboard_data.top_deadzone);
                 key_config[key].bottom_value += bottom_deadzone;
                 #else
-                key_config[key].top_value += (top_deadzones[key] + USER_TOP_DEADZONE);
+                key_config[key].top_value += (top_deadzones[key] + am_keyboard_data.top_deadzone);
                 key_config[key].bottom_value -= bottom_deadzone;
                 #endif
                 key_config[key].scan_value = key_config[key].top_value;
@@ -821,8 +823,8 @@ void calibrate_top_value(void) {
                 }
                 adc_values /= 250;
                 // Set the deadzone to be 30% higher, rounded up
-                const uint16_t cal_top_deadzone = (uint16_t)(floor((adc_values - lowest_value) * TOP_DEADZONE_MULT) + 1);
-                key_config[index].top_value = adc_values - (cal_top_deadzone < 255 ? cal_top_deadzone : 255) - USER_TOP_DEADZONE;
+                const uint16_t cal_top_deadzone = (uint16_t)(floor((adc_values - lowest_value) * (am_keyboard_data.top_mult/100.0)) + 1);
+                key_config[index].top_value = adc_values - (cal_top_deadzone < 255 ? cal_top_deadzone : 255) - am_keyboard_data.top_deadzone;
 
                 #else
                 uint16_t lowest_value = 0;
@@ -834,8 +836,8 @@ void calibrate_top_value(void) {
                     if(adc_value > lowest_value) lowest_value = adc_value;
                 }
                 adc_values /= 250;
-                const uint8_t cal_top_deadzone = (uint16_t)(floor((lowest_value - adc_values) * TOP_DEADZONE_MULT) + 1);
-                key_config[index].top_value = adc_values + (cal_top_deadzone < 255 ? cal_top_deadzone : 255) + USER_TOP_DEADZONE;
+                const uint8_t cal_top_deadzone = (uint16_t)(floor((lowest_value - adc_values) * (am_keyboard_data.top_mult/100.0)) + 1);
+                key_config[index].top_value = adc_values + (cal_top_deadzone < 255 ? cal_top_deadzone : 255) + am_keyboard_data.top_deadzone;
                 #endif
                 key_config[index].scan_value = adc_values;
                 top_deadzones[index] = (cal_top_deadzone < 255 ? cal_top_deadzone : 255);
@@ -1068,16 +1070,16 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
     #ifndef INVERT_ADC
     // Allow disabling of the top bound check, as it's already updated every start anyway
     #ifndef NO_TOP_UPDATE
-    if(value >= (key_config[index].top_value + AM_DC_DELTA + top_deadzones[index])){
+    if(value >= (key_config[index].top_value + am_keyboard_data.dc_delta + top_deadzones[index])){
         key_config[index].top_value = value - top_deadzones[index];
         OUTPUT_VAL(value, "top", index);
         return true;
     } else
     #endif
-    if (value <= (key_config[index].bottom_value - AM_DC_DELTA - bottom_deadzone)) {
+    if (value <= (key_config[index].bottom_value - am_keyboard_data.dc_delta - bottom_deadzone)) {
         key_config[index].bottom_value = value + bottom_deadzone;
         #ifndef AM_NO_EEPROM
-        if(calibration_data[index] - AM_DC_DELTA > value || calibration_data[index] + AM_DC_DELTA < value) {
+        if(calibration_data[index] - am_keyboard_data.dc_delta > value || calibration_data[index] + am_keyboard_data.dc_delta < value) {
             calibration_data[index] = value;
             OUTPUT_SAVED;
         }
@@ -1088,16 +1090,16 @@ bool update_switch_bounds(uint8_t index, uint16_t value) {
 
     #else // ifndef INVERT_ADC
     #ifndef NO_TOP_UPDATE
-    if(value < key_config[index].top_value - AM_DC_DELTA - top_deadzones[index]){
+    if(value < key_config[index].top_value - am_keyboard_data.dc_delta - top_deadzones[index]){
         key_config[index].top_value = value + top_deadzones[index];
         OUTPUT_VAL(value, "top", index);
         return true;
     } else
     #endif
-    if (value > key_config[index].bottom_value + AM_DC_DELTA + bottom_deadzone) {
+    if (value > key_config[index].bottom_value + am_keyboard_data.dc_delta + bottom_deadzone) {
         key_config[index].bottom_value = value - bottom_deadzone;
         #ifndef AM_NO_EEPROM
-        if(calibration_data[index] + AM_DC_DELTA < value || calibration_data[index] - AM_DC_DELTA > value) {
+        if(calibration_data[index] + am_keyboard_data.dc_delta < value || calibration_data[index] - am_keyboard_data.dc_delta > value) {
             calibration_data[index] = value;
             OUTPUT_SAVED;
         }
@@ -1119,9 +1121,9 @@ void get_key_config(void) {
     #ifdef SPLIT_KEYBOARD
     #ifdef RIGHT_MULTIPLIER
     if(!is_keyboard_left()){
-        top_deadzone *= (float)(am_keyboard_data.right_mult / 100.0);
-        bottom_deadzone *= (float)(am_keyboard_data.right_mult / 100.0);
-        smoothing *= (float)(am_keyboard_data.right_mult / 100.0);
+        top_deadzone *= am_keyboard_data.right_mult / 100.0;
+        bottom_deadzone *= am_keyboard_data.right_mult / 100.0;
+        smoothing *= am_keyboard_data.right_mult / 100.0;
         //TODO: Update this for VIA_FILTER stuff
         #if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
         adc_filter = adc_slave_filter;
@@ -1131,9 +1133,9 @@ void get_key_config(void) {
     #if defined SLAVE_MULTIPLIER
     if(!is_keyboard_master()){
         //TODO: Test how rounding is handled
-        top_deadzone *= (float)(am_keyboard_data.slave_mult / 100.0);
-        bottom_deadzone *= (float)(am_keyboard_data.slave_mult / 100.0);
-        smoothing *= (float)(am_keyboard_data.slave_mult / 100.0);
+        top_deadzone *= am_keyboard_data.slave_mult / 100.0;
+        bottom_deadzone *= am_keyboard_data.slave_mult / 100.0;
+        smoothing *= am_keyboard_data.slave_mult / 100.0;
         #if !defined RIGHT_FILTER_STRENGTH && (FILTER_STRENGTH != SLAVE_FILTER_STRENGTH)
         adc_filter = adc_slave_filter;
         #endif
@@ -1364,7 +1366,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
     if (!manual_profile_lock) {
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             // If the highest active layer is in the layers list of that profile, activate it
-            if(profiles[profile].layers & (1 << am_highest_layer)) {
+            if(am_keyboard_data.profile_layers[profile] & (1 << am_highest_layer)) {
                 set_active_profile(profile);
                 // Only the lowest profile should apply
                 return state;

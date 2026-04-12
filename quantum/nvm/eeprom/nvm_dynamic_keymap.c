@@ -408,12 +408,12 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 //TODO: Instead of having separate set/get functions for every option, just use getters and setters for am_keyboard_data
 
 //TODO: Make sure that these index correctly
-void nvm_get_analog_matrix_config(void) {
-    eeprom_read_block(&am_keyboard_data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
+void nvm_get_analog_matrix_config(am_keyboard_t* data) {
+    eeprom_read_block(&data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
-void nvm_set_analog_matrix_config(void) {
-    eeprom_update_block(&am_keyboard_data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
+void nvm_set_analog_matrix_config(am_keyboard_t* data) {
+    eeprom_update_block(&data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
 void nvm_set_profile_config(uint8_t config) {

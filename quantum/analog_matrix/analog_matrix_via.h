@@ -111,11 +111,10 @@ typedef struct am_keyboard_t {
     uint8_t right_mult; // Multiplied by 10
     uint8_t slave_mult; // Multiplied by 10
     #endif // ifdef SPLIT_KEYBOARD
+    uint16_t keyboard_size;
 } am_keyboard_t;
 
 extern am_keyboard_t am_keyboard_data;
-
-// uint32_t size_test = sizeof(am_keyboard_t);
 
 typedef enum height_addr_t {
     trigger_height_addr = 0,
@@ -126,18 +125,19 @@ typedef enum height_addr_t {
 
 typedef enum am_via_id {
     // Default data ends at 0x13, 0xFE and 0xFF are also taken
-    get_keyboard_size = 0x20, // Get the length of the keyboard data
-    get_keyboard_options,
-    get_keyboard_data,
-    get_mixed_matrix,
-    get_switch_profile,
-    set_switch_profile,
-    set_profile_layers,
-    set_priority_profiles,
-    set_dynamic_calibration,
-    set_deadzone, // Set one of top_deadzone, bottom_deadzone or smoothing value, according to the index passed
-    clear_calibration_data,
-    reset_keyboard_data, // Resets all data to json defaults
+    get_keyboard_def_id = 0x20, // Get the the size of the keyboard data and enabled features
+    get_keyboard_data_id, // Get the entirety of am_keyboard_data
+    get_mixed_matrix_id, // Get the matrix positions of all mixed matrix keys
+    get_switch_profile_id, // Probably unused
+    set_switch_height_id, // Set any height for the index
+    set_switch_mode_id,
+    set_switch_priority_id,
+    set_profile_layers_id,
+    set_priority_profiles_id,
+    set_dynamic_calibration_id,
+    set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
+    clear_calibration_data_id, // Resets the calibration data
+    reset_keyboard_data_id, // Resets all data to json defaults
 } am_via_id;
 
 //TODO: Remove this and just use the am_via_id instead
@@ -152,7 +152,8 @@ typedef enum am_via_split_id {
     split_profile_layers,
     split_priority_profiles,
     split_deadzone,
-    split_keyboard_data
+    split_keyboard_data,
+    split_reset_keyboard
 } am_via_split_id;
 
 typedef struct _am_via_data_t {
@@ -174,6 +175,10 @@ bool get_switch_priority_mode(uint8_t key, uint8_t profile);
 void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, height_t value);
 void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode);
 void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
+void set_priority_profiles(uint16_t value);
+void set_profile_layer_state(uint8_t profile, layer_state_t value);
+void set_deadzones(uint8_t index, uint16_t value);
+void apply_default_config(am_keyboard_t* keyboard_data);
 
 void analog_matrix_via_init(void);
 // VIA(L) app HID command handling

@@ -135,6 +135,7 @@ typedef struct am_keyboard_t {
     const uint8_t profile_config; // 4 MSB = default_profile, 4 LSB = switch mode
     const uint8_t top_deadzone;
     const uint8_t bottom_deadzone;
+    const uint8_t top_mult;
     #ifdef DYNAMIC_CALIBRATION
     const uint8_t dc_switch_num;
     #endif

@@ -52,10 +52,11 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 #endif
 
 #ifdef ANALOG_MATRIX_ENABLE
-void nvm_get_analog_matrix_config(void);
+#include "analog_matrix_via.h"
+void nvm_get_analog_matrix_config(am_keyboard_t* data);
 void nvm_get_analog_switch_config(uint8_t index);
 void nvm_get_analog_switch_profile(uint8_t index, uint8_t profile);
-void nvm_set_analog_matrix_config(void);
+void nvm_set_analog_matrix_config(am_keyboard_t* data);
 void nvm_set_analog_switch_config(uint8_t index);
 void nvm_set_analog_switch_profile(uint8_t index, uint8_t profile);
 #endif

@@ -313,25 +313,26 @@ void assign_side(void) {
     memcpy(&am_keyboard_data.rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
     #endif
 
+    //TODO: I probably won't be using this method
     // If VIA is enabled, then both halves have the data of the entire keyboard, but offset so that its data comes first
-    #ifdef VIA_ENABLE
-    #ifdef USE_TRIGGER_HEIGHT
-    const height_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-    const height_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
-    for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-        memcpy(&am_keyboard_data.trigger_height[profile] + SWITCH_NUM_R, &trigger_height[profile], sizeof(trigger_height[0]));
-        memcpy(&am_keyboard_data.release_height[profile] + SWITCH_NUM_R, &release_height[profile], sizeof(trigger_height[0]));
-    }
-    #endif
-    #ifdef USE_RT_DISTANCE
-    const height_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-    const height_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
-    for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-        memcpy((height_t*)(am_keyboard_data.rt_press_distance[profile] + SWITCH_NUM_R), &rt_press_distance[profile], sizeof(rt_press_distance[0]));
-        memcpy((height_t*)(am_keyboard_data.rt_release_distance[profile] + SWITCH_NUM_R), &rt_release_distance[profile], sizeof(rt_release_distance[0]));
-    }
-    #endif
-    #endif // ifdef VIA_ENABLE
+    // #ifdef VIA_ENABLE
+    // #ifdef USE_TRIGGER_HEIGHT
+    // const height_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
+    // const height_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
+    // for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+    //     memcpy(&am_keyboard_data.trigger_height[profile] + SWITCH_NUM_R, &trigger_height[profile], sizeof(trigger_height[0]));
+    //     memcpy(&am_keyboard_data.release_height[profile] + SWITCH_NUM_R, &release_height[profile], sizeof(trigger_height[0]));
+    // }
+    // #endif
+    // #ifdef USE_RT_DISTANCE
+    // const height_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
+    // const height_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
+    // for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+    //     memcpy((height_t*)(am_keyboard_data.rt_press_distance[profile] + SWITCH_NUM_R), &rt_press_distance[profile], sizeof(rt_press_distance[0]));
+    //     memcpy((height_t*)(am_keyboard_data.rt_release_distance[profile] + SWITCH_NUM_R), &rt_release_distance[profile], sizeof(rt_release_distance[0]));
+    // }
+    // #endif
+    // #endif // ifdef VIA_ENABLE
 }
 #else
 #   define assign_side()

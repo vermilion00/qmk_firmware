@@ -309,6 +309,8 @@ The current absolute max is below 32000 bytes for am_keyboard_t
 
 Make sure that the row/col values sent by the GUI are split compatible
 
+Add a define for the TOTAL amount of RC keys, to send over to
+
 Add additional stuff to VIA config
 -Dynamic calibration toggling, switch amount, delta and factor
 -Right and slave multipliers (multiply by 10)
@@ -344,6 +346,19 @@ Could add a field for the joystick roundness setting, but even with it disabled 
 
 Make sure I understand pointer offset casts correctly
 (void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile))
+
+=====
+
+How do I best apply the split offsets for the opposite hand?
+-matrix_to_num will always yield the local offset
+
+OR I have the same data on both halves in the same order, and just start indexing local data from an offset
+-Say left is master with 31 keys, right has 30 keys
+-Left will scan from 0 to 30, right will scan from 31 to 60
+-Could apply the offsets at init, do smth like switch_num_low to switch_num_high
+-->This is probably the better way, the other has way too many ways to trip up with the wrong index
+
+=====
 
 
 

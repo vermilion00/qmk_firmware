@@ -111,6 +111,7 @@ def _transform_layout(info_data):
         mux_to_num = [[255 for _ in range(adc_pins)] for _ in range(mux_channels)]
         num_to_matrix = [-1 for _ in range(len(layout_data['layout']))]
         rc_to_matrix = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
+        rc_num_to_matrix = []
         key_index = 0
         total_key_num = 0
         used_positions = []
@@ -144,6 +145,7 @@ def _transform_layout(info_data):
                 if [row, col] not in used_rc_positions:
                     used_rc_positions.append([row, col])
                     rc_to_matrix[row][col] = key_data['matrix']
+                    rc_num_to_matrix.append(key_data['matrix'])
                 else:
                     cli.log.error(f"R/C combination {[row, col]} appears multiple times in the layout!")
                 matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
@@ -186,7 +188,8 @@ def _transform_layout(info_data):
     info_data['matrix_size']['analog_cols'] = max([i[1] for i in num_to_matrix]) + 1
     if used_rc_positions != []:
         info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix
-        info_data['analog_matrix']['hardware']['rc_switch_num'] = len([key for row in rc_to_matrix for key in row])
+        info_data['analog_matrix']['hardware']['rc_switch_num'] = len(rc_num_to_matrix)
+        info_data['analog_matrix']['hardware']['rc_num_to_matrix'] = rc_num_to_matrix
 
     return info_data
 
@@ -220,6 +223,7 @@ def _transform_layout_split(info_data):
         num_to_matrix_r = [-1 for _ in range(len(layout_data['layout']))]
         rc_to_matrix_l = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
         rc_to_matrix_r = [[[255, 255] for _ in range(col_pins)] for _ in range(row_pins)]
+        rc_num_to_matrix = []
         key_index_l = 0
         key_index_r = 0
         total_key_num = 0
@@ -269,6 +273,7 @@ def _transform_layout_split(info_data):
                     if [row, col] not in used_rc_positions_l:
                         used_rc_positions_l.append([row, col])
                         rc_to_matrix_l[row][col] = key_data['matrix']
+                        rc_num_to_matrix.append(key_data['matrix'])
                     else:
                         cli.log.error(f"RC combination {[row, col]} appears multiple times in the layout!")
                     matrix_size[1] = key_data['matrix'][1] if key_data['matrix'][1] > matrix_size[1] else matrix_size[1]
@@ -285,6 +290,7 @@ def _transform_layout_split(info_data):
                     if [row, col] not in used_rc_positions_r:
                         used_rc_positions_r.append([row, col])
                         rc_to_matrix_r[row][col] = key_data['matrix']
+                        rc_num_to_matrix.append(key_data['matrix'])
                     else:
                         cli.log.error(f"RC combination {[row, col]} appears multiple times in the layout!")
                     matrix_size[0] = key_data['matrix'][0] if key_data['matrix'][0] > matrix_size[0] else matrix_size[0]
@@ -336,8 +342,8 @@ def _transform_layout_split(info_data):
     if used_rc_positions_l != [] or used_rc_positions_r != []:
         info_data['analog_matrix']['hardware']['rc_to_matrix'] = rc_to_matrix_l
         info_data['analog_matrix']['hardware']['rc_to_matrix_right'] = rc_to_matrix_r
-        info_data['analog_matrix']['hardware']['rc_switch_num'] = len([key for row in rc_to_matrix_l for key in row])
-        info_data['analog_matrix']['hardware']['rc_switch_num_r'] = len([key for row in rc_to_matrix_r for key in row])
+        info_data['analog_matrix']['hardware']['rc_switch_num'] = len(rc_num_to_matrix)
+        info_data['analog_matrix']['hardware']['rc_num_to_matrix'] = rc_num_to_matrix
 
     return info_data
 
@@ -964,6 +970,8 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'rc_to_matrix' in am_hardware:
         rc_to_matrix = am_hardware['rc_to_matrix']
         config_h_lines.append(generate_define('RC_TO_MATRIX', str(rc_to_matrix).replace('[', '{').replace(']', '}')))
+        config_h_lines.append(generate_define('RC_SWITCH_NUM', am_hardware['rc_switch_num']))
+        config_h_lines.append(generate_define('RC_NUM_TO_MATRIX'), am_hardware['rc_num_to_matrix'])
         if split_keyboard:
             rc_to_matrix_r = am_hardware.get('rc_to_matrix_right', rc_to_matrix)
             config_h_lines.append(generate_define('RC_TO_MATRIX_R', str(rc_to_matrix_r).replace('[', '{').replace(']', '}')))

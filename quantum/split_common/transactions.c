@@ -1284,61 +1284,52 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
     const am_via_split_id id = config.id & 00001111;
     const uint16_t value = config.value;
     const uint8_t index = config.index;
+    //TODO: Current impl only supports 16 transaction IDs, since its bitmapped to 4 bits
     switch(id) {
-        #ifdef USE_TRIGGER_HEIGHT
         case split_trigger_height:
-            am_keyboard_data.trigger_height[profile][index] = value;
-            translate_mm_to_value(index, false);
-            break;
         case split_release_height:
-            am_keyboard_data.release_height[profile][index] = value;
-            translate_mm_to_value(index, false);
-            break;
-        #endif
-        #ifdef USE_RT_DISTANCE
         case split_rt_press:
-            am_keyboard_data.rt_release_distance[profile][index] = value;
-            translate_mm_to_value(index, false);
-            break;
         case split_rt_release:
-            am_keyboard_data.rt_release_distance[profile][index] = value;
-            translate_mm_to_value(index, false);
+            set_switch_height(index, profile, (uint8_t)id, value);
             break;
-        #endif
 
         case split_key_mode:
-            //TODO: Since the MSB is the prio state, make sure I'm on the same page on it everywhere
-            am_keyboard_data.key_mode[profile][index] = value;
-            // If a key on the current profile has changed to a special key, update the layer settings
-            //TODO: I also need to do this if a keycode has changed
-            if(profile == active_profile) change_layer_settings(am_highest_layer);
+            set_switch_mode(index, profile, value);
             break;
 
         case split_profile_layers:
-            am_keyboard_data.profile_layers[profile] = value;
+            set_profile_layer_state(profile, value);
             break;
 
         case split_priority_profiles:
-            am_keyboard_data.priority_profiles = value;
+            set_priority_profiles(value);
             break;
 
         case split_deadzone:
-            switch(index) {
-                case 0:
-                    am_keyboard_data.top_deadzone = value;
-                    break;
-                case 1:
-                    am_keyboard_data.bottom_deadzone = value;
-                    break;
-                case 2:
-                    am_keyboard_data.smoothing = value;
-            }
+            set_deadzones(index, value);
+            break;
+
+        case split_reset_keyboard:
+            apply_default_config(&am_keyboard_data);
+            // Re-initialize all keys
+            get_key_config();
+            get_calibration_data();
+            for(uint8_t index = 0; index < switch_num; index++) translate_mm_to_value(index, true);
+            profile_state_changed(active_profile);
+            #if defined SPLIT_LAYER_SYNC
+            change_layer_settings(am_highest_layer);
+            #endif
+            break;
+
         default:
             break;
     }
+    //TODO: Find a good way to save the new data to eeprom
+    //      Don't wanna update every transaction on flash emulation
+    //      HID connection loss callback, or layer switch perhaps?
 }
 
-bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
+bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value) {
     return manual_via_transaction_handler(am_via_handlers_master, index, profile, id, value);
 }
 
