@@ -31,6 +31,7 @@
 #endif
 
 #ifdef VIA_ENABLE
+#   include "nvm_dynamic_keymap.h"
 // If VIA is enabled, an external definition is used instead
 extern am_keyboard_t am_keyboard_data;
 #else
@@ -47,9 +48,12 @@ SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
     .profile_config = AM_DEFAULT_PROFILE << 4 | PROFILE_SWITCH_MODE,
     .top_deadzone = USER_TOP_DEADZONE,
     .bottom_deadzone = USER_BOTTOM_DEADZONE,
+    .smoothing = ADC_SMOOTHING,
     .top_mult = TOP_DEADZONE_MULT * 100,
     #ifdef DYNAMIC_CALIBRATION
     .dc_switch_num = RECALIBRATED_SWITCHES,
+    .dc_factor = AM_DC_FACTOR * 100,
+    .dc_delta = AM_DC_DELTA,
     #endif
     #ifdef SPLIT_KEYBOARD
     .right_mult = RIGHT_MULTIPLIER * 100,
@@ -58,6 +62,8 @@ SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
     #ifdef PRIORITY_PROFILES
     .priority_profiles = PRIORITY_PROFILES,
     #endif
+    .profile_layers = PROFILE_LAYERS,
+    .profile_num = 0b10000000 | AM_PROFILE_NUM,
 };
 #endif
 
@@ -104,8 +110,8 @@ __attribute__((unused)) uint8_t recalibrated_switches = 0;
 // Initialize the keys to be checked at initialization
 void _bootloader_jump(bool init);
 void _bootmagic(bool init);
-SPLIT_VIA_MUT uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
-SPLIT_VIA_MUT init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
+SPLIT_MUTABLE uint8_t init_keys[SMAX(AM_INIT_KEY_NUM)][2] = AM_INIT_KEYS;
+SPLIT_MUTABLE init_func_t init_functions[SMAX(AM_INIT_KEY_NUM)] = AM_INIT_FUNCTIONS;
 #endif
 
 #if defined DEBUG_MUX_POSITION
@@ -468,9 +474,9 @@ void translate_mm_to_value(uint8_t index, bool init) {
 
         #if defined USE_RT_DISTANCE
         const uint16_t press_value = travel_unit * am_keyboard_data.rt_press_distance[profile][index + switch_low];
-        key_config[index].rt_press_value[profile] = (press_value > ADC_SMOOTHING) ? press_value : ADC_SMOOTHING;
+        key_config[index].rt_press_value[profile] = (press_value > smoothing) ? press_value : smoothing;
         const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index + switch_low];
-        key_config[index].rt_release_value[profile] = (release_value > ADC_SMOOTHING) ? release_value : ADC_SMOOTHING;
+        key_config[index].rt_release_value[profile] = (release_value > smoothing) ? release_value : smoothing;
 
         // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
         //TODO: Need to do this anytime the profile changes
@@ -1123,9 +1129,9 @@ void get_key_config(void) {
     #ifdef SPLIT_KEYBOARD
     #ifdef RIGHT_MULTIPLIER
     if(!is_keyboard_left()){
-        top_deadzone *= am_keyboard_data.right_mult / 100.0;
-        bottom_deadzone *= am_keyboard_data.right_mult / 100.0;
-        smoothing *= am_keyboard_data.right_mult / 100.0;
+        top_deadzone *= (am_keyboard_data.right_mult / 100.0);
+        bottom_deadzone *= (am_keyboard_data.right_mult / 100.0);
+        smoothing *= (am_keyboard_data.right_mult / 100.0);
         //TODO: Update this for VIA_FILTER stuff
         #if FILTER_STRENGTH != SLAVE_FILTER_STRENGTH
         adc_filter = adc_slave_filter;
@@ -1135,9 +1141,9 @@ void get_key_config(void) {
     #if defined SLAVE_MULTIPLIER
     if(!is_keyboard_master()){
         //TODO: Test how rounding is handled
-        top_deadzone *= am_keyboard_data.slave_mult / 100.0;
-        bottom_deadzone *= am_keyboard_data.slave_mult / 100.0;
-        smoothing *= am_keyboard_data.slave_mult / 100.0;
+        top_deadzone *= (am_keyboard_data.slave_mult / 100.0);
+        bottom_deadzone *= (am_keyboard_data.slave_mult / 100.0);
+        smoothing *= (am_keyboard_data.slave_mult / 100.0);
         #if !defined RIGHT_FILTER_STRENGTH && (FILTER_STRENGTH != SLAVE_FILTER_STRENGTH)
         adc_filter = adc_slave_filter;
         #endif
@@ -1294,10 +1300,19 @@ void wait_cycles(uint16_t delay) {
 // If true, layer_state_set doesn't update the profile together with the layer.
 
 #if AM_PROFILE_NUM > 1
-bool manual_profile_lock = false;
 uint8_t get_active_profile(void) { return active_profile; }
-void toggle_profile_lock(void) { manual_profile_lock = !manual_profile_lock; }
-void set_profile_lock(bool value) { manual_profile_lock = value; }
+
+// Returns true if profile_lock is active
+bool get_profile_lock_state(void) {
+    return !!(am_keyboard_data.profile_num & 0b10000000);
+}
+
+// Saves the current state of profile_lock
+void set_profile_lock_state(bool state) {
+    if(state) am_keyboard_data.profile_num |= 0b10000000;
+    else am_keyboard_data.profile_num &= 0b01111111;
+}
+
 // Makes all changes that need to happen on a profile change
 void profile_state_changed(uint8_t profile) {
     //TODO: If am_data_manual_transaction is split up into many separate ones for each piece of data, send the profile change here
@@ -1331,7 +1346,6 @@ void set_active_profile(uint8_t profile) {
 #else // if AM_PROFILE_NUM > 1
 #   define set_active_profile(profile)
 #   define profile_state_changed(profile)
-#   define manual_profile_lock false
 #   define get_active_profile 0
 #   define toggle_profile_lock()
 #   define set_profile_lock(value)
@@ -1352,20 +1366,9 @@ layer_state_t layer_state_set_am(layer_state_t state) {
 
     change_layer_settings(am_highest_layer);
 
-    // Update the switch save data during a layer change to cause less disruption during scanning
-    #ifdef DYNAMIC_CALIBRATION
-    // Not the cleanest way to allow disabling the update check
-    #if (!defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM) && RECALIBRATED_SWITCHES > 0) || defined VIA_ENABLE
-    if(recalibrated_switches >= am_keyboard_data.dc_switch_num) {
-        eeconfig_update_keyboard((uint16_t*)&calibration_data);
-        recalibrated_switches = 0;
-    }
-    #endif
-    #endif // ifdef DYNAMIC_CALIBRATION
-
     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
     if((am_keyboard_data.profile_config & 0x0F) == MANUAL_PROFILE) return state;
-    if (!manual_profile_lock) {
+    if (!get_profile_lock_state()) {
         for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
             // If the highest active layer is in the layers list of that profile, activate it
             if(am_keyboard_data.profile_layers[profile] & (1 << am_highest_layer)) {
@@ -1386,6 +1389,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
     // If the slave hasn't been synced at this point, do so manually
     am_data_manual_transaction(normal_transaction);
     #endif
+
     return state;
 }
 

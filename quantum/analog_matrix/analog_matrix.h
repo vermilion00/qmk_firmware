@@ -133,19 +133,26 @@ typedef struct am_keyboard_t {
     SPLIT_VIA_MUT height_t rt_release_distance[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
     #endif
     SPLIT_VIA_MUT uint8_t key_mode[AM_PROFILE_NUM][SMAX(SWITCH_NUM)];
+    uint8_t profile_num; // Only needed for the profile_lock state
     const uint8_t profile_config; // 4 MSB = default_profile, 4 LSB = switch mode
-    const uint8_t top_deadzone;
-    const uint8_t bottom_deadzone;
-    const uint8_t top_mult;
+    layer_state_t profile_layers[AM_PROFILE_NUM];
+
+    #ifdef PRIORITY_PROFILES
+    const uint16_t priority_profiles;
+    #endif
+
     #ifdef DYNAMIC_CALIBRATION
     const uint8_t dc_switch_num;
+    const uint8_t dc_factor;
+    const uint8_t dc_delta;
     #endif
+    const uint8_t top_deadzone;
+    const uint8_t bottom_deadzone;
+    const uint8_t smoothing;
+    const uint8_t top_mult;
     #ifdef SPLIT_KEYBOARD
     const uint8_t right_mult;
     const uint8_t slave_mult;
-    #endif
-    #ifdef PRIORITY_PROFILES
-    const uint16_t priority_profiles;
     #endif
 } am_keyboard_t;
 
@@ -283,7 +290,6 @@ typedef at32_gpio_t gpio_port_t;
 #else
 #define PROFILE_MUTABLE const
 #endif // if AM_PROFILE_NUM > 1
-extern PROFILE_MUTABLE bool manual_profile_lock;
 
 //MARK: Filters
 #ifndef FILTER_STRENGTH
@@ -388,10 +394,10 @@ void profile_state_changed(uint8_t profile);
 void set_active_profile(uint8_t profile);
 // Returns the active profile
 uint8_t get_active_profile(void);
-// Toggles the state of the automatic profile switching
-void toggle_profile_lock(void);
+
+bool get_profile_lock_state(void);
 // Sets the profile lock state to the passed value
-void set_profile_lock(bool value);
+void set_profile_lock_state(bool value);
 // Run actions when the layer state changes
 layer_state_t layer_state_set_am(layer_state_t state);
 // Empty loop for short delays

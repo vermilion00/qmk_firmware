@@ -1298,17 +1298,15 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             set_switch_mode(index, profile, value);
             break;
 
-        #ifdef USE_PRIORITY_MODE
-        case split_key_priority:
-            set_switch_priority_mode(index, profile, value);
-            break;
-        #endif
-
         case split_profile_layers:
             set_profile_layer_state(profile, value);
             break;
 
         #ifdef USE_PRIORITY_MODE
+        case split_key_priority:
+            set_switch_priority_mode(index, profile, value);
+            break;
+
         case split_priority_profiles:
             set_priority_profiles(value);
             break;
@@ -1322,6 +1320,10 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
 
         case split_deadzone:
             set_deadzones(index, value);
+            break;
+
+        case split_profile_lock_save:
+            set_profile_lock_save_state(value);
             break;
 
         case split_reset_keyboard:
@@ -1343,6 +1345,7 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
     //TODO: Find a good way to save the new data to eeprom
     //      Don't wanna update every transaction on flash emulation
     //      HID connection loss callback, or layer switch perhaps?
+    config_update_required = true;
 }
 
 bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value) {

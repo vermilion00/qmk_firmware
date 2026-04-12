@@ -1,6 +1,6 @@
 #pragma once
-#include "info_config.h"
 
+#include "info_config.h"
 #include <stdint.h>
 
 #define SPLIT_VIA_MUT
@@ -43,9 +43,22 @@
 #   define USE_PRIORITY_MODE
 #endif
 
+#ifndef SPLIT_LAYER_SYNC
+#   define SPLIT_LAYER_SYNC
+#endif
+
 #if PROFILE_SWITCH_MODE == 2
 #undef PROFILE_SWITCH_MODE
 #define PROFILE_SWITCH_MODE 0
+#endif
+
+#ifdef JOYSTICK_ENABLE
+#   undef JOYSTICK_AXIS_COUNT
+#   define JOYSTICK_AXIS_COUNT 6
+#   if JOYSTICK_BUTTON_COUNT < 16
+#       undef JOYSTICK_BUTTON_COUNT
+#       define JOSYTICK_BUTTON_COUNT 16
+#   endif
 #endif
 
 extern uint16_t bottom_deadzone;

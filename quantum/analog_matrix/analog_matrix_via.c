@@ -13,10 +13,8 @@ extern SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2];
 #   include "analog_joystick.h"
 #endif
 
-//TODO: RM
-// #ifdef SPLIT_KEYBOARD
-// uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS][2] = MATRIX_TO_NUM_R;
-// #endif
+//TODO: RM once a better way is found
+bool config_update_required = false;
 
 am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
@@ -92,7 +90,7 @@ height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height) {
         case rt_release_addr:
             return am_keyboard_data.rt_release_distance[profile][key];
         #endif
-        default: return 0;
+        default: return 255;
     }
 }
 
@@ -154,6 +152,28 @@ void set_priority_profiles(uint16_t value) {
 
 void set_profile_layer_state(uint8_t profile, layer_state_t value) {
     am_keyboard_data.profile_layers[profile] = value;
+}
+
+// Returns true if profile_lock is active
+// bool get_profile_lock_state(void) {
+//     return !!(am_keyboard_data.profile_num & 0b10000000);
+// }
+
+// Returns true if the state of profile_lock is updated
+bool get_profile_lock_save_state(void) {
+    return !!(am_keyboard_data.profile_num & 0b01000000);
+}
+
+// Saves the current state of profile_lock
+// void set_profile_lock_state(bool state) {
+//     if(state) am_keyboard_data.profile_num |= 0b10000000;
+//     else am_keyboard_data.profile_num &= 0b01111111;
+// }
+
+// If true, the state of profile_lock will be saved
+void set_profile_lock_save_state(bool state) {
+    if(state) am_keyboard_data.profile_num |= 0b01000000;
+    else am_keyboard_data.profile_num &= 0b10111111;
 }
 
 void set_deadzones(uint8_t index, uint16_t value) {
@@ -387,6 +407,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #ifdef VIA_FILTER_STRENGTH
             command_data[3] |= 0b00001000;
             #endif
+            command_data[3] |= get_profile_lock_save_state() << 4;
             //TODO: Add SOCD config here
 
             // Set external feature options
@@ -515,6 +536,13 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             index = command_data[0];
             value = command_data[1];
             set_deadzones(index, value);
+            break;
+        }
+
+        case set_profile_lock_save_id: {
+            split_id = split_profile_lock_save;
+            value = command_data[0];
+            set_profile_lock_save_state(value);
             break;
         }
 

@@ -24,54 +24,6 @@ typedef uint16_t am_raw_t;
 
 #define CLAMP8(value) (value > 255 ? 255 : value)
 
-// The EEPROM data of one switch in one single profile
-// typedef struct PACKED am_switch_profile_t {
-//     uint8_t mode; // MSB contains priority_mode
-//     union {
-//         am_raw_t raw_height;
-//         struct {
-//             #ifdef USE_TRIGGER_HEIGHT
-//             height_t trigger_height;
-//             height_t release_height;
-//             #endif
-//             #ifdef USE_RT_DISTANCE
-//             height_t rt_press_distance;
-//             height_t rt_release_distance;
-//             #endif
-//         };
-//     };
-// } am_switch_profile_t;
-
-// The EEPROM data of one switch across all profiles
-// typedef struct PACKED am_switch_t {
-//     am_switch_profile_t profile[AM_PROFILE_NUM];
-//     // uint8_t priority_state[(TOTAL_SWITCH_NUM / 8) + 1]; // Each bit represents a switch
-// } am_switch_t;
-
-// The EEPROM data of the entire keyboard
-// typedef struct PACKED am_keyboard_t {
-//     am_switch_t key[TOTAL_SWITCH_NUM];
-//     uint8_t smoothing; // If split multipliers are used, this is the non-multiplied value
-//     uint8_t top_deadzone;
-//     uint8_t bottom_deadzone;
-//     uint8_t top_mult;
-//     #ifdef SPLIT_KEYBOARD
-//     uint8_t right_mult;
-//     uint8_t slave_mult;
-//     #endif
-//     #if PROFILE_SWITCH_MODE != MANUAL_PROFILE
-//     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
-//     #endif
-//     #ifdef USE_PRIORITY_MODE
-//     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
-//     #endif
-//     #ifdef DYNAMIC_CALIBRATION
-//     uint8_t dc_switch_num;
-//     uint8_t dc_factor;
-//     uint8_t dc_delta;
-//     #endif
-// } am_keyboard_t;
-
 typedef struct am_keyboard_t {
     #ifdef USE_TRIGGER_HEIGHT
     height_t trigger_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
@@ -82,10 +34,11 @@ typedef struct am_keyboard_t {
     height_t rt_release_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
     #endif
     uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    uint8_t profile_num;
+    uint8_t profile_num; // MSB saves state of manual_profile_lock, 2nd MSB saves whether or not manual_profile_lock should be saved
     uint8_t profile_config;
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
 
+    //TODO: Implement this
     #ifdef VIA_FILTER_STRENGTH
     uint8_t filter_strength;
     #endif
@@ -136,6 +89,7 @@ typedef enum am_via_id {
     set_priority_profiles_id,
     set_dynamic_calibration_id,
     set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
+    set_profile_lock_save_id,
     clear_calibration_data_id, // Resets the calibration data
     reset_keyboard_data_id, // Resets all data to json defaults
 } am_via_id;
@@ -149,11 +103,12 @@ typedef enum am_via_split_id {
     split_rt_press,
     split_rt_release,
     split_key_mode,
-    split_key_priority,
     split_profile_layers,
+    split_key_priority,
     split_priority_profiles,
     split_dynamic_calibration,
     split_deadzone,
+    split_profile_lock_save,
     split_reset_keyboard
 } am_via_split_id;
 
@@ -167,6 +122,7 @@ extern am_keyboard_t am_keyboard_data;
 
 extern const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS];
 #define MATRIX_TO_NUM_DEF
+extern bool config_update_required;
 
 height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height);
 uint8_t get_switch_mode(uint8_t key, uint8_t profile);
@@ -178,6 +134,10 @@ void set_priority_profiles(uint16_t value);
 void set_profile_layer_state(uint8_t profile, layer_state_t value);
 void set_dynamic_calibration(uint8_t index, uint8_t value);
 void set_deadzones(uint8_t index, uint16_t value);
+bool get_profile_lock_state(void);
+bool get_profile_lock_save_state(void);
+void set_profile_lock_state(bool state);
+void set_profile_lock_save_state(bool state);
 void apply_default_config(am_keyboard_t* keyboard_data);
 
 void analog_matrix_via_init(void);

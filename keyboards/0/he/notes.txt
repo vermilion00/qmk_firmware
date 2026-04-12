@@ -234,28 +234,16 @@ Even without the constant printing, the joystick layer update speed is limited t
     -It's not caused by printing without a newline, as the frequency message works without problems
     ->Is this a limitation of the joystick API perhaps?
 
+Currently, the joystick axes aren't fully reset when switching off the layer
+-I tried setting joystick_state.dirty to true, but that didn't work, probably because the layer is also checked before outputting?
+    -The layer doesn't seem to be checked in the flush command, is the eval function to blame? why though
+
+Implement different smoothing stuff, since the current .smoothing field is never used
+
 !!! Currently working on !!!
 
 VIAL:
 Current implementation details:
--All key modes are enabled unless explicitely disabled by defining NO_* instead of USE_*
-    -If NO_* is defined but the keymode is selected in the json, it's currently undefined in analog_matrix.h
--If e.g. all modes with normal trigger height are disabled, then it won't be included in the save data
-    -> This means that enabling them would need re-init of the AM VIA data
-    -> Make sure that the json also contains the disabled options (maybe define them in a common place instead of separately?)
--Since the GUI should only show options that aren't disabled, it needs to know about their state
-    -Could request state via transaction easily, or define in the json
--Try to sync the HEIGHT_RESOLUTION, if possible.
-    -If the heights can be adjusted via a slider, try to set the step size to the resolution value
-    -If there is value checking, then round the value according to resolution
-
-What do I need to save to storage?
--All four heights per profile per switch
-    -Do I save heights that are explicitely disabled via define? I probably don't need to
--The keymode per profile per switch
--The priority state per profile
--The layers per profile
-
 Is there a callback for VIA(L) app communication start/end?
 ->Can I just send the new data per switch per profile when it's changed, and set it in the config struct first, then save the entirety of the changes to eeprom at once
   in that callback?
@@ -264,44 +252,8 @@ Is there a callback for VIA(L) app communication start/end?
 ->Could there be a callback for the keyboard lock? Maybe I could use that, if the keyboard locks after a certain time without communication/when communication stops?
 -If there isn't a callback, I could also update the eeprom during a layer state
 
-How am I going to assign the values?
--Do I send over num_to_matrix
--Do I keep it in the json
--Do I just assign through row/col and translate the index through matrix_to_num? -> Currently assuming this
-
 When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
     ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
-
-Instead applying the heights from the arrays, I should copy the contents from the contents into am_keyboard_data at start
-Actually, I should redo the defines to just apply all contents as one at startup, and if the half is the right one I just copy the entirety of it at once
-    -> This would make the reset function simple as well, since I'd just copy the define into the struct again, adjust side, then translate values
-
-Since only a very limited amount of data can be transmitted over HID, how is it handled?
--Does it poll the state of each var of each profile of each switch one after another, or is there a batch mode I could use?
-    -I could poll the keyboard for the amount of profiles used (if it's not predeclared anyway, which it probably is)
-    -Then just start the function on both ends, which automatically transmits all values one after another in a predefined order
--The VIAL get_def function fills the message up fully with raw data, and repeats that transaction until all data has been transferred
-    -The section is encoded with 2 bytes and sent over, I should use the same strat
-
-Check if there's a benefit to only need a small amount of data
-->I don't think think so, it probably will still send 32 bytes even if I only need four
-->VIA probably just does it like this because it sends every update instantly instead of bundling, so there's no need to use a lot of data for setters
-    ->I don't see them using getters with a lot of data either though?
-
-I don't call the _send function when handling, I just modify the buffer via the pointer, the send function is called automatically by the handler
-
-We need 4 bytes of info (id, row, col, profile) (maybe 5 because of vial prefix?)
-Each switch is currently a max of 9 bytes (when HIRES is used), up to 3 profiles can be transmitted at once over HID (one byte left)
-If LORES is used, it's up to 5 bytes -> 5 profiles with 3 bytes left
-Lets just always assume that all heights are used
-    -Can I though? Since the transaction from the GUI will include those otherwise, I need to account for them anyway if I allow disabling them
-If more profiles than that are needed, how do I properly handle this?
-    -Since every switch variation has one byte left over, I could include the profile offset in the transaction and run it twice
-    -Make sure I actually have one over though
-    -Since the VIAL app probably needs an extra one, that might mean that HIRES with all heights can only handle two profiles at once
-        -> Since we only allow 32 profiles anyway, I could also bitmap the uint8_t there with that info
-            -Assuming the largest data size, we're looking at 12 transactions for one switch, which doesn't fit into the 3 bits left
-            -Another thing currently assumes only 16 profiles max anyway, so just force that? More than enough anyway
 
 Just limit profliles to 16, too many things would currently need changes for 32
 
@@ -322,21 +274,7 @@ Add additional stuff to VIA config
     -Should ask getreuer if I can just extend his stuff, would be the easiest
     -If not, then just save/recall it outside of proper config
 
-Mixed matrix on/off and which keys are normal -> So that the AM menus aren't shown for those
--Doesn't need to be saved to eeprom, this is just part of the static keyboard definition
-
 Release offsets and base values should just be set in the GUI, then transmit the actual values
-
-->
-Instead of running the transaction inside of every ID, try changing the value, then calling the split transaction after for every ID that needs it (most of them)
-Also combine the split IDs and VIA IDs
-
-Add a field for profile num
--> AM_PROFILE_NUM will be the maximum allowed profiles, while profile_num is the amount of used profiles
-    -0..n-1 will be usable
-    -Since the data for all profiles will be saved anyway, a newly added profile will just have the previous config
-      ->Do I reset the state to a default state instead? Probably makes sense
-
 
 How do I check if VIA is enabled in rules.mk from the json? The standard ways only seem to work if they're defined in the json in the first place
 ->Aren't the rules.mk/config.h things also put into the dict? Maybe it's just the config.h stuff
@@ -347,15 +285,45 @@ Could add a field for the joystick roundness setting, but even with it disabled 
 Make sure I understand pointer offset casts correctly
 (void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile))
 
+Make sure all default defines also have a default value attached
+
 =====
+
+Allow setting init keys through VIA? Doesn't really seem worth the effort tbh
 
 The HID set transactions generally look like this:
 0 = row, 1 = col, 2 = profile, 3+ other info
 
-Make sure I'm correctly indexing everywhere
+Make sure I'm correctly indexing everywhere, especially am_keyboard_data on the slave
+
+Also add keycodes to increment/decrement profile
+
+Add option to remember last profile, and load it at startup? Very wasteful
+
+If joystick is enabled, show joystick keys -> I thought the keys are already pulled from the hjson files? Or does the GUI itself need access to them?
+
+self.send(self, data) and self.recv(self, length, timeout_ms=50) to read/write
+-> Since the keyboard sends data back immediately after the GUI sends data, normal functionality is writing, then immediately reading
+-> then recv length in the UID example is MSG_LEN, and the timeout_ms=500
+-self.usb_send(whatever the hell goes here) also seems to do the same just with more params?
+ self.usb_send(self.dev, struct.pack(something, cur), retries=20)
+ The self.usb_send() is way more often used, for example in keyboard_comm.py l.315 to send keycode changes
+
+
+ The random bytes at the start of self.usb_send(self.dev, struct.pack(">BBB", CMD_VIA_LIGHTING_SET_VALUE, QMK_RGBLIGHT_BRIGHTNESS, value), retries=20)
+ Are as long as the values you put in, as in this message uses 4 bytes
+ -> Also, VIAL uses both VIA and VIAL prefixes for messages
+ -> The string gets overridden, it's not a prefix
+    -The > sets the endianness to big endian
+    -A B is just a unsigned byte uint8_T
+    -H is uint16_t
+    -I is uint32_t
+    -Lowercase is signed
+usb_send() returns the return message from the keyboard(?)
+
+Need to add an analog_matrix class and extend class Keyboard with it
 
 =====
-
 
 
 typedef struct am_keyboard_t {

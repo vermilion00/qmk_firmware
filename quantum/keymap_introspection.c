@@ -228,8 +228,8 @@ extern init_func_t init_functions[AM_INIT_KEY_NUM];
 #endif
 
 #ifdef PRIORITY_INDICES
-extern uint8_t priority_index_num;
-extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
+// extern uint8_t priority_index_num;
+extern SPLIT_VIA_MUT uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
 // #ifdef MATRIX_TO_NUM_DEF
@@ -293,12 +293,12 @@ void assign_side(void) {
     memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
     #endif
 
-    //TODO: Test this, this p
     #ifndef VIA_ENABLE
+    //TODO: Test prio indices_r
     #ifdef PRIORITY_INDICES
     const uint8_t priority_indices_r[SWITCH_NUM_R] = PRIORITY_INDICES_R;
     memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices_r));
-    priority_index_num = PRIORITY_INDEX_NUM_R;
+    // priority_index_num = PRIORITY_INDEX_NUM_R;
     #endif
 
     const uint8_t key_modes_r[AM_PROFILE_NUM][SWITCH_NUM_R] = KEY_MODES_R;
@@ -325,7 +325,7 @@ void assign_side(void) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Joystick
 
-#if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+#if defined(JOYSTICK_ENABLE)
 #include "analog_joystick.h"
 
 // extern SPLIT_MUTABLE uint8_t matrix_to_num[][MATRIX_COLS];
@@ -378,7 +378,7 @@ void create_joystick_mask(uint8_t current_layer) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix MIDI
 
-#if defined(MIDI_ENABLE) && !defined(USE_MIDI)
+#if defined(MIDI_ENABLE)
 // #include "analog_matrix.h"
 #include "analog_midi.h"
 
@@ -387,6 +387,10 @@ void create_joystick_mask(uint8_t current_layer) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Masks
+
+#ifdef VIA_ENABLE
+#   include "nvm_dynamic_keymap.h"
+#endif
 
 // Creates layer masks for all enabled features
 void change_layer_settings(uint8_t current_layer) {
@@ -398,12 +402,30 @@ void change_layer_settings(uint8_t current_layer) {
     create_midi_mask(current_layer);
     #endif
 
-    //TODO: Add more mask functions here as necessary
-
-    //TODO: Replace this with USE_SPECIAL
     #ifdef USE_SPECIAL_MODE
     special_layer = false;
     special_layer |= joystick_layer | midi_layer;
+    #endif
+
+    // Update the switch save data during a layer change to cause less disruption during scanning
+    #ifdef DYNAMIC_CALIBRATION
+    // Not the cleanest way to allow disabling the update check
+    #if (!defined AM_NO_EEPROM && RECALIBRATED_SWITCHES < SMAX(SWITCH_NUM) && RECALIBRATED_SWITCHES > 0) || defined VIA_ENABLE
+    if(recalibrated_switches >= am_keyboard_data.dc_switch_num) {
+        eeconfig_update_keyboard((uint16_t*)&calibration_data);
+        recalibrated_switches = 0;
+    }
+    #endif
+    #endif // ifdef DYNAMIC_CALIBRATION
+
+    // Update the VIA config during a layer change to avoid writing to flash too often
+    //TODO: RM once better way is found
+    #ifdef VIA_ENABLE
+    if(config_update_required) {
+        nvm_set_analog_matrix_config(&am_keyboard_data);
+        config_update_required = false;
+        LED_ON;
+    }
     #endif
 }
 

@@ -1023,6 +1023,9 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         split_layer_sync = True
         #generate_midi_config(info_data, config_h_lines)
 
+    if am_config.get('dynamic_calibration', False):
+        split_layer_sync = True
+
     if use_special_mode:
         config_h_lines.append(generate_define('USE_SPECIAL_MODE'))
 

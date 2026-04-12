@@ -36,7 +36,7 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
         case AM_LOCK_PROFILE:
             #if AM_PROFILE_NUM > 1
             if(record->event.pressed) {
-                manual_profile_lock = !manual_profile_lock;
+                set_profile_lock_state(!get_profile_lock_state());
             }
             #endif
             return false;
@@ -68,11 +68,11 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
 
                 // Turn on manual profile lock if switching to a new profile, turn it off when switching to the currently active profile
                 if((keycode & 0x001F) == active_profile) {
-                    manual_profile_lock = false;
+                    set_profile_lock_state(false);
                 } else {
                     // 32 profiles max
                     set_active_profile(keycode & 0x001F);
-                    manual_profile_lock = true;
+                    set_profile_lock_state(true);
                 }
             }
             #endif
