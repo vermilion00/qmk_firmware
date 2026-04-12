@@ -13,6 +13,11 @@ extern SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2];
 #   include "analog_joystick.h"
 #endif
 
+//TODO: RM
+// #ifdef SPLIT_KEYBOARD
+// uint8_t matrix_to_num_slave[MATRIX_ROWS_PER_HAND][MATRIX_COLS][2] = MATRIX_TO_NUM_R;
+// #endif
+
 am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
     .trigger_height = TOTAL_TRIGGER_HEIGHT,
@@ -47,16 +52,13 @@ am_keyboard_t am_keyboard_data = {
     .split_filter_strength = SLAVE_FILTER_STRENGTH << 4 | RIGHT_FILTER_STRENGTH,// The first 4 bits show the slave strength, the right 4 the right strength
     #endif
     //TODO: Just define the multiplier differently
-    .right_mult = (uint8_t)(RIGHT_MULTIPLIER * 100) & 0x00FF,
-    .slave_mult = (uint8_t)(SLAVE_MULTIPLIER * 100) & 0x00FF,
-    #endif
-    .keyboard_size = 0,
+    .right_mult = (uint8_t)(RIGHT_MULTIPLIER * 100),
+    .slave_mult = (uint8_t)(SLAVE_MULTIPLIER * 100),
+    #endif // ifdef SPLIT_KEYBOARD
+    .keyboard_size = sizeof(am_keyboard_t),
 };
 
-#ifndef MATRIX_TO_NUM_DEF
-__attribute__((weak)) SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM;
-#   define MATRIX_TO_NUM_DEF
-#endif
+const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = FULL_MATRIX_TO_NUM;
 
 void analog_matrix_via_init(void) {
     // Read the analog matrix configuration from EEPROM
@@ -75,6 +77,7 @@ void analog_matrix_via_init(void) {
 //TODO: Pass the value by reference, so that it can be changed in case of split keyboard, then easily synced to slave after
 //TODO: Redo these according to the final impl of am_keyboard_data
 // Returns the compressed height (uint8_t instead of float)
+// All following functions take the global switch index
 height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height) {
     switch(height) {
         #ifdef USE_TRIGGER_HEIGHT
@@ -122,7 +125,7 @@ void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, heigh
         #endif
         default: return;
     }
-    translate_mm_to_value(key, false);
+    if((key < switch_num + switch_low) && key > switch_low) translate_mm_to_value(key - switch_low, false);
 }
 
 void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
@@ -130,7 +133,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
     am_keyboard_data.key_mode[profile][key] &= 0b10000000;
     am_keyboard_data.key_mode[profile][key] |= mode;
     //TODO: Make sure that the mode passed here doesn't contain prio info
-    if(key < switch_num) key_config[key].mode[profile] = mode;
+    if((key < switch_num + switch_low) && key > switch_low) key_config[key].mode[profile] = mode;
     if(profile == active_profile) change_layer_settings(am_highest_layer);
 }
 
@@ -139,31 +142,37 @@ void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority) {
     else am_keyboard_data.key_mode[profile][key] &= 0b01111111;
 
     #ifdef PRIORITY_INDICES
-    if(key < switch_num) priority_indices[key] = priority;
+    if((key < switch_num + switch_low) && key > switch_low) priority_indices[key] = priority;
     #endif
 }
 
+#ifdef USE_PRIORITY_MODE
 void set_priority_profiles(uint16_t value) {
     am_keyboard_data.priority_profiles = value;
 }
+#endif
 
 void set_profile_layer_state(uint8_t profile, layer_state_t value) {
     am_keyboard_data.profile_layers[profile] = value;
 }
 
 void set_deadzones(uint8_t index, uint16_t value) {
+    #ifdef SPLIT_KEYBOARD
+    if(index > 5) return;
+    #else
     if(index > 3) return; // The index is repurposed as the index of the deadzone that should be changed
+    #endif
     const uint8_t raw_value = CLAMP8(value);
     #ifdef SPLIT_KEYBOARD
     // Apply the multipliers
-    if(!is_keyboard_left()) value = value * (am_keyboard_data.right_mult / 10.0);
-    if(!is_keyboard_master()) value = value * (am_keyboard_data.slave_mult / 10.0);
+    if(!is_keyboard_left()) value = value * (am_keyboard_data.right_mult / 100.0);
+    if(!is_keyboard_master()) value = value * (am_keyboard_data.slave_mult / 100.0);
     #endif
 
     //TODO: Since I only want to change the user deadzone value, not the ADC deadzone by via, I need to make sure that this is correct
     //      Perhaps allow different fields to control both values?
     switch(index) {
-        case 0:
+        case 0: {
             // Remove old deadzones, apply the new deadzones
             #ifdef INVERT_ADC
             for(uint8_t key = 0; key < switch_num; key++) key_config[key].top_value = key_config[key].top_value - top_deadzones[key] + value;
@@ -176,8 +185,9 @@ void set_deadzones(uint8_t index, uint16_t value) {
             eeconfig_update_deadzone((uint8_t*)&top_deadzones);
             am_keyboard_data.top_deadzone = raw_value;
             break;
+        }
 
-        case 1:
+        case 1: {
             #ifdef INVERT_ADC
             for(uint8_t key = 0; key < switch_num; key++) key_config[key].bottom_value = key_config[key].bottom_value + bottom_deadzone - value;
             #else
@@ -186,14 +196,16 @@ void set_deadzones(uint8_t index, uint16_t value) {
             bottom_deadzone = value;
             am_keyboard_data.bottom_deadzone = raw_value;
             break;
+        }
 
-        case 2:
+        case 2: {
             am_keyboard_data.smoothing = raw_value;
             smoothing = value;
             for(uint8_t key = 0; key < switch_num; key++) translate_mm_to_value(key, false);
             break;
+        }
 
-        case 3:
+        case 3: {
             uint8_t prev_deadzones[SMAX(SWITCH_NUM)];
             memcpy(&prev_deadzones, &top_deadzones, sizeof(top_deadzones));
             float top_mult = am_keyboard_data.top_mult / 100.0;
@@ -209,8 +221,70 @@ void set_deadzones(uint8_t index, uint16_t value) {
                 #endif
             }
             break;
+        }
+
+        #ifdef SPLIT_KEYBOARD
+        case 4: { // Right mult
+            am_keyboard_data.right_mult = raw_value;
+            if(is_keyboard_left()) return;
+
+            uint16_t prev_bottom = bottom_deadzone;
+            uint8_t prev_deadzones[SMAX(SWITCH_NUM)];
+            memcpy(&prev_deadzones, &top_deadzones, sizeof(top_deadzones));
+            float right_mult = am_keyboard_data.right_mult / 100.0;
+            for(uint8_t key = 0; key < switch_num; key++) top_deadzones[key] /= right_mult;
+            bottom_deadzone = (bottom_deadzone - am_keyboard_data.bottom_deadzone) / right_mult;
+            right_mult = raw_value / 100.0;
+            bottom_deadzone = bottom_deadzone * right_mult + am_keyboard_data.bottom_deadzone;
+            for(uint8_t key = 0; key < switch_num; key++) {
+                top_deadzones[key] = CLAMP8(top_deadzones[key] * right_mult);
+                #ifdef INVERT_ADC
+                key_config[key].top_value = key_config[key].top_value - prev_deadzones[key] + top_deadzones[key];
+                key_config[key].bottom_value = key_config[key].bottom_value + prev_bottom - bottom_deadzone;
+                #else
+                key_config[key].top_value = key_config[key].top_value + prev_deadzones[key] - top_deadzones[key];
+                key_config[key].bottom_value = key_config[key].bottom_value - prev_bottom + bottom_deadzone;
+                #endif
+            }
+            break;
+        }
+
+        case 5: { // Slave mult
+            am_keyboard_data.slave_mult = raw_value;
+            if(is_keyboard_master()) return;
+
+            uint16_t prev_bottom = bottom_deadzone;
+            uint8_t prev_deadzones[SMAX(SWITCH_NUM)];
+            memcpy(&prev_deadzones, &top_deadzones, sizeof(top_deadzones));
+            float slave_mult = am_keyboard_data.slave_mult / 100.0;
+            for(uint8_t key = 0; key < switch_num; key++) top_deadzones[key] /= slave_mult;
+            bottom_deadzone = (bottom_deadzone - am_keyboard_data.bottom_deadzone) / slave_mult;
+            slave_mult = raw_value / 100.0;
+            bottom_deadzone = bottom_deadzone * slave_mult + am_keyboard_data.bottom_deadzone;
+            for(uint8_t key = 0; key < switch_num; key++) {
+                top_deadzones[key] = CLAMP8(top_deadzones[key] * slave_mult);
+                #ifdef INVERT_ADC
+                key_config[key].top_value = key_config[key].top_value - prev_deadzones[key] + top_deadzones[key];
+                key_config[key].bottom_value = key_config[key].bottom_value + prev_bottom - bottom_deadzone;
+                #else
+                key_config[key].top_value = key_config[key].top_value + prev_deadzones[key] - top_deadzones[key];
+                key_config[key].bottom_value = key_config[key].bottom_value - prev_bottom + bottom_deadzone;
+                #endif
+            }
+            break;
+        }
+        #endif // ifdef SPLIT_KEYBOARD
     }
 }
+
+#ifdef DYNAMIC_CALIBRATION
+// 0 = Switch num, 1 = Factor, 2 = Delta
+void set_dynamic_calibration(uint8_t index, uint8_t value) {
+    if(index > 2) return;
+    //TODO: Make sure this is correct
+    *(&am_keyboard_data.dc_switch_num + index) = value;
+}
+#endif
 
 void apply_default_config(am_keyboard_t* keyboard_data) {
     const am_keyboard_t default_data = {
@@ -258,21 +332,18 @@ void apply_default_config(am_keyboard_t* keyboard_data) {
 
 // Handles the VIA(L) app HID commands
 void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
-    //TODO: How do I best handle the index offset?
-    //      Each half has its own data first in the arrays
-    //      Where should it be applied?
+    //TODO: I could simply use the same layout for almost all IDs and assign the values before the switch statement
 
     const uint8_t *command_id   = &(data[0]);
     uint8_t *command_data = &(data[1]);
     // Split keyboard transaction values
-    __attribute__((unused)) uint8_t index = 0;
-    __attribute__((unused)) uint8_t profile = 0;
-    __attribute__((unused)) uint8_t split_id = 0;
+    __attribute__((unused)) uint8_t index = 255;
+    __attribute__((unused)) uint8_t profile = 255;
+    __attribute__((unused)) uint8_t split_id = 255;
     __attribute__((unused)) uint16_t value = 0;
 
     switch(*command_id) {
         case get_keyboard_def_id: {
-            split_id = 255; // Unused
             // Make sure the used bytes are clear
             memset(&command_data[0], 0, 12);
 
@@ -339,7 +410,6 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case get_keyboard_data_id: {
-            split_id = 255;
             const uint16_t page = (command_data[1] << 8) | command_data[0];
             const uint16_t start = page * RAW_HID_SIZE;
             if(start >= sizeof(am_keyboard_t)) return;
@@ -352,7 +422,6 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case get_mixed_matrix_id: {
-            split_id = 255;
             #ifdef MIXED_MATRIX_ENABLE
             // Transfer matrix positions of all mech keys, so that the GUI can mark them appropriately
             // ->RC_NUM_TO_MATRIX
@@ -370,38 +439,97 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case set_switch_height_id: {
-            split_id = 255; // Set to unused in case of bad position
-            const uint8_t profile = command_data[0];
-            if(profile > (am_keyboard_data.profile_num & 0x0F)) return;
-            const uint8_t row = command_data[1];
-            const uint8_t col = command_data[2];
+            const uint8_t row = command_data[0];
+            const uint8_t col = command_data[1];
             index = matrix_to_num[row][col];
             if(index == 255) return;
+            profile = command_data[2];
+            if(profile > (am_keyboard_data.profile_num & 0x0F)) return;
 
             const height_addr_t height_type = command_data[3];
             split_id = height_type;
             value = (command_data[4] | (command_data[5] << 8));
             set_switch_height(index, profile, height_type, value);
+            break;
         }
 
-        case set_profile_layers_id:
+        case set_switch_mode_id: {
+            const uint8_t row = command_data[0];
+            const uint8_t col = command_data[1];
+            index = matrix_to_num[row][col];
+            if(index == 255) return;
+            profile = command_data[2];
+            if(profile > (am_keyboard_data.profile_num)) return;
+
+            split_id = split_key_mode;
+            value = command_data[3];
+            set_switch_mode(index, profile, value);
+            break;
+        }
+
+        case set_switch_priority_id: {
+            #ifdef USE_PRIORITY_MODE
+            const uint8_t row = command_data[0];
+            const uint8_t col = command_data[1];
+            index = matrix_to_num[row][col];
+            if(index == 255) return;
+            profile = command_data[2];
+            if(profile > (am_keyboard_data.profile_num)) return;
+
+            split_id = split_key_priority;
+            value = command_data[3];
+            set_switch_priority_mode(index, profile, value);
+            #endif
+            break;
+        }
+
+        case set_profile_layers_id: {
             split_id = split_profile_layers;
             profile = command_data[0];
             value = (layer_state_t)(command_data[1] | (command_data[2] << 8) | (command_data[3] << 16) | (command_data[4]) << 24);
             set_profile_layer_state(profile, value);
             break;
+        }
 
-        case clear_calibration_data_id:
+        case set_priority_profiles_id: {
+            #ifdef USE_PRIORITY_MODE
+            split_id = split_priority_profiles;
+            value = (command_data[0] | command_data[1] << 8);
+            set_priority_profiles(value);
+            #endif
+            break;
+        }
+
+        case set_dynamic_calibration_id: {
+            #ifdef DYNAMIC_CALIBRATION
+            split_id = split_dynamic_calibration;
+            index = command_data[0];
+            value = command_data[1];
+            set_dynamic_calibration(index, value);
+            #endif
+            break;
+        }
+
+        case set_deadzone_id: {
+            split_id = split_deadzone;
+            index = command_data[0];
+            value = command_data[1];
+            set_deadzones(index, value);
+            break;
+        }
+
+        case clear_calibration_data_id: {
             #ifdef SPLIT_KEYBOARD
-            split_id = 255;
             am_data_manual_transaction(clear_calibration_values);
             #endif
             clear_calibration();
             break;
+        }
 
-        case reset_keyboard_data_id:
+        case reset_keyboard_data_id: {
             split_id = split_reset_keyboard;
             apply_default_config(&am_keyboard_data);
+
             // Re-initialize all keys
             get_key_config();
             get_calibration_data();
@@ -410,11 +538,15 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #if defined SPLIT_LAYER_SYNC
             change_layer_settings(am_highest_layer);
             #endif
-            //TODO: Decide where to update
-            // nvm_set_analog_matrix_config(&am_keyboard_data);
+            //TODO: Decide where to update eeprom
+            nvm_set_analog_matrix_config(&am_keyboard_data);
             break;
+        }
     }
     // Split keyboards need to send the result of all set_* transactions to the slave as well
     #ifdef SPLIT_KEYBOARD
-    uint8_t slave_switch_num
+    if(split_id == 255) return; // An ID of 255 means the transaction doesn't need to be synced
+
+    am_via_manual_transaction(index, profile, split_id, value);
+    #endif
 }

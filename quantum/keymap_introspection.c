@@ -232,15 +232,18 @@ extern uint8_t priority_index_num;
 extern uint8_t priority_indices[SMAX(SWITCH_NUM)];
 #endif
 
-#ifdef MATRIX_TO_NUM_DEF
-extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
-#endif
+// #ifdef MATRIX_TO_NUM_DEF
+// extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+// #endif
 
 //MARK: Split side
 // Assigns the split side and copies arrays
 void assign_side(void) {
     if (is_keyboard_left()) return;
 
+    #ifdef VIA_ENABLE
+    switch_low = SWITCH_NUM_L;
+    #endif
     switch_num = SWITCH_NUM_R;
     adc_pin_num = ADC_PIN_NUM_R;
     #ifdef MUX_PINS
@@ -264,7 +267,7 @@ void assign_side(void) {
     memcpy(&num_to_matrix, &num_to_matrix_r, sizeof(num_to_matrix_r));
 
     // Since matrix_to_num is needed by multiple special features, a define is set when it is first declared
-    #ifdef MATRIX_TO_NUM_DEF
+    #if defined MATRIX_TO_NUM_DEF && !defined VIA_ENABLE
     const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS] = MATRIX_TO_NUM_R;
     memcpy(&matrix_to_num, &matrix_to_num_r, sizeof(matrix_to_num));
     #endif
@@ -290,7 +293,8 @@ void assign_side(void) {
     memcpy(&init_functions, &init_functions_r, sizeof(init_functions_r));
     #endif
 
-    //TODO: Test this
+    //TODO: Test this, this p
+    #ifndef VIA_ENABLE
     #ifdef PRIORITY_INDICES
     const uint8_t priority_indices_r[SWITCH_NUM_R] = PRIORITY_INDICES_R;
     memcpy(&priority_indices, &priority_indices_r, sizeof(priority_indices_r));
@@ -312,27 +316,7 @@ void assign_side(void) {
     memcpy(&am_keyboard_data.rt_press_distance, &rt_press_distance_r, sizeof(rt_press_distance_r));
     memcpy(&am_keyboard_data.rt_release_distance, &rt_release_distance_r, sizeof(rt_release_distance_r));
     #endif
-
-    //TODO: I probably won't be using this method
-    // If VIA is enabled, then both halves have the data of the entire keyboard, but offset so that its data comes first
-    // #ifdef VIA_ENABLE
-    // #ifdef USE_TRIGGER_HEIGHT
-    // const height_t trigger_height[AM_PROFILE_NUM][SWITCH_NUM] = TRIGGER_HEIGHT;
-    // const height_t release_height[AM_PROFILE_NUM][SWITCH_NUM] = RELEASE_HEIGHT;
-    // for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-    //     memcpy(&am_keyboard_data.trigger_height[profile] + SWITCH_NUM_R, &trigger_height[profile], sizeof(trigger_height[0]));
-    //     memcpy(&am_keyboard_data.release_height[profile] + SWITCH_NUM_R, &release_height[profile], sizeof(trigger_height[0]));
-    // }
-    // #endif
-    // #ifdef USE_RT_DISTANCE
-    // const height_t rt_press_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_PRESS_DISTANCE;
-    // const height_t rt_release_distance[AM_PROFILE_NUM][SWITCH_NUM] = RT_RELEASE_DISTANCE;
-    // for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-    //     memcpy((height_t*)(am_keyboard_data.rt_press_distance[profile] + SWITCH_NUM_R), &rt_press_distance[profile], sizeof(rt_press_distance[0]));
-    //     memcpy((height_t*)(am_keyboard_data.rt_release_distance[profile] + SWITCH_NUM_R), &rt_release_distance[profile], sizeof(rt_release_distance[0]));
-    // }
-    // #endif
-    // #endif // ifdef VIA_ENABLE
+    #endif
 }
 #else
 #   define assign_side()
@@ -344,7 +328,7 @@ void assign_side(void) {
 #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
 #include "analog_joystick.h"
 
-extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+// extern SPLIT_MUTABLE uint8_t matrix_to_num[][MATRIX_COLS];
 
 #ifdef SPLIT_KEYBOARD
 extern uint8_t thatHand;

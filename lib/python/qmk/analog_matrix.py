@@ -394,6 +394,9 @@ def get_matrix_to_mux(info_data, config_h_lines):
     hardware = info_data['analog_matrix']['hardware']
     cols = info_data['matrix_size']['cols']
     rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
+    full_rows = info_data['matrix_size']['rows']
+    full_matrix_to_num = [[255 for _ in range(cols)] for _ in range(full_rows)]
+    switch_num_l = hardware['switch_num']
 
     for postfix in ['', '_right'] if split_keyboard else ['']:
         fix = '_R' if postfix == '_right' else ''
@@ -414,9 +417,19 @@ def get_matrix_to_mux(info_data, config_h_lines):
 
         for idx, pos in enumerate(num_to_matrix):
             matrix_to_num[pos[0] - row_split][pos[1]] = idx
+            full_matrix_to_num[pos[0]][pos[1]] = idx + switch_num_l if pos[0] > rows else idx
 
+        # side = [row for row in matrix_to_num]
+        # full_matrix_to_num.append(side)
         config_h_lines.append(generate_define(f'MATRIX_TO_NUM{fix}', str(matrix_to_num).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware'][f'matrix_to_num{postfix}'] = matrix_to_num
+
+    # if split_keyboard:
+    #     for row_idx, row in enumerate(full_matrix_to_num[1]):
+    #         for idx, num in enumerate(row):
+    #             full_matrix_to_num[1][row_idx][idx] = num + switch_num_l if num != 255 else 255
+    # full_matrix_to_num = [num for side in full_matrix_to_num for num in side]
+    config_h_lines.append(generate_define('FULL_MATRIX_TO_NUM', str(full_matrix_to_num).replace('[', '{').replace(']', '}')))
 
     return info_data
 

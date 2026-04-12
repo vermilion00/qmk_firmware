@@ -400,12 +400,6 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 //MARK: AM functions
 //TODO: Can't make these in am_via.c because the ADDRESS is only locally defined
 #ifdef ANALOG_MATRIX_ENABLE
-//TODO: Redo these once decided
-// #define AM_VIAL_SWITCH_ADDR(index) (VIAL_ANALOG_MATRIX_EEPROM_ADDR + (index * sizeof(am_switch_t)))
-// #define AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) (AM_VIAL_SWITCH_ADDR(index) + (profile * sizeof(am_switch_profile_t)))
-// #define AM_VIAL_SWITCH_MODE_ADDR(index, profile) AM_VIAL_SWITCH_PROFILE_ADDR(index, profile)
-// #define AM_VIAL_SWITCH_HEIGHT_ADDR(index, profile, height) (AM_VIAL_SWITCH_PROFILE_ADDR(index, profile) + (height * sizeof(height_t)) + 1) // +1 to skip the modes
-//TODO: Instead of having separate set/get functions for every option, just use getters and setters for am_keyboard_data
 
 //TODO: Make sure that these index correctly
 void nvm_get_analog_matrix_config(am_keyboard_t* data) {
@@ -435,6 +429,8 @@ void nvm_set_profile_layers(uint8_t profile, layer_state_t profile_layers) {
 void nvm_set_deadzone(uint8_t index, uint8_t value) {
     #ifndef VIA_FILTER_STRENGTH
     if(index > 3) return; // Index 4 should only be used if it's enabled
+    #else
+    if(index > 4) return;
     #endif
     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, top_deadzone)) + index), value);
 }

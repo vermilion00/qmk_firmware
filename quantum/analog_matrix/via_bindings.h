@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define SPLIT_VIA_MUT
+#define VIA_MUTABLE
 
 // If VIA is enabled, all modes should be included by default unless specifically turned off
 #if !defined USE_NONE && !defined NO_NONE

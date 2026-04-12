@@ -125,6 +125,7 @@ PROFILE_MUTABLE uint8_t active_profile = AM_DEFAULT_PROFILE;
 uint8_t am_highest_layer = 0;
 
 SPLIT_MUTABLE uint8_t switch_num = SWITCH_NUM;
+SPLIT_VIA_MUT uint8_t switch_low = 0;
 SPLIT_MUTABLE uint8_t adc_pin_num = ADC_PIN_NUM;
 SPLIT_MUTABLE uint8_t mux_channel_num = MUX_CHANNELS;
 #ifdef MUX_PINS
@@ -171,7 +172,7 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 uint8_t scan_amt = 0;
 #ifdef PRIORITY_INDICES
 SPLIT_VIA_MUT uint8_t priority_indices[SMAX(SWITCH_NUM)] = PRIORITY_INDICES;
-SPLIT_VIA_MUT uint8_t priority_index_num = PRIORITY_INDEX_NUM;
+// SPLIT_VIA_MUT uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 #endif
 #endif
 
@@ -434,9 +435,10 @@ void translate_mm_to_value(uint8_t index, bool init) {
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
+        //TODO: Make sure these offsets are correct
         #ifdef USE_TRIGGER_HEIGHT
-        const height_t* trigger_height = am_keyboard_data.trigger_height[profile];
-        const height_t* release_height = am_keyboard_data.release_height[profile];
+        const height_t* trigger_height = am_keyboard_data.trigger_height[profile] + switch_low;
+        const height_t* release_height = am_keyboard_data.release_height[profile] + switch_low;
         #ifndef INVERT_ADC
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
@@ -465,9 +467,9 @@ void translate_mm_to_value(uint8_t index, bool init) {
         #endif // ifdef USE_TRIGGER_HEIGHT
 
         #if defined USE_RT_DISTANCE
-        const uint16_t press_value = travel_unit * am_keyboard_data.rt_press_distance[profile][index];
+        const uint16_t press_value = travel_unit * am_keyboard_data.rt_press_distance[profile][index + switch_low];
         key_config[index].rt_press_value[profile] = (press_value > ADC_SMOOTHING) ? press_value : ADC_SMOOTHING;
-        const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index];
+        const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index + switch_low];
         key_config[index].rt_release_value[profile] = (release_value > ADC_SMOOTHING) ? release_value : ADC_SMOOTHING;
 
         // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
@@ -1192,7 +1194,7 @@ void get_key_config(void) {
 
             for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++){
                 // The MSB contains the priority state
-                key_config[index].mode[profile] = am_keyboard_data.key_mode[profile][index] & 0b01111111;
+                key_config[index].mode[profile] = am_keyboard_data.key_mode[profile][index + switch_low] & 0b01111111;
             }
 
             #if defined JOYSTICK_ENABLE
@@ -1307,7 +1309,7 @@ void profile_state_changed(uint8_t profile) {
 
     // If VIA is enabled, the priority indices are assigned per profile
     #if defined VIA_ENABLE && defined PRIORITY_INDICES
-    for(uint8_t key = 0; key < switch_num; key++) priority_indices[key] = !!(am_keyboard_data.key_mode[profile][key] & 1 << 7);
+    for(uint8_t key = 0; key < switch_num; key++) priority_indices[key] = !!(am_keyboard_data.key_mode[profile][key + switch_low] & 1 << 7);
     #endif
     #endif
 }

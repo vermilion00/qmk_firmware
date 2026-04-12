@@ -48,13 +48,13 @@ typedef struct analog_joystick_t {
     conflict_options_t resolution;
 } analog_joystick_t;
 
-#if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-extern const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
-#endif
+// #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
+// extern const uint8_t matrix_to_num_r[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
+// #endif
 
-#ifndef MATRIX_TO_NUM_DEF
-extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
-// #   define MATRIX_TO_NUM_DEF
+#ifndef VIA_ENABLE
+extern SPLIT_MUTABLE uint8_t matrix_to_num[][MATRIX_COLS];
+#   define MATRIX_TO_NUM_DEF
 #endif
 
 extern uint8_t axis_values[JOYSTICK_AXIS_COUNT * 2];

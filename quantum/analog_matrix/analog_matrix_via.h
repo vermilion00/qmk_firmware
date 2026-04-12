@@ -86,11 +86,6 @@ typedef struct am_keyboard_t {
     uint8_t profile_config;
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
 
-    // The deadzone values are only the USER_DEADZONES, not the ADC_DEADZONES
-    uint8_t top_deadzone; // Base values pre multiplication
-    uint8_t bottom_deadzone;
-    uint8_t smoothing;
-    uint8_t top_mult; // Multiplied by 100
     #ifdef VIA_FILTER_STRENGTH
     uint8_t filter_strength;
     #endif
@@ -104,12 +99,17 @@ typedef struct am_keyboard_t {
     uint8_t dc_delta;
     #endif
 
+    // The deadzone values are only the USER_DEADZONES, not the ADC_DEADZONES
+    uint8_t top_deadzone; // Base values pre multiplication
+    uint8_t bottom_deadzone;
+    uint8_t smoothing;
+    uint8_t top_mult; // Multiplied by 100
     #ifdef SPLIT_KEYBOARD
+    uint8_t right_mult; // Multiplied by 100
+    uint8_t slave_mult; // Multiplied by 100
     #ifdef VIA_FILTER_STRENGTH
     uint8_t split_filter_strength; // The first 4 bits show the slave strength, the right 4 the right strength
     #endif
-    uint8_t right_mult; // Multiplied by 10
-    uint8_t slave_mult; // Multiplied by 10
     #endif // ifdef SPLIT_KEYBOARD
     uint16_t keyboard_size;
 } am_keyboard_t;
@@ -149,10 +149,11 @@ typedef enum am_via_split_id {
     split_rt_press,
     split_rt_release,
     split_key_mode,
+    split_key_priority,
     split_profile_layers,
     split_priority_profiles,
+    split_dynamic_calibration,
     split_deadzone,
-    split_keyboard_data,
     split_reset_keyboard
 } am_via_split_id;
 
@@ -164,10 +165,8 @@ typedef struct _am_via_data_t {
 
 extern am_keyboard_t am_keyboard_data;
 
-#ifndef MATRIX_TO_NUM_DEF
-extern SPLIT_MUTABLE uint8_t matrix_to_num[MATRIX_ROWS_PER_HAND][MATRIX_COLS];
-// #   define MATRIX_TO_NUM_DEF
-#endif
+extern const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS];
+#define MATRIX_TO_NUM_DEF
 
 height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height);
 uint8_t get_switch_mode(uint8_t key, uint8_t profile);
@@ -177,6 +176,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode);
 void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
 void set_priority_profiles(uint16_t value);
 void set_profile_layer_state(uint8_t profile, layer_state_t value);
+void set_dynamic_calibration(uint8_t index, uint8_t value);
 void set_deadzones(uint8_t index, uint16_t value);
 void apply_default_config(am_keyboard_t* keyboard_data);
 

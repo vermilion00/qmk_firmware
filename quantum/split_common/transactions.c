@@ -1244,6 +1244,7 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
 // If the value is always uint16_t, the layer_state can be transferred in it easily
 
 #if defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLE
+#include "nvm_dynamic_keymap.h"
 #include "analog_matrix_via.h"
 
 bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_split_id, layer_state_t), uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
@@ -1297,13 +1298,27 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             set_switch_mode(index, profile, value);
             break;
 
+        #ifdef USE_PRIORITY_MODE
+        case split_key_priority:
+            set_switch_priority_mode(index, profile, value);
+            break;
+        #endif
+
         case split_profile_layers:
             set_profile_layer_state(profile, value);
             break;
 
+        #ifdef USE_PRIORITY_MODE
         case split_priority_profiles:
             set_priority_profiles(value);
             break;
+        #endif
+
+        #ifdef DYNAMIC_CALIBRATION
+        case split_dynamic_calibration:
+            set_dynamic_calibration(index, value);
+            break;
+        #endif
 
         case split_deadzone:
             set_deadzones(index, value);
@@ -1319,6 +1334,7 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             #if defined SPLIT_LAYER_SYNC
             change_layer_settings(am_highest_layer);
             #endif
+            nvm_set_analog_matrix_config(&am_keyboard_data);
             break;
 
         default:

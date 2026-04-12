@@ -349,14 +349,10 @@ Make sure I understand pointer offset casts correctly
 
 =====
 
-How do I best apply the split offsets for the opposite hand?
--matrix_to_num will always yield the local offset
+The HID set transactions generally look like this:
+0 = row, 1 = col, 2 = profile, 3+ other info
 
-OR I have the same data on both halves in the same order, and just start indexing local data from an offset
--Say left is master with 31 keys, right has 30 keys
--Left will scan from 0 to 30, right will scan from 31 to 60
--Could apply the offsets at init, do smth like switch_num_low to switch_num_high
--->This is probably the better way, the other has way too many ways to trip up with the wrong index
+Make sure I'm correctly indexing everywhere
 
 =====
 
@@ -372,9 +368,11 @@ typedef struct am_keyboard_t {
     height_t rt_release_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
     #endif
     uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    uint8_t profile_switch_mode;
+    uint8_t profile_num;
+    uint8_t profile_config;
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
 
+    // The deadzone values are only the USER_DEADZONES, not the ADC_DEADZONES
     uint8_t top_deadzone; // Base values pre multiplication
     uint8_t bottom_deadzone;
     uint8_t smoothing;
@@ -391,11 +389,13 @@ typedef struct am_keyboard_t {
     uint8_t dc_factor; // Multiplied by 100
     uint8_t dc_delta;
     #endif
+
     #ifdef SPLIT_KEYBOARD
-    uint8_t right_mult; // Multiplied by 10
-    uint8_t slave_mult; // Multiplied by 10
     #ifdef VIA_FILTER_STRENGTH
-    uint8_t split_filter_strength; // The MSB 4 bits show the slave strength, the LSB 4 the right strength
+    uint8_t split_filter_strength; // The first 4 bits show the slave strength, the right 4 the right strength
     #endif
-    #endif
+    uint8_t right_mult; // Multiplied by 100
+    uint8_t slave_mult; // Multiplied by 100
+    #endif // ifdef SPLIT_KEYBOARD
+    uint16_t keyboard_size;
 } am_keyboard_t;
