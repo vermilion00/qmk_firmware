@@ -244,6 +244,11 @@ Implement different smoothing stuff, since the current .smoothing field is never
 
 VIAL:
 Current implementation details:
+
+The current impl only supports up to 16 layers and profiles
+-16 profiles is more than enough, but maybe add support for 32 layers?
+-> To update the profile_layers, it would probably be easiest to just send over 16 bits per transaction and just call HID trans twice
+
 Is there a callback for VIA(L) app communication start/end?
 ->Can I just send the new data per switch per profile when it's changed, and set it in the config struct first, then save the entirety of the changes to eeprom at once
   in that callback?
@@ -254,8 +259,6 @@ Is there a callback for VIA(L) app communication start/end?
 
 When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
     ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
-
-Just limit profliles to 16, too many things would currently need changes for 32
 
 The current absolute max is below 32000 bytes for am_keyboard_t
 
@@ -287,12 +290,14 @@ Make sure I understand pointer offset casts correctly
 
 Make sure all default defines also have a default value attached
 
+Add the top/bottom deadzone calibration transactions
+
 =====
 
 Allow setting init keys through VIA? Doesn't really seem worth the effort tbh
 
 The HID set transactions generally look like this:
-0 = row, 1 = col, 2 = profile, 3+ other info
+0 = AM_PREFIX, 1 = TRANS_ID, 2 = row, 3 = col, 4 = profile, 5+ other info
 
 Make sure I'm correctly indexing everywhere, especially am_keyboard_data on the slave
 
@@ -322,6 +327,20 @@ self.send(self, data) and self.recv(self, length, timeout_ms=50) to read/write
 usb_send() returns the return message from the keyboard(?)
 
 Need to add an analog_matrix class and extend class Keyboard with it
+
+I could calculate the expected config size in the GUI to check against, would that be useful?
+-Could use that to trigger a reset if the config has changed
+
+Need to make sure both halves are synced at the start
+-Currently, the eeprom is built when VIA is used the first time, and split sync only happens if something changes in VIA
+-This means that the firmware needs to be the same on both halves to start with, otherwise they stay desynced
+-Should I implement a sync for that, a way to send over the entire config to the slave?
+    -There's no way I'm manually starting the transaction for all things one by one
+
+Implement a button to build a full keyboard config out of the current VIA settings
+-Since I basically have all of the info anyway, it could be a nice feature
+
+Since I need matrix_to_num and num_to_matrix on the keyboard anyway, I can just send the indexes directly
 
 =====
 

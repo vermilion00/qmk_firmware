@@ -35,7 +35,7 @@
 // If VIA is enabled, an external definition is used instead
 extern am_keyboard_t am_keyboard_data;
 #else
-SPLIT_VIA_MUT am_keyboard_t am_keyboard_data = {
+SPLIT_MUTABLE am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
     .trigger_height = TRIGGER_HEIGHT,
     .release_height = RELEASE_HEIGHT,
@@ -1395,6 +1395,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
 
 
 //MARK: Filter functions
+//TODO: For the VIA_FILTER_STRENGTH stuff, I could either go through a switch statement or set many different filter functions and swap the pointer around based on the selection
 #if FILTER_STRENGTH != 0
 uint16_t adc_filter_function(uint16_t value, uint8_t index) {
 // Guarded to allow overwriting the filter with a different implementation
@@ -1435,6 +1436,8 @@ uint16_t adc_slave_filter_function(uint16_t value, uint8_t index) {
     return ADC_SLAVE_FILTER(value, index);
 }
 #endif
+#else // if FILTER_STRENGTH != 0
+#define ADC_FILTER(value) value
 #endif
 
 

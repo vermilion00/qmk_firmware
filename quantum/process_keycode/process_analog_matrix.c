@@ -57,21 +57,42 @@ bool process_analog_matrix(uint16_t keycode, keyrecord_t *record) {
             #endif
             return false;
 
+        case AM_INCREMENT_PROFILE:
+            #if AM_PROFILE_NUM > 1
+            if(record->event.pressed) {
+                if(active_profile + 1 >= am_keyboard_data.profile_num) {
+                    active_profile = 0;
+                } else active_profile += 1;
+            }
+            #endif
+            return false;
+
+        case AM_DECREMENT_PROFILE:
+            #if AM_PROFILE_NUM > 1
+            if(record->event.pressed) {
+                if(active_profile - 1 <= 0) {
+                    active_profile = am_keyboard_data.profile_num - 1;
+                } else active_profile -= 1;
+            }
+            #endif
+            return false;
+
         case AM_PROFILE_RANGE ... AM_PROFILE_RANGE_MAX:
             #if AM_PROFILE_NUM > 1
             if (record->event.pressed) {
+                const uint8_t profile = keycode & 0x000F;
                 // Sanity check that the profile exists
-                if((keycode & 0x001F) >= AM_PROFILE_NUM) {
+                if(profile >= (am_keyboard_data.profile_num & 0x0F)) {
                     printf("Profile %u doesn't exist! Remember that profiles are 0-indexed.", active_profile);
                     return false;
                 }
 
                 // Turn on manual profile lock if switching to a new profile, turn it off when switching to the currently active profile
-                if((keycode & 0x001F) == active_profile) {
+                if(profile == active_profile) {
                     set_profile_lock_state(false);
                 } else {
-                    // 32 profiles max
-                    set_active_profile(keycode & 0x001F);
+                    // 16 profiles max
+                    set_active_profile(profile);
                     set_profile_lock_state(true);
                 }
             }

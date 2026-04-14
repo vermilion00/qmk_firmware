@@ -33,9 +33,6 @@ am_keyboard_t am_keyboard_data = {
     .bottom_deadzone = USER_BOTTOM_DEADZONE,
     .smoothing = ADC_SMOOTHING,
     .top_mult = TOP_DEADZONE_MULT * 100,
-    #ifdef VIA_FILTER_STRENGTH
-    .filter_strength = FILTER_STRENGTH,
-    #endif
 
     #ifdef USE_PRIORITY_MODE
     .priority_profiles = PRIORITY_PROFILES,
@@ -46,15 +43,20 @@ am_keyboard_t am_keyboard_data = {
     .dc_delta = AM_DC_DELTA,
     #endif
     #ifdef SPLIT_KEYBOARD
-    #ifdef VIA_FILTER_STRENGTH
-    .split_filter_strength = SLAVE_FILTER_STRENGTH << 4 | RIGHT_FILTER_STRENGTH,// The first 4 bits show the slave strength, the right 4 the right strength
-    #endif
     //TODO: Just define the multiplier differently
     .right_mult = (uint8_t)(RIGHT_MULTIPLIER * 100),
     .slave_mult = (uint8_t)(SLAVE_MULTIPLIER * 100),
+    #ifdef VIA_FILTER_STRENGTH
+    .split_filter_strength = SLAVE_FILTER_STRENGTH << 4 | RIGHT_FILTER_STRENGTH,// The first 4 bits show the slave strength, the right 4 the right strength
+    #endif
     #endif // ifdef SPLIT_KEYBOARD
+    #ifdef VIA_FILTER_STRENGTH
+    .filter_strength = FILTER_STRENGTH,
+    #endif
     .keyboard_size = sizeof(am_keyboard_t),
 };
+
+// uint32_t test = sizeof(am_keyboard_t);
 
 const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = FULL_MATRIX_TO_NUM;
 
@@ -154,21 +156,10 @@ void set_profile_layer_state(uint8_t profile, layer_state_t value) {
     am_keyboard_data.profile_layers[profile] = value;
 }
 
-// Returns true if profile_lock is active
-// bool get_profile_lock_state(void) {
-//     return !!(am_keyboard_data.profile_num & 0b10000000);
-// }
-
 // Returns true if the state of profile_lock is updated
 bool get_profile_lock_save_state(void) {
     return !!(am_keyboard_data.profile_num & 0b01000000);
 }
-
-// Saves the current state of profile_lock
-// void set_profile_lock_state(bool state) {
-//     if(state) am_keyboard_data.profile_num |= 0b10000000;
-//     else am_keyboard_data.profile_num &= 0b01111111;
-// }
 
 // If true, the state of profile_lock will be saved
 void set_profile_lock_save_state(bool state) {
@@ -176,14 +167,16 @@ void set_profile_lock_save_state(bool state) {
     else am_keyboard_data.profile_num &= 0b10111111;
 }
 
+void set_profile_num(uint8_t profiles) {
+    am_keyboard_data.profile_num &= 0b11110000;
+    am_keyboard_data.profile_num |= profiles;
+}
+
 void set_deadzones(uint8_t index, uint16_t value) {
-    #ifdef SPLIT_KEYBOARD
-    if(index > 5) return;
-    #else
-    if(index > 3) return; // The index is repurposed as the index of the deadzone that should be changed
-    #endif
     const uint8_t raw_value = CLAMP8(value);
     #ifdef SPLIT_KEYBOARD
+    //TODO: Change this according to impl, but I currently don't want to multiply the values at all since I'm setting the user values
+    //      How should I do smoothing though, since that isn't divided yet?
     // Apply the multipliers
     if(!is_keyboard_left()) value = value * (am_keyboard_data.right_mult / 100.0);
     if(!is_keyboard_master()) value = value * (am_keyboard_data.slave_mult / 100.0);
@@ -192,7 +185,7 @@ void set_deadzones(uint8_t index, uint16_t value) {
     //TODO: Since I only want to change the user deadzone value, not the ADC deadzone by via, I need to make sure that this is correct
     //      Perhaps allow different fields to control both values?
     switch(index) {
-        case 0: {
+        case 0: { // Top deadzone
             // Remove old deadzones, apply the new deadzones
             #ifdef INVERT_ADC
             for(uint8_t key = 0; key < switch_num; key++) key_config[key].top_value = key_config[key].top_value - top_deadzones[key] + value;
@@ -207,7 +200,7 @@ void set_deadzones(uint8_t index, uint16_t value) {
             break;
         }
 
-        case 1: {
+        case 1: { // Bottom deadzone
             #ifdef INVERT_ADC
             for(uint8_t key = 0; key < switch_num; key++) key_config[key].bottom_value = key_config[key].bottom_value + bottom_deadzone - value;
             #else
@@ -218,14 +211,14 @@ void set_deadzones(uint8_t index, uint16_t value) {
             break;
         }
 
-        case 2: {
+        case 2: { // Smoothing
             am_keyboard_data.smoothing = raw_value;
             smoothing = value;
             for(uint8_t key = 0; key < switch_num; key++) translate_mm_to_value(key, false);
             break;
         }
 
-        case 3: {
+        case 3: { // Top mult
             uint8_t prev_deadzones[SMAX(SWITCH_NUM)];
             memcpy(&prev_deadzones, &top_deadzones, sizeof(top_deadzones));
             float top_mult = am_keyboard_data.top_mult / 100.0;
@@ -293,7 +286,23 @@ void set_deadzones(uint8_t index, uint16_t value) {
             }
             break;
         }
+
+        #ifdef VIA_FILTER_STRENGTH
+        case 6: { // Split right filter strength
+            //TODO: Do more here, like changing the actual filter function
+            am_keyboard_data.split_filter_strength = raw_value;
+            break;
+        }
+        #endif // ifdef VIA_FILTER_STRENGTH
         #endif // ifdef SPLIT_KEYBOARD
+
+        #ifdef VIA_FILTER_STRENGTH
+        #error "VIA_FILTER_STRENGTH is currently not working!"
+        case 7: { // Split slave filter strength
+            am_keyboard_data.split_filter_strength = raw_value << 4; // The leftshift is to signify which option is used, but only one can be used at a time
+            break;
+        }
+        #endif // ifdef VIA_FILTER_STRENGTH
     }
 }
 
@@ -352,10 +361,9 @@ void apply_default_config(am_keyboard_t* keyboard_data) {
 
 // Handles the VIA(L) app HID commands
 void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
-    //TODO: I could simply use the same layout for almost all IDs and assign the values before the switch statement
-
-    const uint8_t *command_id   = &(data[0]);
-    uint8_t *command_data = &(data[1]);
+    // The 0 index contains the AM_PREFIX
+    const uint8_t *command_id   = &(data[1]);
+    uint8_t *command_data = &(data[2]);
     // Split keyboard transaction values
     __attribute__((unused)) uint8_t index = 255;
     __attribute__((unused)) uint8_t profile = 255;
@@ -365,7 +373,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
     switch(*command_id) {
         case get_keyboard_def_id: {
             // Make sure the used bytes are clear
-            memset(&command_data[0], 0, 12);
+            memset(&command_data[0], 0, 15);
 
             const uint16_t kbsize = sizeof(am_keyboard_t);
             command_data[0] = (uint8_t)(kbsize & 0x00FF);
@@ -407,7 +415,6 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #ifdef VIA_FILTER_STRENGTH
             command_data[3] |= 0b00001000;
             #endif
-            command_data[3] |= get_profile_lock_save_state() << 4;
             //TODO: Add SOCD config here
 
             // Set external feature options
@@ -416,6 +423,9 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #endif
             #ifdef MIDI_ENABLE
             command_data[4] |= 0b00000010;
+            #endif
+            #ifdef SPLIT_KEYBOARD
+            command_data[4] |= 0b00000100;
             #endif
 
             #ifdef MIXED_MATRIX_ENABLE
@@ -427,6 +437,12 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             command_data[7] = am_keyboard_data.profile_num;
             command_data[8] = TOTAL_SWITCH_NUM;
             command_data[9] = SWITCH_NUM;
+            #ifdef RC_SWITCH_NUM
+            command_data[10] = RC_SWITCH_NUM;
+            #endif
+            command_data[11] = sizeof(layer_state_t);
+            command_data[12] = MATRIX_ROWS;
+            command_data[13] = MATRIX_COLS;
             break;
         }
 
@@ -442,10 +458,19 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             break;
         }
 
+        case get_matrix_to_num_id: {
+            const uint16_t page = (command_data[1] << 8) | command_data[0];
+            const uint16_t start = page * RAW_HID_SIZE;
+            if(start >= sizeof(matrix_to_num)) return;
+            uint16_t end = start + RAW_HID_SIZE;
+            if(end > sizeof(matrix_to_num)) end = sizeof(matrix_to_num);
+
+            memcpy(&data, &matrix_to_num + (uint8_t)start, end - start);
+            break;
+        }
+
         case get_mixed_matrix_id: {
             #ifdef MIXED_MATRIX_ENABLE
-            // Transfer matrix positions of all mech keys, so that the GUI can mark them appropriately
-            // ->RC_NUM_TO_MATRIX
             const uint8_t rc_num_to_matrix[RC_SWITCH_NUM][2] = RC_NUM_TO_MATRIX;
 
             const uint16_t page = (command_data[1] << 8) | command_data[0];
@@ -460,30 +485,26 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case set_switch_height_id: {
-            const uint8_t row = command_data[0];
-            const uint8_t col = command_data[1];
-            index = matrix_to_num[row][col];
+            const uint8_t index = command_data[0];
             if(index == 255) return;
-            profile = command_data[2];
+            profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num & 0x0F)) return;
 
-            const height_addr_t height_type = command_data[3];
+            const height_addr_t height_type = command_data[2];
             split_id = height_type;
-            value = (command_data[4] | (command_data[5] << 8));
+            value = (command_data[3] | (command_data[4] << 8));
             set_switch_height(index, profile, height_type, value);
             break;
         }
 
         case set_switch_mode_id: {
-            const uint8_t row = command_data[0];
-            const uint8_t col = command_data[1];
-            index = matrix_to_num[row][col];
+            const uint8_t index = command_data[0];
             if(index == 255) return;
-            profile = command_data[2];
+            profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num)) return;
 
             split_id = split_key_mode;
-            value = command_data[3];
+            value = command_data[2];
             set_switch_mode(index, profile, value);
             break;
         }
@@ -543,6 +564,13 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_profile_lock_save;
             value = command_data[0];
             set_profile_lock_save_state(value);
+            break;
+        }
+
+        case set_profile_num_id: {
+            split_id = split_profile_num;
+            value = command_data[0];
+            set_profile_num(value);
             break;
         }
 

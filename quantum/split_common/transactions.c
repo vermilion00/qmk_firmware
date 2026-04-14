@@ -1326,6 +1326,10 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             set_profile_lock_save_state(value);
             break;
 
+        case split_profile_num:
+            set_profile_num(value);
+            break;
+
         case split_reset_keyboard:
             apply_default_config(&am_keyboard_data);
             // Re-initialize all keys

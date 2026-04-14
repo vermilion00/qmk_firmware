@@ -1,104 +1,114 @@
 {
     "ranges": {
-        "0x7900/0x001F": {
+        "0x7900/0x000F": {
             "define": "AM_PROFILE_RANGE"
         },
-        "0x7920/0x001F": {
+        "0x7910/0x001F": {
             "define": "AM_KEYCODE_RANGE"
         },
-        "0x7940/0x000B": {
+        "0x7930/0x000B": {
             "define": "AM_JOYSTICK_RANGE"
         }
     },
     "keycodes": {
-        // The range between 0x7900 and 0x791F is used by the profile change keycodes, which work like MO(layer)
-        "0x7920": {
+        // The range between 0x7900 and 0x790F is used by the profile change keycodes, which work like MO(layer)
+        "0x7910": {
             "group": "analog_matrix",
             "key": "AM_CALIBRATE",
             "aliases": ["AM_CLBR"]
         },
-        "0x7921": {
+        "0x7911": {
             "group": "analog_matrix",
             "key": "AM_CALIBRATE_TOP",
             "aliases": ["AM_CLTP"]
         },
-        "0x7922": {
+        "0x7912": {
             "group": "analog_matrix",
             "key": "AM_PRINT_CALIBRATION",
             "aliases": ["AM_PRNT"]
         },
-        "0x7923": {
+        "0x7913": {
             "group": "analog_matrix",
             "key": "AM_LOCK_PROFILE",
             "aliases": ["AM_LOCK"]
         },
-        "0x7924": {
+        "0x7914": {
             "group": "analog_matrix",
             "key": "AM_TOGGLE_PRIORITY",
             "aliases": ["AM_TGPR"]
         },
-        "0x7925": {
+        "0x7915": {
             "group": "analog_matrix",
             "key": "AM_CLEAR_CALIBRATION",
             "aliases": ["AM_CLCL"]
         },
-        //"0x7925/0x000E" - RESERVED
-        "0x7940": {
+        "0x7916": {
+            "group": "analog_matrix",
+            "key": "AM_INCREMENT_PROFILE",
+            "aliases": ["AM_INPR", "AM_PRPL"]
+        },
+        "0x7917": {
+            "group": "analog_matrix",
+            "key": "AM_DECREMENT_PROFILE",
+            "aliases": ["AM_DEPR", "AM_PRMN"]
+        },
+        //"0x7918/0x000B" - RESERVED
+        "0x7930": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_X",
             "aliases": ["JS_LPX", "JS_LSR"]
         },
-        "0x7941": {
+        "0x7931": {
             "group": "analog_joystick",
             "key": "JS_LEFT_NEGATIVE_X",
             "aliases": ["JS_LNX", "JS_LSL"]
         },
-        "0x7942": {
+        "0x7932": {
             "group": "analog_joystick",
             "key": "JS_LEFT_NEGATIVE_Y",
             "aliases": ["JS_LNY", "JS_LSD"]
         },
-        "0x7943": {
+        "0x7933": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_Y",
             "aliases": ["JS_LPY", "JS_LSU"]
         },
-        "0x7944": {
+        "0x7934": {
             "group": "analog_joystick",
             "key": "JS_LEFT_POSITIVE_Z",
             "aliases": ["JS_LPZ"]
         },
-        "0x7945": {
+        "0x7935": {
             "group": "analog_joystick",
             "key": "JS_LEFT_NEGATIVE_Z",
             "aliases": ["JS_LNZ"]
         },
-        "0x7946": {
+        "0x7936": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_POSITIVE_X",
             "aliases": ["JS_RPX", "JS_RSR"]
         },
-        "0x7947": {
+        "0x7937": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_NEGATIVE_X",
             "aliases": ["JS_RNX", "JS_RSL"]
         },
-        "0x7948": {
+        "0x7938": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_POSITIVE_Y",
             "aliases": ["JS_RPY", "JS_RSU"]
         },
-        "0x7949": {
+        "0x7939": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_NEGATIVE_Y",
             "aliases": ["JS_RNY", "JS_RSD"]
         },
-        "0x794A": {
+        "0x793A": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_POSITIVE_Z",
             "aliases": ["JS_RPZ"]
         },
-        "0x794B": {
+        "0x793B": {
             "group": "analog_joystick",
             "key": "JS_RIGHT_NEGATIVE_Z",
             "aliases": ["JS_RNZ"]

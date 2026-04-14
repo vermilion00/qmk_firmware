@@ -123,8 +123,8 @@
 #define QK_ONE_SHOT_MOD_GET_MODS(kc) ((kc)&0x1F)
 
 //MARK: AM Profile set
-// A-ctivate P-rofile - 32 profiles max
-#define AM_AP(profile) (AM_PROFILE_RANGE | ((profile)&0x1F))
+// A-ctivate P-rofile - 16 profiles max
+#define AM_AP(profile) (AM_PROFILE_RANGE | ((profile)&0x000F))
 
 #define OS_LCTL OSM(MOD_LCTL)
 #define OS_LSFT OSM(MOD_LSFT)

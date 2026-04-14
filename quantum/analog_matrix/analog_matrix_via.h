@@ -35,13 +35,8 @@ typedef struct am_keyboard_t {
     #endif
     uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
     uint8_t profile_num; // MSB saves state of manual_profile_lock, 2nd MSB saves whether or not manual_profile_lock should be saved
-    uint8_t profile_config;
+    uint8_t profile_config; // 4 MSB is default profile, 4 LSB is profile switch mode
     layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
-
-    //TODO: Implement this
-    #ifdef VIA_FILTER_STRENGTH
-    uint8_t filter_strength;
-    #endif
 
     #ifdef USE_PRIORITY_MODE
     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
@@ -61,9 +56,13 @@ typedef struct am_keyboard_t {
     uint8_t right_mult; // Multiplied by 100
     uint8_t slave_mult; // Multiplied by 100
     #ifdef VIA_FILTER_STRENGTH
-    uint8_t split_filter_strength; // The first 4 bits show the slave strength, the right 4 the right strength
+    uint8_t split_filter_strength; // The 4 MSB show the slave strength, the 4 LSB the right strength
     #endif
     #endif // ifdef SPLIT_KEYBOARD
+    //TODO: Implement this
+    #ifdef VIA_FILTER_STRENGTH
+    uint8_t filter_strength;
+    #endif
     uint16_t keyboard_size;
 } am_keyboard_t;
 
@@ -80,8 +79,8 @@ typedef enum am_via_id {
     // Default data ends at 0x13, 0xFE and 0xFF are also taken
     get_keyboard_def_id = 0x20, // Get the the size of the keyboard data and enabled features
     get_keyboard_data_id, // Get the entirety of am_keyboard_data
+    get_matrix_to_num_id,
     get_mixed_matrix_id, // Get the matrix positions of all mixed matrix keys
-    get_switch_profile_id, // Probably unused
     set_switch_height_id, // Set any height for the index
     set_switch_mode_id,
     set_switch_priority_id,
@@ -90,6 +89,7 @@ typedef enum am_via_id {
     set_dynamic_calibration_id,
     set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
     set_profile_lock_save_id,
+    set_profile_num_id, // Sets the new number of used profiles (not AM_PROFILE_NUM, which is the maximum amount of profile space allocated)
     clear_calibration_data_id, // Resets the calibration data
     reset_keyboard_data_id, // Resets all data to json defaults
 } am_via_id;
@@ -109,6 +109,7 @@ typedef enum am_via_split_id {
     split_dynamic_calibration,
     split_deadzone,
     split_profile_lock_save,
+    split_profile_num,
     split_reset_keyboard
 } am_via_split_id;
 
@@ -138,6 +139,7 @@ bool get_profile_lock_state(void);
 bool get_profile_lock_save_state(void);
 void set_profile_lock_state(bool state);
 void set_profile_lock_save_state(bool state);
+void set_profile_num(uint8_t profiles);
 void apply_default_config(am_keyboard_t* keyboard_data);
 
 void analog_matrix_via_init(void);

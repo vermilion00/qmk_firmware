@@ -618,6 +618,10 @@ def generate_profile_config(info_data, config_h_lines):
     global use_priority_mode
 
     while True:
+        if profile_num == 16:
+            print("Warning: Only 16 profiles are allowed! Any profile above profile_15 will be skipped!")
+            break
+
         #TODO: I can probably simplify this with a loop
         if f'profile_{profile_num}' in am_profiles:
             profile_data = am_profiles[f'profile_{profile_num}']
@@ -1032,8 +1036,8 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'debug_matrix_position' in am_json['config']:
         debug_matrix_position(info_data, config_h_lines)
 
-    switch_num = am_hardware.get('total_switch_num')
-    #TODO: Remove config height definition stuff, no need for it
+    # switch_num = am_hardware.get('total_switch_num')
+    # #TODO: Remove config height definition stuff, no need for it
     # Only get the heights from the config if no profiles are defined
     # if 'profiles' not in am_json:
     #     #Config stuff
