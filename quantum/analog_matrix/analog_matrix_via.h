@@ -90,6 +90,7 @@ typedef enum am_via_id {
     set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
     set_profile_lock_save_id,
     set_profile_num_id, // Sets the new number of used profiles (not AM_PROFILE_NUM, which is the maximum amount of profile space allocated)
+    save_config_id, // Updates EEPROM
     clear_calibration_data_id, // Resets the calibration data
     reset_keyboard_data_id, // Resets all data to json defaults
 } am_via_id;
@@ -108,8 +109,8 @@ typedef enum am_via_split_id {
     split_priority_profiles,
     split_dynamic_calibration,
     split_deadzone,
-    split_profile_lock_save,
     split_profile_num,
+    split_save_config,
     split_reset_keyboard
 } am_via_split_id;
 

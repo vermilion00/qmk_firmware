@@ -1322,12 +1322,14 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             set_deadzones(index, value);
             break;
 
-        case split_profile_lock_save:
-            set_profile_lock_save_state(value);
+        case split_profile_num:
+            // Since we use the same transaction for profile lock save state, we set the value directly
+            am_keyboard_data.profile_num = value;
             break;
 
-        case split_profile_num:
-            set_profile_num(value);
+        case split_save_config:
+            nvm_set_analog_matrix_config(&am_keyboard_data);
+            config_update_required = false;
             break;
 
         case split_reset_keyboard:

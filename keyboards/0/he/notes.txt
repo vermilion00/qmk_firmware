@@ -297,7 +297,7 @@ Add the top/bottom deadzone calibration transactions
 Allow setting init keys through VIA? Doesn't really seem worth the effort tbh
 
 The HID set transactions generally look like this:
-0 = AM_PREFIX, 1 = TRANS_ID, 2 = row, 3 = col, 4 = profile, 5+ other info
+0 = AM_PREFIX, 1 = TRANS_ID, 2 = index, 3 = profile, 4+ other info
 
 Make sure I'm correctly indexing everywhere, especially am_keyboard_data on the slave
 
@@ -306,25 +306,6 @@ Also add keycodes to increment/decrement profile
 Add option to remember last profile, and load it at startup? Very wasteful
 
 If joystick is enabled, show joystick keys -> I thought the keys are already pulled from the hjson files? Or does the GUI itself need access to them?
-
-self.send(self, data) and self.recv(self, length, timeout_ms=50) to read/write
--> Since the keyboard sends data back immediately after the GUI sends data, normal functionality is writing, then immediately reading
--> then recv length in the UID example is MSG_LEN, and the timeout_ms=500
--self.usb_send(whatever the hell goes here) also seems to do the same just with more params?
- self.usb_send(self.dev, struct.pack(something, cur), retries=20)
- The self.usb_send() is way more often used, for example in keyboard_comm.py l.315 to send keycode changes
-
-
- The random bytes at the start of self.usb_send(self.dev, struct.pack(">BBB", CMD_VIA_LIGHTING_SET_VALUE, QMK_RGBLIGHT_BRIGHTNESS, value), retries=20)
- Are as long as the values you put in, as in this message uses 4 bytes
- -> Also, VIAL uses both VIA and VIAL prefixes for messages
- -> The string gets overridden, it's not a prefix
-    -The > sets the endianness to big endian
-    -A B is just a unsigned byte uint8_T
-    -H is uint16_t
-    -I is uint32_t
-    -Lowercase is signed
-usb_send() returns the return message from the keyboard(?)
 
 Need to add an analog_matrix class and extend class Keyboard with it
 
@@ -340,7 +321,17 @@ Need to make sure both halves are synced at the start
 Implement a button to build a full keyboard config out of the current VIA settings
 -Since I basically have all of the info anyway, it could be a nice feature
 
-Since I need matrix_to_num and num_to_matrix on the keyboard anyway, I can just send the indexes directly
+Implement a button in GUI that saves config to eeprom
+-The values would still be transferred instantly by default
+
+Add option to write full config to keyboard, in case the config is loaded from a layout file
+-Also need to write the config to a layout file obviously
+-Before writing the config, I need to query the keyboard for the def size and only transfer if they match
+-Would be quite difficult for split keyboards
+    -If I write everything one by one then it's obviously not a problem, but that isn't exactly optimal either
+
+Add transaction that gets the active profile from the keyboard/sets the active profile on the keyboard
+-This can be useful to select the appropriate profile on one party when it's manually changed on the other
 
 =====
 

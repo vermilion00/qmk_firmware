@@ -2,6 +2,7 @@
 #include "analog_matrix_via.h"
 #include "nvm_dynamic_keymap.h"
 #include "eeprom.h"
+#include "print.h" //TODO: RM
 #ifdef SPLIT_KEYBOARD
 #   include "transactions.h"
 #endif
@@ -16,6 +17,7 @@ extern SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2];
 //TODO: RM once a better way is found
 bool config_update_required = false;
 
+//MARK: am_keyboard_t
 am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
     .trigger_height = TOTAL_TRIGGER_HEIGHT,
@@ -60,6 +62,7 @@ am_keyboard_t am_keyboard_data = {
 
 const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = FULL_MATRIX_TO_NUM;
 
+//MARK: VIA init
 void analog_matrix_via_init(void) {
     // Read the analog matrix configuration from EEPROM
     am_keyboard_t eeprom_data;
@@ -78,6 +81,7 @@ void analog_matrix_via_init(void) {
 //TODO: Redo these according to the final impl of am_keyboard_data
 // Returns the compressed height (uint8_t instead of float)
 // All following functions take the global switch index
+//MARK: get height
 height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height) {
     switch(height) {
         #ifdef USE_TRIGGER_HEIGHT
@@ -109,6 +113,7 @@ bool get_switch_priority_mode(uint8_t key, uint8_t profile) {
     return !!(am_keyboard_data.key_mode[profile][key] & 0b10000000);
 }
 
+//MARK: Set height
 void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, height_t value) {
     switch(height) {
         #ifdef USE_TRIGGER_HEIGHT
@@ -172,6 +177,7 @@ void set_profile_num(uint8_t profiles) {
     am_keyboard_data.profile_num |= profiles;
 }
 
+//MARK: Set deadzones
 void set_deadzones(uint8_t index, uint16_t value) {
     const uint8_t raw_value = CLAMP8(value);
     #ifdef SPLIT_KEYBOARD
@@ -315,6 +321,7 @@ void set_dynamic_calibration(uint8_t index, uint8_t value) {
 }
 #endif
 
+//MARK: Apply default config
 void apply_default_config(am_keyboard_t* keyboard_data) {
     const am_keyboard_t default_data = {
         #ifdef USE_TRIGGER_HEIGHT
@@ -359,6 +366,7 @@ void apply_default_config(am_keyboard_t* keyboard_data) {
     memcpy(&keyboard_data, &default_data, sizeof(am_keyboard_t));
 }
 
+//MARK: HID handler
 // Handles the VIA(L) app HID commands
 void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
     // The 0 index contains the AM_PREFIX
@@ -372,8 +380,13 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
     switch(*command_id) {
         case get_keyboard_def_id: {
+            // If a value is passed along, we only return the active profile
+            if(command_data[0]) {
+                command_data[0] = active_profile;
+                break;
+            }
             // Make sure the used bytes are clear
-            memset(&command_data[0], 0, 15);
+            memset(&command_data[0], 0, 20);
 
             const uint16_t kbsize = sizeof(am_keyboard_t);
             command_data[0] = (uint8_t)(kbsize & 0x00FF);
@@ -443,6 +456,9 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             command_data[11] = sizeof(layer_state_t);
             command_data[12] = MATRIX_ROWS;
             command_data[13] = MATRIX_COLS;
+            command_data[14] = (TRAVEL_DISTANCE * 100) & 0x00FF;
+            command_data[15] = ((TRAVEL_DISTANCE * 100) & 0xFF00) >> 8;
+            command_data[16] = active_profile;
             break;
         }
 
@@ -453,8 +469,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             uint16_t end = start + RAW_HID_SIZE;
             if(end > sizeof(am_keyboard_t)) end = sizeof(am_keyboard_t);
 
-            //TODO: Make sure this offsets correctly, since I can't just index into am_keyboard_data
-            memcpy(&data, &am_keyboard_data + (uint8_t)start, end - start);
+            memcpy(data, ((uint8_t*)&am_keyboard_data) + start, end - start);
             break;
         }
 
@@ -465,21 +480,22 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             uint16_t end = start + RAW_HID_SIZE;
             if(end > sizeof(matrix_to_num)) end = sizeof(matrix_to_num);
 
-            memcpy(&data, &matrix_to_num + (uint8_t)start, end - start);
+            memcpy(data, ((uint8_t*)&matrix_to_num) + start, end - start);
             break;
         }
 
+        //TODO: I can probably remove this transaction, and all other RC stuff in HID
         case get_mixed_matrix_id: {
             #ifdef MIXED_MATRIX_ENABLE
-            const uint8_t rc_num_to_matrix[RC_SWITCH_NUM][2] = RC_NUM_TO_MATRIX;
+            const uint8_t matrix_to_rc_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_RC_NUM;
 
             const uint16_t page = (command_data[1] << 8) | command_data[0];
             const uint16_t start = page * RAW_HID_SIZE;
-            if(start >= sizeof(rc_num_to_matrix)) return;
+            if(start >= sizeof(matrix_to_rc_num)) return;
             uint16_t end = start + RAW_HID_SIZE;
-            if(end > sizeof(rc_num_to_matrix)) end = sizeof(rc_num_to_matrix);
+            if(end > sizeof(matrix_to_rc_num)) end = sizeof(matrix_to_rc_num);
 
-            memcpy(&data, &rc_num_to_matrix + (uint8_t)start, end - start);
+            memcpy(&data, ((uint8_t*)&matrix_to_rc_num) + start, end - start);
             #endif
             break;
         }
@@ -511,15 +527,13 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
         case set_switch_priority_id: {
             #ifdef USE_PRIORITY_MODE
-            const uint8_t row = command_data[0];
-            const uint8_t col = command_data[1];
-            index = matrix_to_num[row][col];
+            const uint8_t index = command_data[0];
             if(index == 255) return;
-            profile = command_data[2];
+            profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num)) return;
 
             split_id = split_key_priority;
-            value = command_data[3];
+            value = command_data[2];
             set_switch_priority_mode(index, profile, value);
             #endif
             break;
@@ -561,9 +575,11 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case set_profile_lock_save_id: {
-            split_id = split_profile_lock_save;
+            // Since it shares space with profile_num, we can save on a transaction
+            split_id = split_profile_num;
             value = command_data[0];
             set_profile_lock_save_state(value);
+            value = am_keyboard_data.profile_num;
             break;
         }
 
@@ -571,6 +587,14 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_profile_num;
             value = command_data[0];
             set_profile_num(value);
+            value = am_keyboard_data.profile_num;
+            break;
+        }
+
+        case save_config_id: {
+            split_id = split_save_config;
+            nvm_set_analog_matrix_config(&am_keyboard_data);
+            config_update_required = false;
             break;
         }
 

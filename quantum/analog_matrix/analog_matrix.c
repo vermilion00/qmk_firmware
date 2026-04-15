@@ -1319,7 +1319,6 @@ void profile_state_changed(uint8_t profile) {
     // if(is_keyboard_master()) am_data_manual_transaction(normal_transaction);
 
     #ifdef USE_PRIORITY_MODE
-    // priority_mode = profiles[active_profile].priority_profile;
     priority_mode = !!(am_keyboard_data.priority_profiles & 1 << profile);
 
     // If VIA is enabled, the priority indices are assigned per profile

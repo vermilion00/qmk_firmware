@@ -417,7 +417,7 @@ def get_matrix_to_mux(info_data, config_h_lines):
 
         for idx, pos in enumerate(num_to_matrix):
             matrix_to_num[pos[0] - row_split][pos[1]] = idx
-            full_matrix_to_num[pos[0]][pos[1]] = idx + switch_num_l if pos[0] > rows else idx
+            full_matrix_to_num[pos[0]][pos[1]] = idx + switch_num_l if pos[0] >= rows else idx
 
         # side = [row for row in matrix_to_num]
         # full_matrix_to_num.append(side)

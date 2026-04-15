@@ -403,59 +403,59 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 
 //TODO: Make sure that these index correctly
 void nvm_get_analog_matrix_config(am_keyboard_t* data) {
-    eeprom_read_block(&data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
+    eeprom_read_block(data, (uint8_t*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
 void nvm_set_analog_matrix_config(am_keyboard_t* data) {
-    eeprom_update_block(&data, (void*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
+    eeprom_update_block(data, (uint8_t*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
-void nvm_set_profile_config(uint8_t config) {
-    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)offsetof(am_keyboard_t, profile_config)), config);
-}
+// void nvm_set_profile_config(uint8_t config) {
+//     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)offsetof(am_keyboard_t, profile_config)), config);
+// }
 
-//TODO: Make sure this offsets correctly
-void nvm_set_profile_layers(uint8_t profile, layer_state_t profile_layers) {
-    #if defined LAYER_STATE_8BIT
-    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
-    #elif defined LAYER_STATE_16BIT
-    eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
-    #elif defined LAYER_STATE_32BIT
-    eeprom_update_dword((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
-    #endif
-}
+// //TODO: Make sure this offsets correctly
+// void nvm_set_profile_layers(uint8_t profile, layer_state_t profile_layers) {
+//     #if defined LAYER_STATE_8BIT
+//     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
+//     #elif defined LAYER_STATE_16BIT
+//     eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
+//     #elif defined LAYER_STATE_32BIT
+//     eeprom_update_dword((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile)), profile_layers);
+//     #endif
+// }
 
-// 0 = Top, 1 = Bottom, 2 = Smoothing, 3 = Multiplier, 4 = Filter strength
-void nvm_set_deadzone(uint8_t index, uint8_t value) {
-    #ifndef VIA_FILTER_STRENGTH
-    if(index > 3) return; // Index 4 should only be used if it's enabled
-    #else
-    if(index > 4) return;
-    #endif
-    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, top_deadzone)) + index), value);
-}
+// // 0 = Top, 1 = Bottom, 2 = Smoothing, 3 = Multiplier, 4 = Filter strength
+// void nvm_set_deadzone(uint8_t index, uint8_t value) {
+//     #ifndef VIA_FILTER_STRENGTH
+//     if(index > 3) return; // Index 4 should only be used if it's enabled
+//     #else
+//     if(index > 4) return;
+//     #endif
+//     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, top_deadzone)) + index), value);
+// }
 
-#ifdef USE_PRIORITY_MODE
-void nvm_set_priority_profiles(uint16_t profile_state) {
-    eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint16_t*)offsetof(am_keyboard_t, priority_profiles)), profile_state);
-}
-#endif
+// #ifdef USE_PRIORITY_MODE
+// void nvm_set_priority_profiles(uint16_t profile_state) {
+//     eeprom_update_word((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint16_t*)offsetof(am_keyboard_t, priority_profiles)), profile_state);
+// }
+// #endif
 
-#ifdef DYNAMIC_CALIBRATION
-// 0 = switch_num, 1 = factor * 100, 2 = delta
-void nvm_set_dynamic_calibration_config(uint8_t index, uint8_t value) {
-    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, dc_switch_num)) + index), value);
-}
-#endif
+// #ifdef DYNAMIC_CALIBRATION
+// // 0 = switch_num, 1 = factor * 100, 2 = delta
+// void nvm_set_dynamic_calibration_config(uint8_t index, uint8_t value) {
+//     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, dc_switch_num)) + index), value);
+// }
+// #endif
 
-#ifdef SPLIT_KEYBOARD
-// 0 = right mult, 1 = slave mult, 2 = right filter, 3 = slave filter
-void nvm_set_split_config(uint8_t index, uint8_t value) {
-    #ifdef VIA_FILTER_STRENGTH
-    if(index == 3) value <<= 4; // Even though this is a bitmap, we only use either/or anyway
-    #endif
-    eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, right_mult)) + index), value);
-}
-#endif
+// #ifdef SPLIT_KEYBOARD
+// // 0 = right mult, 1 = slave mult, 2 = right filter, 3 = slave filter
+// void nvm_set_split_config(uint8_t index, uint8_t value) {
+//     #ifdef VIA_FILTER_STRENGTH
+//     if(index == 3) value <<= 4; // Even though this is a bitmap, we only use either/or anyway
+//     #endif
+//     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)(offsetof(am_keyboard_t, right_mult)) + index), value);
+// }
+// #endif
 
 #endif // ifdef ANALOG_MATRIX_ENABLE
