@@ -333,7 +333,15 @@ Add option to write full config to keyboard, in case the config is loaded from a
 Add transaction that gets the active profile from the keyboard/sets the active profile on the keyboard
 -This can be useful to select the appropriate profile on one party when it's manually changed on the other
 
-=====
+========
+Automatic saving on layer change is currently disabled!!!
+
+The split sync works??? But translate_mm_to_value isn't called properly on right half I think
+If left is master:
+-Looks like the heights are sent immediately, and synced properly?
+-But then the translation isn't applied from set_height
+-The new height is applied if DC calls translation for the key though
+========
 
 
 typedef struct am_keyboard_t {

@@ -420,12 +420,13 @@ void change_layer_settings(uint8_t current_layer) {
 
     // Update the VIA config during a layer change to avoid writing to flash too often
     //TODO: RM once better way is found
+    //TODO: Reenable this after debugging
     #ifdef VIA_ENABLE
-    if(config_update_required) {
-        nvm_set_analog_matrix_config(&am_keyboard_data);
-        config_update_required = false;
-        LED_ON;
-    }
+    // if(config_update_required) {
+    //     nvm_set_analog_matrix_config(&am_keyboard_data);
+    //     config_update_required = false;
+    //     LED_ON;
+    // }
     #endif
 }
 

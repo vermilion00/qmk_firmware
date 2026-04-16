@@ -116,8 +116,8 @@ typedef enum am_via_split_id {
 
 typedef struct _am_via_data_t {
     uint8_t index;
-    am_via_split_id id;
-    layer_state_t value;
+    uint8_t id;
+    uint16_t value;
 } am_via_data_t;
 
 extern am_keyboard_t am_keyboard_data;

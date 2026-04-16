@@ -1247,7 +1247,7 @@ static void joystick_handlers_slave(matrix_row_t master_matrix[], matrix_row_t s
 #include "nvm_dynamic_keymap.h"
 #include "analog_matrix_via.h"
 
-bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_split_id, layer_state_t), uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
+bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_split_id, uint16_t), uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value) {
     int num_retries = is_transport_connected() ? 10 : 1;
     for (int iter = 1; iter <= num_retries; ++iter) {
         if (iter > 1) {
@@ -1261,37 +1261,34 @@ bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_spl
 }
 
 // value is of type layer_state_t to automatically scale with the max amount of layers
-bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, layer_state_t value) {
+bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value) {
     am_via_data_t config = {.index = index, .id = profile << 4 | id, .value = value};
-    split_shmem->am_via.checksum = crc8(&config, sizeof(config));
+    split_shmem->am_via.checksum = 255;
     if(!transport_write(PUT_VIA_CHECKSUM, &split_shmem->am_via.checksum, sizeof(uint8_t))) return false;
 
     return transport_write(PUT_VIA_DATA, &config, sizeof(am_via_data_t));
 }
 
 static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-    static uint8_t prev_checksum = 0;
 
-    if(prev_checksum == split_shmem->am_via.checksum) return;
-    prev_checksum = split_shmem->am_via.checksum;
+    // This isn't an actual checksum anymore, rather the master writes a value to it whenever a transaction is sent
+    if(!split_shmem->am_via.checksum) return;
+    split_shmem->am_via.checksum = 0;
 
-    am_via_data_t config;
-    split_shared_memory_lock();
-    memcpy(&config, &split_shmem->am_via.data, sizeof(am_via_data_t));
-    split_shared_memory_unlock();
+    am_via_data_t config = split_shmem->am_via.data;
+    // split_shared_memory_lock();
+    // memcpy(&config, &split_shmem->am_via.data, sizeof(am_via_data_t));
+    // split_shared_memory_unlock();
 
     //TODO: If I need more than 16 transactions I need to split them up
+    const uint8_t id = config.id & 0b00001111;
     const uint8_t profile = config.id >> 4;
-    const am_via_split_id id = config.id & 00001111;
     const uint16_t value = config.value;
     const uint8_t index = config.index;
     //TODO: Current impl only supports 16 transaction IDs, since its bitmapped to 4 bits
     switch(id) {
-        case split_trigger_height:
-        case split_release_height:
-        case split_rt_press:
-        case split_rt_release:
-            set_switch_height(index, profile, (uint8_t)id, value);
+        case split_trigger_height ... split_rt_release:
+            set_switch_height(index, profile, id, value);
             break;
 
         case split_key_mode:

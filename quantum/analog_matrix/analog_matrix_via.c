@@ -87,14 +87,18 @@ height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height) {
         #ifdef USE_TRIGGER_HEIGHT
         case trigger_height_addr:
             return am_keyboard_data.trigger_height[profile][key];
+            break;
         case release_height_addr:
             return am_keyboard_data.release_height[profile][key];
+            break;
         #endif
         #ifdef USE_RT_DISTANCE
         case rt_press_addr:
             return am_keyboard_data.rt_press_distance[profile][key];
+            break;
         case rt_release_addr:
             return am_keyboard_data.rt_release_distance[profile][key];
+            break;
         #endif
         default: return 255;
     }
@@ -119,18 +123,25 @@ void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, heigh
         #ifdef USE_TRIGGER_HEIGHT
         case trigger_height_addr:
             am_keyboard_data.trigger_height[profile][key] = value;
+            break;
         case release_height_addr:
             am_keyboard_data.release_height[profile][key] = value;
+            break;
         #endif
         #ifdef USE_RT_DISTANCE
         case rt_press_addr:
             am_keyboard_data.rt_press_distance[profile][key] = value;
+            break;
         case rt_release_addr:
             am_keyboard_data.rt_release_distance[profile][key] = value;
+            break;
         #endif
         default: return;
     }
-    if((key < switch_num + switch_low) && key > switch_low) translate_mm_to_value(key - switch_low, false);
+
+    if((key < (switch_num + switch_low)) && key > switch_low) {
+        translate_mm_to_value(key - switch_low, false);
+    }
 }
 
 void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
@@ -486,22 +497,22 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
         //TODO: I can probably remove this transaction, and all other RC stuff in HID
         case get_mixed_matrix_id: {
-            #ifdef MIXED_MATRIX_ENABLE
-            const uint8_t matrix_to_rc_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_RC_NUM;
+            // #ifdef MIXED_MATRIX_ENABLE
+            // const uint8_t matrix_to_rc_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_RC_NUM;
 
-            const uint16_t page = (command_data[1] << 8) | command_data[0];
-            const uint16_t start = page * RAW_HID_SIZE;
-            if(start >= sizeof(matrix_to_rc_num)) return;
-            uint16_t end = start + RAW_HID_SIZE;
-            if(end > sizeof(matrix_to_rc_num)) end = sizeof(matrix_to_rc_num);
+            // const uint16_t page = (command_data[1] << 8) | command_data[0];
+            // const uint16_t start = page * RAW_HID_SIZE;
+            // if(start >= sizeof(matrix_to_rc_num)) return;
+            // uint16_t end = start + RAW_HID_SIZE;
+            // if(end > sizeof(matrix_to_rc_num)) end = sizeof(matrix_to_rc_num);
 
-            memcpy(&data, ((uint8_t*)&matrix_to_rc_num) + start, end - start);
-            #endif
+            // memcpy(&data, ((uint8_t*)&matrix_to_rc_num) + start, end - start);
+            // #endif
             break;
         }
 
         case set_switch_height_id: {
-            const uint8_t index = command_data[0];
+            index = command_data[0];
             if(index == 255) return;
             profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num & 0x0F)) return;
@@ -514,7 +525,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case set_switch_mode_id: {
-            const uint8_t index = command_data[0];
+            index = command_data[0];
             if(index == 255) return;
             profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num)) return;
@@ -527,7 +538,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
         case set_switch_priority_id: {
             #ifdef USE_PRIORITY_MODE
-            const uint8_t index = command_data[0];
+            index = command_data[0];
             if(index == 255) return;
             profile = command_data[1];
             if(profile > (am_keyboard_data.profile_num)) return;
@@ -542,7 +553,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         case set_profile_layers_id: {
             split_id = split_profile_layers;
             profile = command_data[0];
-            value = (layer_state_t)(command_data[1] | (command_data[2] << 8) | (command_data[3] << 16) | (command_data[4]) << 24);
+            value = (layer_state_t)(command_data[1] | (command_data[2] << 8));
+            // value = (layer_state_t)(command_data[1] | (command_data[2] << 8) | (command_data[3] << 16) | (command_data[4]) << 24);
             set_profile_layer_state(profile, value);
             break;
         }
@@ -613,7 +625,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             // Re-initialize all keys
             get_key_config();
             get_calibration_data();
-            for(uint8_t index = 0; index < switch_num; index++) translate_mm_to_value(index, true);
+            for(uint8_t idx = 0; idx < switch_num; idx++) translate_mm_to_value(idx, true);
             profile_state_changed(active_profile);
             #if defined SPLIT_LAYER_SYNC
             change_layer_settings(am_highest_layer);

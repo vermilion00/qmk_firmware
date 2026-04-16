@@ -443,31 +443,31 @@ void translate_mm_to_value(uint8_t index, bool init) {
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
         //TODO: Make sure these offsets are correct
         #ifdef USE_TRIGGER_HEIGHT
-        const height_t* trigger_height = am_keyboard_data.trigger_height[profile] + switch_low;
-        const height_t* release_height = am_keyboard_data.release_height[profile] + switch_low;
+        const height_t trigger_height = am_keyboard_data.trigger_height[profile][index + switch_low];
+        const height_t release_height = am_keyboard_data.release_height[profile][index + switch_low];
         #ifndef INVERT_ADC
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Maybe instead of adjusting the converted adc value, instead adjust the height setting? like 1.0mm -> 0.7mm, 3.0mm -> 3.5mm
         //      Would need to find something for RT distances though, which probably would render it redundant
         //TODO: Test this, add INVERT_ADC values
-        key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height[index])) - smoothing;
-        key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height[index])) + smoothing;
+        key_config[index].trigger_value[profile] = adjust(top_value - (travel_unit * trigger_height)) - smoothing;
+        key_config[index].release_value[profile] = adjust(top_value - (travel_unit * release_height)) + smoothing;
 
         #else // ifndef DISTANCE_FROM_BOTTOM
-        key_config[index].trigger_value[profile] = adjust(travel_unit * trigger_height[index] + bottom_value) - smoothing;
-        key_config[index].release_value[profile] = adjust(travel_unit * release_height[index] + bottom_value) + smoothing;
+        key_config[index].trigger_value[profile] = adjust(travel_unit * trigger_height + bottom_value) - smoothing;
+        key_config[index].release_value[profile] = adjust(travel_unit * release_height + bottom_value) + smoothing;
         #endif // ifndef DISTANCE_FROM_BOTTOM else
 
         #else // ifndef INVERT_ADC
         //Inverted ADC -> Lower switch means higher value
         #ifndef DISTANCE_FROM_BOTTOM
         //TODO: Is this correct
-        key_config[index].trigger_value[profile] = adjust(top_value + (travel_unit * trigger_height[index])) + smoothing;
-        key_config[index].release_value[profile] = adjust(top_value + (travel_unit * release_height[index])) - smoothing;
+        key_config[index].trigger_value[profile] = adjust(top_value + (travel_unit * trigger_height)) + smoothing;
+        key_config[index].release_value[profile] = adjust(top_value + (travel_unit * release_height)) - smoothing;
 
         #else // ifndef DISTANCE_FROM_BOTTOM
-        key_config[index].trigger_value[profile] = adjust(bottom_value - (travel_unit * trigger_height[index])) + smoothing;
-        key_config[index].release_value[profile] = adjust(bottom_value - (travel_unit * release_height[index])) - smoothing;
+        key_config[index].trigger_value[profile] = adjust(bottom_value - (travel_unit * trigger_height)) + smoothing;
+        key_config[index].release_value[profile] = adjust(bottom_value - (travel_unit * release_height)) - smoothing;
         #endif // ifndef DISTANCE_FROM_BOTTOM else
         #endif // ifndef INVERT_ADC else
         #endif // ifdef USE_TRIGGER_HEIGHT
@@ -478,6 +478,7 @@ void translate_mm_to_value(uint8_t index, bool init) {
         const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index + switch_low];
         key_config[index].rt_release_value[profile] = (release_value > smoothing) ? release_value : smoothing;
 
+        if(am_keyboard_data.rt_press_distance[0][31] > 50) LED_ON;
         // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
         //TODO: Need to do this anytime the profile changes
         if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
@@ -1325,6 +1326,14 @@ void profile_state_changed(uint8_t profile) {
     #if defined VIA_ENABLE && defined PRIORITY_INDICES
     for(uint8_t key = 0; key < switch_num; key++) priority_indices[key] = !!(am_keyboard_data.key_mode[profile][key + switch_low] & 1 << 7);
     #endif
+    #endif
+
+    // If RT is enabled for this profile, set the initial threshold
+    #ifdef USE_RT_DISTANCE
+    //TODO: Need to account for trigger height if RT is 1 or 2
+    for(uint8_t index = 0; index < switch_num; index++) {
+        if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
+    }
     #endif
 }
 
