@@ -324,7 +324,6 @@ extern matrix_row_t matrix[MATRIX_ROWS];
 extern analog_key_t key_config[];
 extern SPLIT_MUTABLE uint8_t switch_num;
 extern SPLIT_VIA_MUT uint8_t switch_low;
-extern SPLIT_VIA_MUT uint8_t switch_high;
 extern SPLIT_MUTABLE pin_t adc_pins[ADC_PIN_NUM];
 extern adc_mux adc_pin_mux[ADC_PIN_NUM];
 #if defined MUX_PINS || defined MUX_PINS_R

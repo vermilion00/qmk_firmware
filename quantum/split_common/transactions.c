@@ -1263,8 +1263,8 @@ bool manual_via_transaction_handler(bool (*handler)(uint8_t, uint8_t, am_via_spl
 // value is of type layer_state_t to automatically scale with the max amount of layers
 bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value) {
     am_via_data_t config = {.index = index, .id = profile << 4 | id, .value = value};
-    split_shmem->am_via.checksum = 255;
-    if(!transport_write(PUT_VIA_CHECKSUM, &split_shmem->am_via.checksum, sizeof(uint8_t))) return false;
+    split_shmem->am_via.update = 255;
+    if(!transport_write(PUT_VIA_CHECKSUM, &split_shmem->am_via.update, sizeof(uint8_t))) return false;
 
     return transport_write(PUT_VIA_DATA, &config, sizeof(am_via_data_t));
 }
@@ -1272,13 +1272,10 @@ bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, 
 static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
 
     // This isn't an actual checksum anymore, rather the master writes a value to it whenever a transaction is sent
-    if(!split_shmem->am_via.checksum) return;
-    split_shmem->am_via.checksum = 0;
+    if(!split_shmem->am_via.update) return;
+    split_shmem->am_via.update = 0;
 
     am_via_data_t config = split_shmem->am_via.data;
-    // split_shared_memory_lock();
-    // memcpy(&config, &split_shmem->am_via.data, sizeof(am_via_data_t));
-    // split_shared_memory_unlock();
 
     //TODO: If I need more than 16 transactions I need to split them up
     const uint8_t id = config.id & 0b00001111;
@@ -1342,6 +1339,11 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             nvm_set_analog_matrix_config(&am_keyboard_data);
             break;
 
+        //TODO: Add syncing of the split switch value
+        //      Actually, could I even do that here, since I need to send data from slave to master too?
+        #ifdef SPLIT_SWITCH_VALUE_SYNC
+        #endif
+
         default:
             break;
     }
@@ -1357,7 +1359,7 @@ bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id i
 
 #   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_via)
 #   define TRANSACTIONS_AM_VIA_REGISTRATIONS \
-    [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.checksum), \
+    [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.update), \
     [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data),
 
 #else // defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLED

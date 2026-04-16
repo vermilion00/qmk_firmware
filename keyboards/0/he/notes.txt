@@ -333,6 +333,12 @@ Add option to write full config to keyboard, in case the config is loaded from a
 Add transaction that gets the active profile from the keyboard/sets the active profile on the keyboard
 -This can be useful to select the appropriate profile on one party when it's manually changed on the other
 
+Add transaction that sends the adc value of the currently selected switch to VIA
+-Send the top value and adc_value - bottom_value, or just send a percentage?
+    -Two uint16_t vs one uint8_t with slightly more processing, need to see what would be faster
+-How do I handle this on split keyboards?
+    -I could make this an optional thing gated with a define, similar to filter strength
+
 ========
 Automatic saving on layer change is currently disabled!!!
 
@@ -341,6 +347,16 @@ If left is master:
 -Looks like the heights are sent immediately, and synced properly?
 -But then the translation isn't applied from set_height
 -The new height is applied if DC calls translation for the key though
+-It looks like if the right is master, the 1 index (left half) is translated instantly?
+-Ok, it looks like the left is translated instantly, but the right isn't
+-I'm guessing the offset index doesn't correctly on the right?
+
+-The if condition seems to work correcly (on the left), it's only passed once
+-The left side update seems to work instantly every time, even if the right is master?
+    -The right lags behind even when master for some reason
+    It has to be a bad offset when calling the translation, right? What else is there?
+    -It is indeed not called on the right side
+
 ========
 
 

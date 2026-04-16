@@ -202,7 +202,6 @@ bool special_layer = false;
 #endif
 
 #if defined SPLIT_KEYBOARD && KEYBOARD_SIDE == UNKNOWN
-extern uint8_t switch_num;
 extern uint8_t adc_pin_num;
 #ifdef MUX_PINS
 extern uint8_t mux_channel_num;

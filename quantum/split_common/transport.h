@@ -150,7 +150,7 @@ typedef struct _joystick_slave_axis_sync_t {
 #if defined(VIA_ENABLE)
 #   include "analog_matrix_via.h"
 typedef struct _am_via_trans_t {
-    uint8_t checksum;
+    uint8_t update;
     am_via_data_t data;
 } am_via_trans_t;
 #endif // defined(VIA_ENABLED)

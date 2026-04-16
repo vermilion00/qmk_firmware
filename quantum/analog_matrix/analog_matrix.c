@@ -437,11 +437,10 @@ void translate_mm_to_value(uint8_t index, bool init) {
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
     const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
-    const float travel_unit = floor((float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT));
+    const float travel_unit = (float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT);
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-        //TODO: Make sure these offsets are correct
         #ifdef USE_TRIGGER_HEIGHT
         const height_t trigger_height = am_keyboard_data.trigger_height[profile][index + switch_low];
         const height_t release_height = am_keyboard_data.release_height[profile][index + switch_low];
@@ -478,10 +477,20 @@ void translate_mm_to_value(uint8_t index, bool init) {
         const uint16_t release_value = travel_unit * am_keyboard_data.rt_release_distance[profile][index + switch_low];
         key_config[index].rt_release_value[profile] = (release_value > smoothing) ? release_value : smoothing;
 
-        if(am_keyboard_data.rt_press_distance[0][31] > 50) LED_ON;
         // If RT is enabled for this key and profile, set the threshold (only on the lowest profile with RT enabled)
-        //TODO: Need to do this anytime the profile changes
-        if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
+        if(profile == active_profile && key_config[index].mode[profile] > 0) {
+            switch(key_config[index].mode[profile]) {
+                #ifdef USE_TRIGGER_HEIGHT
+                case 1:
+                case 2:
+                    key_config[index].rt_threshold = key_config[index].trigger_value;
+                    break;
+                #endif
+                case 3:
+                    key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
+                    break;
+            }
+        }
         #endif
     }
 }
@@ -1330,9 +1339,20 @@ void profile_state_changed(uint8_t profile) {
 
     // If RT is enabled for this profile, set the initial threshold
     #ifdef USE_RT_DISTANCE
-    //TODO: Need to account for trigger height if RT is 1 or 2
     for(uint8_t index = 0; index < switch_num; index++) {
-        if(key_config[index].rt_threshold == 0 && key_config[index].mode[profile] > 0) key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
+        if(key_config[index].mode[profile] > 0) {
+            switch(key_config[index].mode[profile]) {
+                #ifdef USE_TRIGGER_HEIGHT
+                case 1:
+                case 2:
+                    key_config[index].rt_threshold = key_config[index].trigger_value;
+                    break;
+                #endif
+                case 3:
+                    key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
+                    break;
+            }
+        }
     }
     #endif
 }

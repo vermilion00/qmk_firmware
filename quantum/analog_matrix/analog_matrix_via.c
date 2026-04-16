@@ -139,8 +139,12 @@ void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, heigh
         default: return;
     }
 
-    if((key < (switch_num + switch_low)) && key > switch_low) {
-        translate_mm_to_value(key - switch_low, false);
+    //TODO: This doesn't work
+    //      Is it still turning to the default return?
+    //      Is key_low perhaps not set correctly? That would break it all though, so probably not the case
+    // The check seems to work correctly, the if passes only once
+    if((key < (switch_num + switch_low)) && (key >= switch_low)) {
+        translate_mm_to_value((key - switch_low), false);
     }
 }
 
@@ -149,7 +153,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
     am_keyboard_data.key_mode[profile][key] &= 0b10000000;
     am_keyboard_data.key_mode[profile][key] |= mode;
     //TODO: Make sure that the mode passed here doesn't contain prio info
-    if((key < switch_num + switch_low) && key > switch_low) key_config[key].mode[profile] = mode;
+    if((key < switch_num + switch_low) && key >= switch_low) key_config[key].mode[profile] = mode;
     if(profile == active_profile) change_layer_settings(am_highest_layer);
 }
 
@@ -158,7 +162,7 @@ void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority) {
     else am_keyboard_data.key_mode[profile][key] &= 0b01111111;
 
     #ifdef PRIORITY_INDICES
-    if((key < switch_num + switch_low) && key > switch_low) priority_indices[key] = priority;
+    if((key < switch_num + switch_low) && key >= switch_low) priority_indices[key] = priority;
     #endif
 }
 
