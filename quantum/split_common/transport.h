@@ -248,8 +248,11 @@ typedef struct _split_shared_memory_t {
 
 #if defined(ANALOG_MATRIX_ENABLE)
     am_data_t am_data;
-#   if defined(AM_NO_EEPROM)
+#   if defined(AM_NO_EEPROM) || defined (DEBUG_CALIBRATION) || defined (VIA_ENABLE)
     uint16_t cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#   if defined(VIA_ENABLE)
+    uint16_t top_cal_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
+#   endif
     uint8_t  top_data[MAX(SWITCH_NUM, SWITCH_NUM_R)];
 #   endif
 #   if defined(JOYSTICK_ENABLE) && !defined (NO_SLAVE_AXES)
@@ -258,7 +261,6 @@ typedef struct _split_shared_memory_t {
 #   if defined(VIA_ENABLE)
     am_via_trans_t am_via;
 #   endif
-
 #endif // defined(ANALOG_MATRIX_ENABLE)
 
 #if defined(SPLIT_TRANSACTION_IDS_KB) || defined(SPLIT_TRANSACTION_IDS_USER)

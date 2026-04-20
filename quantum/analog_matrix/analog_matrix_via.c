@@ -17,6 +17,9 @@ extern SPLIT_MUTABLE uint8_t rc_to_matrix[ROW_PIN_NUM][COL_PIN_NUM][2];
 //TODO: RM once a better way is found
 bool config_update_required = false;
 
+uint16_t via_scan_value = 0;
+uint8_t via_scan_index = 255;
+
 //MARK: am_keyboard_t
 am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
@@ -192,6 +195,10 @@ void set_profile_num(uint8_t profiles) {
     am_keyboard_data.profile_num |= profiles;
 }
 
+void set_profile_config(uint8_t config) {
+    am_keyboard_data.profile_config = config;
+}
+
 //MARK: Set deadzones
 void set_deadzones(uint8_t index, uint16_t value) {
     const uint8_t raw_value = CLAMP8(value);
@@ -336,7 +343,46 @@ void set_dynamic_calibration(uint8_t index, uint8_t value) {
 }
 #endif
 
-//MARK: Apply default config
+void via_transfer_calibration(uint8_t *data, uint8_t index, uint8_t page) {
+    const uint16_t start = page * RAW_HID_SIZE;
+    if(start >= 2 * TOTAL_SWITCH_NUM) return;
+    uint16_t end = start + RAW_HID_SIZE;
+    if(end > 2 * TOTAL_SWITCH_NUM) end = 2 * TOTAL_SWITCH_NUM;
+    uint16_t transfer_data[TOTAL_SWITCH_NUM];
+    uint8_t thisHand_index = 0;
+
+    #ifdef SPLIT_KEYBOARD
+    uint8_t thatHand_index = SWITCH_NUM_L;
+    const uint8_t thatHand_switch_num = TOTAL_SWITCH_NUM - switch_num;
+    if(!is_keyboard_left()) {
+        thisHand_index = SWITCH_NUM_L;
+        thatHand_index = 0;
+    }
+    #endif
+
+    if(index == 0) { // Transfer the top values
+        //TODO: Apply the correct deadzone offsets here (per switch and side etc) -> Perhaps need to save the actual uint16_t top deadzones per switch as well
+        for(uint8_t key = 0; key < switch_num; key++) {
+            #ifdef INVERT_ADC
+            transfer_data[thisHand_index + key] = key_config[key].top_value - top_deadzones[key];
+            #else
+            transfer_data[thisHand_index + key] = key_config[key].top_value + top_deadzones[key];
+            #endif
+        }
+        #ifdef SPLIT_KEYBOARD
+        memcpy((uint8_t*)&transfer_data + thatHand_index * 2, (uint8_t*)&split_shmem->top_cal_data, thatHand_switch_num * 2);
+        #endif
+    } else {         // Transfer the bottom values
+        memcpy((uint8_t*)&transfer_data + thisHand_index * 2, (uint8_t*)&calibration_data, switch_num * 2);
+        #ifdef SPLIT_KEYBOARD
+        memcpy((uint8_t*)&transfer_data + thatHand_index * 2, (uint8_t*)&split_shmem->cal_data, thatHand_switch_num * 2);
+        #endif
+    }
+
+    memcpy(data, (uint8_t*)&transfer_data + start, end - start);
+}
+
+//MARK: Default config
 void apply_default_config(am_keyboard_t* keyboard_data) {
     const am_keyboard_t default_data = {
         #ifdef USE_TRIGGER_HEIGHT
@@ -395,11 +441,19 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
     switch(*command_id) {
         case get_keyboard_def_id: {
-            // If a value is passed along, we only return the active profile
-            if(command_data[0]) {
+            // Get the active profile
+            if(command_data[0] == 1) {
                 command_data[0] = active_profile;
                 break;
             }
+
+            if(command_data[0] == 2) {
+                void sync_calibration_values(bool init);
+                sync_calibration_values(false);
+                via_transfer_calibration(data, command_data[1], command_data[2]);
+                break;
+            }
+
             // Make sure the used bytes are clear
             memset(&command_data[0], 0, 20);
 
@@ -443,6 +497,9 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #ifdef VIA_FILTER_STRENGTH
             command_data[3] |= 0b00001000;
             #endif
+            #ifdef INVERT_ADC
+            command_data[3] |= 0b00010000;
+            #endif
             //TODO: Add SOCD config here
 
             // Set external feature options
@@ -456,6 +513,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             command_data[4] |= 0b00000100;
             #endif
 
+            //TODO: Prob don't need this at all
             #ifdef MIXED_MATRIX_ENABLE
             command_data[5] = RC_SWITCH_NUM;
             #endif
@@ -499,8 +557,24 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             break;
         }
 
+        //TODO: Make a split transaction for this as well
+        case get_switch_value_id: {
+            via_scan_index = command_data[0];
+
+            // If the index is on the slave half, get the value from there first
+            //TODO: The current implementation obviously means that it's only updated past the smoothing, so it will be somewhat choppy, especially on the slave
+            //      Maybe I should add a separate transaction and save the value similar to the debug mux?
+            if(!((index < switch_num + switch_low) && index >= switch_low)) {
+
+            }
+
+            command_data[0] = via_scan_value;
+            command_data[1] = via_scan_value >> 8;
+            break;
+        }
+
         //TODO: I can probably remove this transaction, and all other RC stuff in HID
-        case get_mixed_matrix_id: {
+        // case get_mixed_matrix_id: {
             // #ifdef MIXED_MATRIX_ENABLE
             // const uint8_t matrix_to_rc_num[MATRIX_ROWS][MATRIX_COLS] = MATRIX_TO_RC_NUM;
 
@@ -512,8 +586,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
             // memcpy(&data, ((uint8_t*)&matrix_to_rc_num) + start, end - start);
             // #endif
-            break;
-        }
+        //     break;
+        // }
 
         case set_switch_height_id: {
             index = command_data[0];
@@ -604,6 +678,19 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             value = command_data[0];
             set_profile_num(value);
             value = am_keyboard_data.profile_num;
+            break;
+        }
+
+        //TODO: Could maybe consolidate this with the profile num transaction
+        case set_profile_config_id: {
+            split_id = split_profile_config;
+            value = command_data[0];
+            set_profile_config(value);
+            break;
+        }
+
+        case set_active_profile_id: {
+            set_active_profile(command_data[0]);
             break;
         }
 

@@ -101,7 +101,7 @@ enum serial_transaction_id {
 
 #if defined(ANALOG_MATRIX_ENABLE)
     PUT_AM_DATA,
-#if defined(AM_NO_EEPROM)
+#if defined(AM_NO_EEPROM) || defined (DEBUG_CALIBRATION) || defined VIA_ENABLE
     GET_CAL_DATA,
     GET_TOP_DATA,
 #endif
@@ -112,6 +112,7 @@ enum serial_transaction_id {
 #   if defined(VIA_ENABLE)
     PUT_VIA_CHECKSUM,
     PUT_VIA_DATA,
+    GET_TOP_CAL_DATA,
 #   endif
 #endif //ANALOG_MATRIX_ENABLE
 

@@ -339,24 +339,17 @@ Add transaction that sends the adc value of the currently selected switch to VIA
 -How do I handle this on split keyboards?
     -I could make this an optional thing gated with a define, similar to filter strength
 
+Make a transaction that sends all calibration data, then just get the scan value from the keyboard instead
+-> This way, I can also just use the regular VIA split transaction to send the slave value over
+-Need to sync the slave values too
+
 ========
 Automatic saving on layer change is currently disabled!!!
 
-The split sync works??? But translate_mm_to_value isn't called properly on right half I think
-If left is master:
--Looks like the heights are sent immediately, and synced properly?
--But then the translation isn't applied from set_height
--The new height is applied if DC calls translation for the key though
--It looks like if the right is master, the 1 index (left half) is translated instantly?
--Ok, it looks like the left is translated instantly, but the right isn't
--I'm guessing the offset index doesn't correctly on the right?
-
--The if condition seems to work correcly (on the left), it's only passed once
--The left side update seems to work instantly every time, even if the right is master?
-    -The right lags behind even when master for some reason
-    It has to be a bad offset when calling the translation, right? What else is there?
-    -It is indeed not called on the right side
-
+How do I efficiently get the slave scan value and set the index?
+How do I reset the scan index when it's not necessary anymore?
+    -Could send a transaction when VIA closes, but is that reliable?
+    -How do I reset the index as a failsafe?
 ========
 
 

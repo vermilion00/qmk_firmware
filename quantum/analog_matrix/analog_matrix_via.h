@@ -76,20 +76,22 @@ typedef enum height_addr_t {
 } height_addr_t;
 
 typedef enum am_via_id {
-    // Default data ends at 0x13, 0xFE and 0xFF are also taken
-    get_keyboard_def_id = 0x20, // Get the the size of the keyboard data and enabled features
+    get_keyboard_def_id = 0x00, // Get the the size of the keyboard data and enabled features
     get_keyboard_data_id, // Get the entirety of am_keyboard_data
     get_matrix_to_num_id,
-    get_mixed_matrix_id, // Get the matrix positions of all mixed matrix keys
+    // get_mixed_matrix_id, // Get the matrix positions of all mixed matrix keys
+    get_switch_value_id, // Send the press value for the selected switch
     set_switch_height_id, // Set any height for the index
     set_switch_mode_id,
     set_switch_priority_id,
     set_profile_layers_id,
+    set_profile_config_id,
     set_priority_profiles_id,
     set_dynamic_calibration_id,
     set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
     set_profile_lock_save_id,
     set_profile_num_id, // Sets the new number of used profiles (not AM_PROFILE_NUM, which is the maximum amount of profile space allocated)
+    set_active_profile_id,
     save_config_id, // Updates EEPROM
     clear_calibration_data_id, // Resets the calibration data
     reset_keyboard_data_id, // Resets all data to json defaults
@@ -105,6 +107,7 @@ typedef enum am_via_split_id {
     split_rt_release,
     split_key_mode,
     split_profile_layers,
+    split_profile_config,
     split_key_priority,
     split_priority_profiles,
     split_dynamic_calibration,
@@ -134,6 +137,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode);
 void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
 void set_priority_profiles(uint16_t value);
 void set_profile_layer_state(uint8_t profile, layer_state_t value);
+void set_profile_config(uint8_t config);
 void set_dynamic_calibration(uint8_t index, uint8_t value);
 void set_deadzones(uint8_t index, uint16_t value);
 bool get_profile_lock_state(void);

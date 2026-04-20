@@ -978,16 +978,21 @@ bool am_data_manual_transaction(transaction_type_t type) {
     return manual_transaction_handler(am_data_manual_handler, type);
 }
 
-#if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
+#if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION || VIA_ENABLE
 //MARK: Cal Master
 //Called by the master when calibration finishes
-bool calibration_data_master_manual_handler(void) {
+bool calibration_data_master_manual_handler(transaction_type_t type) {
     uint16_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = 0};
 
     if(!transport_read(GET_CAL_DATA, &split_shmem->cal_data, sizeof(split_shmem->cal_data))) return false;
 
+    #ifdef VIA_ENABLE
+    if(!transport_read(GET_TOP_CAL_DATA, &split_shmem->top_cal_data, sizeof(split_shmem->top_cal_data))) return false;
+    #endif
+
     if(memcmp(&test_data, &split_shmem->cal_data, sizeof(test_data)) == 0) return false;
 
+    #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
     // Print the slave calibration values here
     char side[7] = "";
     // Inverted logic, since we're printing the slave data
@@ -1001,11 +1006,13 @@ bool calibration_data_master_manual_handler(void) {
         printf(", %u", split_shmem->cal_data[index]);
     }
     print(" ],\n");
+    #endif
 
     return true;
 }
 
-bool cal_top_data_master_manual_handler(void) {
+#if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
+bool cal_top_data_master_manual_handler(transaction_type_t type) {
     uint8_t test_data[MAX(SWITCH_NUM_L, SWITCH_NUM_R)] = {[0 ... MAX(SWITCH_NUM_L, SWITCH_NUM_R)-1] = 0};
 
     if(!transport_read(GET_TOP_DATA, &split_shmem->top_data, sizeof(split_shmem->top_data))) return false;
@@ -1028,17 +1035,26 @@ bool cal_top_data_master_manual_handler(void) {
 
     return true;
 }
+#endif
 
 
 //MARK: Cal Slave
 // Called by the slave when calibration finishes
-bool calibration_data_slave_manual_handler(void) {
+bool calibration_data_slave_manual_handler(transaction_type_t type) {
     split_shared_memory_lock();
     for(uint8_t key = 0; key < switch_num; key++) {
         #ifndef INVERT_ADC
-        split_shmem->cal_data[key] = key_config[key].bottom_value - ADC_BOTTOM_DEADZONE;
+        split_shmem->cal_data[key] = key_config[key].bottom_value - bottom_deadzone;
+        #ifdef VIA_ENABLE
+        //TODO: I need to have access to the actual top_deadzone value of each key, else it won't be accurate.
+        //      Since adjusting the deadzones in GUI will be a thing, I need to have accurate values sent over
+        split_shmem->top_cal_data[key] = key_config[key].top_value + top_deadzones[key];
+        #endif
         #else
-        split_shmem->cal_data[key] = key_config[key].bottom_value + ADC_BOTTOM_DEADZONE;
+        split_shmem->cal_data[key] = key_config[key].bottom_value + bottom_deadzone;
+        #ifdef VIA_ENABLE
+        split_shmem->top_cal_data[key] = key_config[key].top_value - top_deadzones[key];
+        #endif
         #endif
     }
     split_shared_memory_unlock();
@@ -1046,33 +1062,36 @@ bool calibration_data_slave_manual_handler(void) {
     return true;
 }
 
-bool top_cal_data_slave_manual_handler(void) {
-    split_shared_memory_lock();
-    for(uint8_t key = 0; key < switch_num; key++) {
-        split_shmem->top_data[key] = top_deadzones[key];
-    }
-    split_shared_memory_unlock();
-
-    return true;
-}
-
-
 //MARK: Sync calibration
 void sync_calibration_values(bool init) {
     // Only the master needs to retry, as the slave just copies the data to a buffer when finished
     if(is_keyboard_master()) {
         //TODO: is_transport_connected doesn't work
-        while(!manual_transaction_handler(calibration_data_master_manual_handler)
+        while(!manual_transaction_handler(calibration_data_master_manual_handler, normal_transaction)
             && !init) {
             wait_ms(100);
         }
-    } else { manual_transaction_handler(calibration_data_slave_manual_handler); }
+    } else { manual_transaction_handler(calibration_data_slave_manual_handler, normal_transaction); }
+}
+
+#if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
+bool top_cal_data_slave_manual_handler(transaction_type_t type) {
+    split_shared_memory_lock();
+    //TODO: This can be a memcpy, right?
+    // for(uint8_t key = 0; key < switch_num; key++) {
+    //     split_shmem->top_data[key] = top_deadzones[key];
+    // }
+    memcpy(&split_shmem->top_data, top_deadzones, sizeof(top_deadzones));
+    split_shared_memory_unlock();
+
+    return true;
 }
 
 void sync_top_calibration(void) {
-    if(is_keyboard_master()) { manual_transaction_handler(cal_top_data_master_manual_handler); }
-    else { manual_transaction_handler(top_cal_data_slave_manual_handler); }
+    if(is_keyboard_master()) { manual_transaction_handler(cal_top_data_master_manual_handler, normal_transaction); }
+    else { manual_transaction_handler(top_cal_data_slave_manual_handler, normal_transaction); }
 }
+#endif
 
 // Since the transactions are handled manually, we don't need to declare them
 //TODO: Consolidate all analog matrix fallback defines into one place
@@ -1296,6 +1315,10 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             set_profile_layer_state(profile, value);
             break;
 
+        case split_profile_config:
+            set_profile_config(value);
+            break;
+
         #ifdef USE_PRIORITY_MODE
         case split_key_priority:
             set_switch_priority_mode(index, profile, value);
@@ -1360,7 +1383,8 @@ bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id i
 #   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_via)
 #   define TRANSACTIONS_AM_VIA_REGISTRATIONS \
     [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.update), \
-    [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data),
+    [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data), \
+    [GET_TOP_CAL_DATA] = trans_target2initiator_initializer(top_cal_data),
 
 #else // defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLED
 #   define TRANSACTIONS_AM_VIA_MASTER()

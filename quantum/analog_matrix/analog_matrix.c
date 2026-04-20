@@ -34,6 +34,8 @@
 #   include "nvm_dynamic_keymap.h"
 // If VIA is enabled, an external definition is used instead
 extern am_keyboard_t am_keyboard_data;
+extern uint16_t via_scan_value;
+extern uint8_t via_scan_index;
 #else
 SPLIT_MUTABLE am_keyboard_t am_keyboard_data = {
     #ifdef USE_TRIGGER_HEIGHT
@@ -104,6 +106,10 @@ void reset_matrix_keys(void);
 #ifdef DYNAMIC_CALIBRATION
 // Keeps track of how many switches need updating, and saves new data once it exceeds RECALIBRATED_SWITCHES, to avoid writing to storage too often
 __attribute__((unused)) uint8_t recalibrated_switches = 0;
+#endif
+
+#if defined SPLIT_KEYBOARD && (defined VIA_ENABLE || defined AM_NO_EEPROM || defined DEBUG_CALIBRATION)
+void sync_calibration_values(bool init);
 #endif
 
 #if SMAX(AM_INIT_KEY_NUM) > 0
@@ -252,11 +258,21 @@ __attribute__((weak)) void analog_matrix_init(void) {
     change_layer_settings(am_highest_layer);
     #endif
 
+    #if defined SPLIT_KEYBOARD
+    #if defined VIA_ENABLE
+    sync_calibration_values(true);
+    #endif
+    #if defined AM_NO_EEPROM
     // This is only needed to print the calibration data
-    #if defined SPLIT_KEYBOARD && defined AM_NO_EEPROM
     if (is_keyboard_master()) {
         if (!is_keyboard_left()) switch_num_slave = SWITCH_NUM_L;
     } else if (is_keyboard_left()) switch_num_slave = SWITCH_NUM_L;
+    #endif
+    #endif
+
+    // Set the active profile to the default profile
+    #if AM_PROFILE_NUM > 1
+    active_profile = am_keyboard_data.profile_config >> 4;
     #endif
 
     matrix_init_kb();
@@ -340,10 +356,13 @@ uint8_t matrix_scan(void) {
             }
             #endif
 
-
             // Simple IIR filter with 1/4 alpha by default
             const uint16_t adc_value = adc_filter(adc_read(adc_pin_mux[adc_channel]), index);
             wait_cycles(ADC_SCAN_CYCLES);
+
+            #ifdef VIA_ENABLE
+            if(index == via_scan_index) via_scan_value = adc_value;
+            #endif
 
             #ifdef DEBUG_MUX_POSITION
             if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
@@ -610,7 +629,7 @@ void calibrate_switches(bool init) {
     uint32_t scans_without_change = 0;
     bool first_scan = true;
 
-    #ifdef AM_NO_EEPROM
+    #if  defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
     char side[7] = "";
     #endif
 
@@ -723,29 +742,28 @@ void calibrate_switches(bool init) {
             layer_state = default_layer_state;
             am_highest_layer = default_layer_state;
 
-            #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
+            #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION || defined VIA_ENABLE
             #ifdef SPLIT_KEYBOARD
-            if(!init) {
-                void sync_calibration_values(bool init);
-                sync_calibration_values(init);
-            }
+            if(!init) sync_calibration_values(init);
             #endif
 
+            #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
             // Print the bottom value of each switch so that it can be adjusted in the config
             printf("bottom_values%s\": [ %u", side, key_config[0].bottom_value);
             for(uint8_t index = 1; index < switch_num; index++){
                 printf(", %u", key_config[index].bottom_value);
             }
             print(" ],\n");
+            #endif // if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
 
-            #else // ifdef AM_NO_EEPROM
+            #ifndef AM_NO_EEPROM
             for(uint8_t key = 0; key < switch_num; key++) {
                 // Save the calibration values without a deadzone applied
                 calibration_data[key] = key_config[key].bottom_value;
             }
             eeconfig_update_keyboard((uint16_t*)&calibration_data);
-
-            #endif // ifdef AM_NO_EEPROM else
+            #endif // ifndef AM_NO_EEPROM
+            #endif // if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION || defined VIA_ENABLE
 
             // Apply deadzones
             for(uint8_t key = 0; key < switch_num; key++) {
@@ -780,7 +798,7 @@ void calibrate_top_value(void) {
     //TODO: Wait in a scan loop until all keys are in a certain distance of the established top_value, then wait a small amount of time before starting
     //      Could also use that to prime the filter
 
-    #ifdef AM_NO_EEPROM
+    #if defined AM_NO_EEPROM || defined DEBUG_CALIBRATION
     char side[7] = "";
     #endif
 
