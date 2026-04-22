@@ -360,16 +360,19 @@ uint8_t matrix_scan(void) {
             const uint16_t adc_value = adc_filter(adc_read(adc_pin_mux[adc_channel]), index);
             wait_cycles(ADC_SCAN_CYCLES);
 
-            #ifdef VIA_ENABLE
-            if(index == via_scan_index) via_scan_value = adc_value;
-            #endif
-
             #ifdef DEBUG_MUX_POSITION
             if(adc_channel == debug_mux[0] && mux_channel == debug_mux[1]) {
                 dprintf("%u\n", adc_value);
             }
             #elif defined DEBUG_SCAN_VALUES
             dprintf("%u/%2u: %3u, ", adc_channel, mux_channel, adc_value);
+            #endif
+
+            #ifdef VIA_ENABLE
+            if(index == via_scan_index) {
+                via_scan_value = adc_value;
+                //TODO: Perhaps just set the split value here
+            }
             #endif
 
             // Check if the value has changed enough to warrant an evaluation
@@ -1361,12 +1364,12 @@ void profile_state_changed(uint8_t profile) {
         if(key_config[index].mode[profile] > 0) {
             switch(key_config[index].mode[profile]) {
                 #ifdef USE_TRIGGER_HEIGHT
-                case 1:
-                case 2:
+                case 1: // Rapid trigger
+                case 2: // Continuous rapid trigger
                     key_config[index].rt_threshold = key_config[index].trigger_value;
                     break;
                 #endif
-                case 3:
+                case 3: // Constant rapid trigger
                     key_config[index].rt_threshold = key_config[index].rt_press_value[profile];
                     break;
             }
@@ -1380,6 +1383,9 @@ void set_active_profile(uint8_t profile) { active_profile = profile; }
 #else // ifndef SPLIT_KEYBOARD
 void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
+        // Check to make sure that new profile is in bounds
+        if(profile >= (am_keyboard_data.profile_num & 0x0F)) return;
+
         active_profile = profile;
 
         // Start the transaction

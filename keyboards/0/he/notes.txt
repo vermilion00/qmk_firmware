@@ -91,6 +91,7 @@ Add mode for multiple actions on one key (DKS) somehow
 Dynamic calibration:
 -A stronger mode might have a per switch counter that slightly moves the bounds together if x updates occurred without the bound being reached
 
+
 -If I split the am_data stuff into multiple transactions, try just setting active_profile directly instead of writing to the buffer, then copying in the slave handler
     -I'd prob need to use the profile_change function to read split_shmem->am_data and set the global var
 
@@ -220,13 +221,6 @@ This should come first:
 
 Update the height docs with the resolution info
 
-Do I need to calculate the rt_threshold when switching profiles or not?
-    -Kinda seems like yes, but it hasn't been a problem yet
-    -Likely need a high rt_press_value for it to matter
-
-Does running top_calibration mess up the bottom values?
-    -Latest test didn't show this behaviour
-
 Move EEPROM address definition out of core, should be applied the same way VIAL is
 ->Then remove the special calibration clear stuff and clear sync, as it will be handled by normal EEPROM clear now
 
@@ -249,33 +243,8 @@ The current impl only supports up to 16 layers and profiles
 -16 profiles is more than enough, but maybe add support for 32 layers?
 -> To update the profile_layers, it would probably be easiest to just send over 16 bits per transaction and just call HID trans twice
 
-Is there a callback for VIA(L) app communication start/end?
-->Can I just send the new data per switch per profile when it's changed, and set it in the config struct first, then save the entirety of the changes to eeprom at once
-  in that callback?
-->If there isn't one, I should change try to change the values in the config struct first and update eeprom after x time with no changes
-    -> Is there a way to do that efficiently? Deferred execution would be too much probably
-->Could there be a callback for the keyboard lock? Maybe I could use that, if the keyboard locks after a certain time without communication/when communication stops?
--If there isn't a callback, I could also update the eeprom during a layer state
-
 When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
     ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
-
-The current absolute max is below 32000 bytes for am_keyboard_t
-
-Make sure that the row/col values sent by the GUI are split compatible
-
-Add a define for the TOTAL amount of RC keys, to send over to
-
-Add additional stuff to VIA config
--Dynamic calibration toggling, switch amount, delta and factor
--Right and slave multipliers (multiply by 10)
--Deadzones and smoothing
--Top deadzone multiplier
--Bootmagic keys
-*->Filter strengths
--SOCD config, if possible
-    -Should ask getreuer if I can just extend his stuff, would be the easiest
-    -If not, then just save/recall it outside of proper config
 
 Release offsets and base values should just be set in the GUI, then transmit the actual values
 
@@ -284,9 +253,6 @@ How do I check if VIA is enabled in rules.mk from the json? The standard ways on
 
 Could add a field for the joystick roundness setting, but even with it disabled it would take +4.5k size, so put it behind an additional gate at least
 ->Same for the filter strength
-
-Make sure I understand pointer offset casts correctly
-(void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (layer_state_t*)(offsetof(am_keyboard_t, profile_layers) + profile))
 
 Make sure all default defines also have a default value attached
 
@@ -299,15 +265,9 @@ Allow setting init keys through VIA? Doesn't really seem worth the effort tbh
 The HID set transactions generally look like this:
 0 = AM_PREFIX, 1 = TRANS_ID, 2 = index, 3 = profile, 4+ other info
 
-Make sure I'm correctly indexing everywhere, especially am_keyboard_data on the slave
-
-Also add keycodes to increment/decrement profile
-
 Add option to remember last profile, and load it at startup? Very wasteful
 
 If joystick is enabled, show joystick keys -> I thought the keys are already pulled from the hjson files? Or does the GUI itself need access to them?
-
-Need to add an analog_matrix class and extend class Keyboard with it
 
 I could calculate the expected config size in the GUI to check against, would that be useful?
 -Could use that to trigger a reset if the config has changed
@@ -330,18 +290,8 @@ Add option to write full config to keyboard, in case the config is loaded from a
 -Would be quite difficult for split keyboards
     -If I write everything one by one then it's obviously not a problem, but that isn't exactly optimal either
 
-Add transaction that gets the active profile from the keyboard/sets the active profile on the keyboard
--This can be useful to select the appropriate profile on one party when it's manually changed on the other
+Calling transport_write/read from the slave doesn't seem to work?
 
-Add transaction that sends the adc value of the currently selected switch to VIA
--Send the top value and adc_value - bottom_value, or just send a percentage?
-    -Two uint16_t vs one uint8_t with slightly more processing, need to see what would be faster
--How do I handle this on split keyboards?
-    -I could make this an optional thing gated with a define, similar to filter strength
-
-Make a transaction that sends all calibration data, then just get the scan value from the keyboard instead
--> This way, I can also just use the regular VIA split transaction to send the slave value over
--Need to sync the slave values too
 
 ========
 Automatic saving on layer change is currently disabled!!!

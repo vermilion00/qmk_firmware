@@ -113,8 +113,10 @@ typedef enum am_via_split_id {
     split_dynamic_calibration,
     split_deadzone,
     split_profile_num,
+    split_switch_index,
     split_save_config,
-    split_reset_keyboard
+    split_reset_keyboard,
+    split_no_transfer = 255
 } am_via_split_id;
 
 typedef struct _am_via_data_t {

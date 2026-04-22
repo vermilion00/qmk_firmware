@@ -112,6 +112,7 @@ enum serial_transaction_id {
 #   if defined(VIA_ENABLE)
     PUT_VIA_CHECKSUM,
     PUT_VIA_DATA,
+    GET_VIA_VALUE,
     GET_TOP_CAL_DATA,
 #   endif
 #endif //ANALOG_MATRIX_ENABLE

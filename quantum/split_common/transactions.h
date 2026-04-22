@@ -63,5 +63,6 @@ void sync_top_calibration(void);
 #   ifdef VIA_ENABLE
 #   include "analog_matrix_via.h"
 bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id id, uint16_t value);
+uint16_t get_slave_value(void);
 #   endif
 #endif

@@ -1288,6 +1288,21 @@ bool am_via_handlers_master(uint8_t index, uint8_t profile, am_via_split_id id, 
     return transport_write(PUT_VIA_DATA, &config, sizeof(am_via_data_t));
 }
 
+//TODO: I can perhaps call this manually from the scan function instead, since I'm already checking the index there
+extern uint8_t via_scan_index;
+extern uint16_t via_scan_value;
+void am_via_value_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
+    if(via_scan_index == 255) return;
+
+    split_shmem->am_via.switch_value = via_scan_value;
+}
+
+uint16_t get_slave_value(void) {
+    transport_read(GET_VIA_VALUE, &split_shmem->am_via.switch_value, sizeof(uint16_t));
+
+    return split_shmem->am_via.switch_value;
+}
+
 static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
 
     // This isn't an actual checksum anymore, rather the master writes a value to it whenever a transaction is sent
@@ -1344,6 +1359,12 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             am_keyboard_data.profile_num = value;
             break;
 
+        case split_switch_index:
+            via_scan_index = index;
+            // Convert the global to the local index
+            if(index != 255) via_scan_index -= switch_low;
+            break;
+
         case split_save_config:
             nvm_set_analog_matrix_config(&am_keyboard_data);
             config_update_required = false;
@@ -1362,11 +1383,6 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             nvm_set_analog_matrix_config(&am_keyboard_data);
             break;
 
-        //TODO: Add syncing of the split switch value
-        //      Actually, could I even do that here, since I need to send data from slave to master too?
-        #ifdef SPLIT_SWITCH_VALUE_SYNC
-        #endif
-
         default:
             break;
     }
@@ -1380,14 +1396,17 @@ bool am_via_manual_transaction(uint8_t index, uint8_t profile, am_via_split_id i
     return manual_via_transaction_handler(am_via_handlers_master, index, profile, id, value);
 }
 
-#   define TRANSACTIONS_AM_VIA_SLAVE() TRANSACTION_HANDLER_SLAVE(am_via)
+#   define TRANSACTIONS_AM_VIA_SLAVE() \
+    TRANSACTION_HANDLER_SLAVE(am_via); \
+    TRANSACTION_HANDLER_SLAVE(am_via_value)
+
 #   define TRANSACTIONS_AM_VIA_REGISTRATIONS \
-    [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.update), \
-    [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data), \
+    [PUT_VIA_CHECKSUM] = trans_initiator2target_initializer(am_via.update),       \
+    [PUT_VIA_DATA]     = trans_initiator2target_initializer(am_via.data),         \
+    [GET_VIA_VALUE]    = trans_target2initiator_initializer(am_via.switch_value), \
     [GET_TOP_CAL_DATA] = trans_target2initiator_initializer(top_cal_data),
 
 #else // defined ANALOG_MATRIX_ENABLE && defined VIA_ENABLED
-#   define TRANSACTIONS_AM_VIA_MASTER()
 #   define TRANSACTIONS_AM_VIA_SLAVE()
 #   define TRANSACTIONS_AM_VIA_REGISTRATIONS
 #endif

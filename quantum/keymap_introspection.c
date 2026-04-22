@@ -424,7 +424,6 @@ void change_layer_settings(uint8_t current_layer) {
     // if(config_update_required) {
     //     nvm_set_analog_matrix_config(&am_keyboard_data);
     //     config_update_required = false;
-    //     LED_ON;
     // }
     #endif
 }

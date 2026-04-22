@@ -61,8 +61,6 @@ am_keyboard_t am_keyboard_data = {
     .keyboard_size = sizeof(am_keyboard_t),
 };
 
-// uint32_t test = sizeof(am_keyboard_t);
-
 const uint8_t matrix_to_num[MATRIX_ROWS][MATRIX_COLS] = FULL_MATRIX_TO_NUM;
 
 //MARK: VIA init
@@ -80,8 +78,6 @@ void analog_matrix_via_init(void) {
     }
 }
 
-//TODO: Pass the value by reference, so that it can be changed in case of split keyboard, then easily synced to slave after
-//TODO: Redo these according to the final impl of am_keyboard_data
 // Returns the compressed height (uint8_t instead of float)
 // All following functions take the global switch index
 //MARK: get height
@@ -108,9 +104,9 @@ height_t get_switch_height(uint8_t key, uint8_t profile, height_addr_t height) {
 }
 
 // Returns the actual height as a float
-float get_actual_height(uint8_t key, uint8_t profile, height_addr_t height) {
-    return (float)(get_switch_height(key, profile, height) / HEIGHT_MULT);
-}
+// float get_actual_height(uint8_t key, uint8_t profile, height_addr_t height) {
+//     return (float)(get_switch_height(key, profile, height) / HEIGHT_MULT);
+// }
 
 uint8_t get_switch_mode(uint8_t key, uint8_t profile) {
     return am_keyboard_data.key_mode[profile][key];
@@ -142,10 +138,6 @@ void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, heigh
         default: return;
     }
 
-    //TODO: This doesn't work
-    //      Is it still turning to the default return?
-    //      Is key_low perhaps not set correctly? That would break it all though, so probably not the case
-    // The check seems to work correctly, the if passes only once
     if((key < (switch_num + switch_low)) && (key >= switch_low)) {
         translate_mm_to_value((key - switch_low), false);
     }
@@ -156,7 +148,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
     am_keyboard_data.key_mode[profile][key] &= 0b10000000;
     am_keyboard_data.key_mode[profile][key] |= mode;
     //TODO: Make sure that the mode passed here doesn't contain prio info
-    if((key < switch_num + switch_low) && key >= switch_low) key_config[key].mode[profile] = mode;
+    if((key < switch_num + switch_low) && key >= switch_low) key_config[key - switch_low].mode[profile] = mode;
     if(profile == active_profile) change_layer_settings(am_highest_layer);
 }
 
@@ -165,7 +157,7 @@ void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority) {
     else am_keyboard_data.key_mode[profile][key] &= 0b01111111;
 
     #ifdef PRIORITY_INDICES
-    if((key < switch_num + switch_low) && key >= switch_low) priority_indices[key] = priority;
+    if((key < switch_num + switch_low) && key >= switch_low) priority_indices[key - switch_low] = priority;
     #endif
 }
 
@@ -339,7 +331,7 @@ void set_deadzones(uint8_t index, uint16_t value) {
 void set_dynamic_calibration(uint8_t index, uint8_t value) {
     if(index > 2) return;
     //TODO: Make sure this is correct
-    *(&am_keyboard_data.dc_switch_num + index) = value;
+    *((uint8_t*)&am_keyboard_data.dc_switch_num + index) = value;
 }
 #endif
 
@@ -436,7 +428,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
     // Split keyboard transaction values
     __attribute__((unused)) uint8_t index = 255;
     __attribute__((unused)) uint8_t profile = 255;
-    __attribute__((unused)) uint8_t split_id = 255;
+    __attribute__((unused)) uint8_t split_id = split_no_transfer;
     __attribute__((unused)) uint16_t value = 0;
 
     switch(*command_id) {
@@ -518,11 +510,11 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             command_data[5] = RC_SWITCH_NUM;
             #endif
 
-            //TODO: Don't yet know if I need them here, but need them somewhere
             command_data[6] = AM_PROFILE_NUM;
             command_data[7] = am_keyboard_data.profile_num;
             command_data[8] = TOTAL_SWITCH_NUM;
             command_data[9] = SWITCH_NUM;
+            //TODO: Prob don't need this at all
             #ifdef RC_SWITCH_NUM
             command_data[10] = RC_SWITCH_NUM;
             #endif
@@ -557,15 +549,37 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             break;
         }
 
-        //TODO: Make a split transaction for this as well
+        //TODO: Can definitely make this more efficient
+        //TODO: Occasionally the switch value isn't updated on the left, when the right half is master
+        // When a key is selected in the GUI, this transaction will transfer the current height of that switch
         case get_switch_value_id: {
-            via_scan_index = command_data[0];
+            index = command_data[0];
+            const uint8_t prev_index = via_scan_index;
+            via_scan_index = index;
+            // Convert the global index to the local master index
+            if(via_scan_index != 255) via_scan_index -= switch_low;
 
-            // If the index is on the slave half, get the value from there first
-            //TODO: The current implementation obviously means that it's only updated past the smoothing, so it will be somewhat choppy, especially on the slave
-            //      Maybe I should add a separate transaction and save the value similar to the debug mux?
-            if(!((index < switch_num + switch_low) && index >= switch_low)) {
+            if(prev_index != via_scan_index) via_scan_value = 0;
 
+            // Is the index on the master half?
+            if((index < switch_num + switch_low) && index >= switch_low) {
+                // If the new index is on the master but the previous index was on the slave, stop updating the slave
+                if(!((prev_index < switch_num + switch_low) && prev_index >= switch_low)){
+                    if(prev_index != via_scan_index) {
+                        index = 255;
+                        split_id = split_switch_index;
+                    }
+                }
+            }
+
+            // If the new index is on the slave half, get the value from there first
+            else if(!((index < switch_num + switch_low) && index >= switch_low)) {
+                // If the index is new, send it to the slave
+                if(prev_index != via_scan_index) {
+                    split_id = split_switch_index;
+                } else if(index != 255) {
+                    via_scan_value = get_slave_value();
+                }
             }
 
             command_data[0] = via_scan_value;
@@ -721,14 +735,14 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #if defined SPLIT_LAYER_SYNC
             change_layer_settings(am_highest_layer);
             #endif
-            //TODO: Decide where to update eeprom
-            nvm_set_analog_matrix_config(&am_keyboard_data);
+
+            config_update_required = true;
             break;
         }
     }
     // Split keyboards need to send the result of all set_* transactions to the slave as well
     #ifdef SPLIT_KEYBOARD
-    if(split_id == 255) return; // An ID of 255 means the transaction doesn't need to be synced
+    if(split_id == split_no_transfer) return;
 
     am_via_manual_transaction(index, profile, split_id, value);
     #endif

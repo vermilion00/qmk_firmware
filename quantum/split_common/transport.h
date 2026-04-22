@@ -152,6 +152,7 @@ typedef struct _joystick_slave_axis_sync_t {
 typedef struct _am_via_trans_t {
     uint8_t update;
     am_via_data_t data;
+    uint16_t switch_value;
 } am_via_trans_t;
 #endif // defined(VIA_ENABLED)
 #endif // defined(ANALOG_MATRIX_ENABLE)
