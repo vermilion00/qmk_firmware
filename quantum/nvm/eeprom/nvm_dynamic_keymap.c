@@ -398,7 +398,7 @@ int nvm_dynamic_keymap_set_alt_repeat_key(uint8_t index, const vial_alt_repeat_k
 #endif
 
 //MARK: AM functions
-//TODO: Can't make these in am_via.c because the ADDRESS is only locally defined
+//NOTE: Can't put these in am_via.c because the ADDRESS is only locally defined
 #ifdef ANALOG_MATRIX_ENABLE
 
 //TODO: Make sure that these index correctly
@@ -410,6 +410,7 @@ void nvm_set_analog_matrix_config(am_keyboard_t* data) {
     eeprom_update_block(data, (uint8_t*)VIAL_ANALOG_MATRIX_EEPROM_ADDR, sizeof(am_keyboard_t));
 }
 
+//TODO: RM these
 // void nvm_set_profile_config(uint8_t config) {
 //     eeprom_update_byte((void*)(VIAL_ANALOG_MATRIX_EEPROM_ADDR + (uint8_t*)offsetof(am_keyboard_t, profile_config)), config);
 // }

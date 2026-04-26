@@ -389,6 +389,7 @@ void create_joystick_mask(uint8_t current_layer) {
 
 #ifdef VIA_ENABLE
 #   include "nvm_dynamic_keymap.h"
+extern bool config_update_required;
 #endif
 
 // Creates layer masks for all enabled features
@@ -418,13 +419,11 @@ void change_layer_settings(uint8_t current_layer) {
     #endif // ifdef DYNAMIC_CALIBRATION
 
     // Update the VIA config during a layer change to avoid writing to flash too often
-    //TODO: RM once better way is found
-    //TODO: Reenable this after debugging
     #ifdef VIA_ENABLE
-    // if(config_update_required) {
-    //     nvm_set_analog_matrix_config(&am_keyboard_data);
-    //     config_update_required = false;
-    // }
+    if(config_update_required) {
+        nvm_set_analog_matrix_config(&am_keyboard_data);
+        config_update_required = false;
+    }
     #endif
 }
 

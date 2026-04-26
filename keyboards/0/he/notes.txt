@@ -38,8 +38,6 @@ Split calibration:
 -Add mux and power pin optimizations for RP2040*
     -mux stuff needs to be tested
 
--Take a look at bootmagic to turn on RGB stuff when calibrating, and turn it off when finished?
-
 -Check if setting a larger amount of adc pins than necessary is a problem
 -What if one half needs more mux/adc pins than the other?
 
@@ -47,7 +45,7 @@ Split calibration:
     -To disable config checking, check for analog_matrix: true in json->features?
 
 Joystick:
--Once VIAL support is done, I can remove the eval keymap checking, and just set the key mode automatically in VIAL
+-Once VIAL support is done, I can remove the eval keymap checking, and just set the key mode automatically in VIAL -> No, because it's based on layers, not profiles
 Need to change the descriptor(?) to report the stuff the same way a gamepad would
 -They are currently visibly different
 -How does the receiver know whether both trigger components are maxed or at 0? Do gamepads send the changes in value instead of the absolute position?
@@ -217,6 +215,10 @@ The part that prints newlines is line 145 in action.c
 This should come first:
 ========
 
+Saving the updated config through a layer change doesn't work, neither on slave nor master
+->However, the HID save transaction works on both, so...?
+-The biggest difference is that config_update_required needs to be set for the layer change to work
+
 ========
 
 Update the height docs with the resolution info
@@ -300,17 +302,10 @@ The base_* setting should be set in the AM_SETTINGS tab. If the switch is reset,
 ========
 Automatic saving on layer change is currently disabled!!!
 
-How do I efficiently get the slave scan value and set the index?
 How do I reset the scan index when it's not necessary anymore?
     -Could send a transaction when VIA closes, but is that reliable?
     -How do I reset the index as a failsafe?
 
-The TOTAL_*_HEIGHT defines are incorrect, the indexes don't line up with what the keyboard expects
-I need to separate them by side, then add back together to get the correct arrays
-
--> Currently, the define looks correct, but it still grabs the wrong thing
-    -> Is the index applied incorrectly? Does the gui grab the wrong position in the array?
-    -> Preeeeeeetty sure that it's simply pulling the eeprom data instead of the json config, which is why it's still wrong even though some stuff got fixed
 ========
 
 

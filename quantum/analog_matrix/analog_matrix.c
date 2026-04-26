@@ -1249,23 +1249,14 @@ void clear_calibration(void) {
     eeconfig_update_keyboard((uint16_t*)&calibration_data);
     memset(&top_deadzones, 0, sizeof(top_deadzones));
     eeconfig_update_deadzone((uint8_t*)&top_deadzones);
-
-    // Also clear the data on the slave
-    #ifdef SPLIT_KEYBOARD
-    if(is_keyboard_master()) am_data_manual_transaction(clear_calibration_values);
-    #endif
 }
 
 // Helper functions because the current init key implementation requires taking a bool for the calibration function
-void _bootmagic(bool init) {
-    clear_calibration();
-    eeconfig_disable();
-    bootloader_jump();
-}
+void _clear_calibration(bool init) { clear_calibration(); }
 
-void _bootloader_jump(bool init) {
-    bootloader_jump();
-}
+void _clear_eeprom(bool init) { eeconfig_disable(); }
+
+void _bootloader_jump(bool init) { bootloader_jump(); }
 
 
 //TODO: Remove this and the call in keyboard.c at the start
@@ -1433,6 +1424,7 @@ layer_state_t layer_state_set_am(layer_state_t state) {
                 return state;
             }
         }
+
         // If profile switch mode is default, switch to the default profile if layer is not set for any profile
         if((am_keyboard_data.profile_config & 0x0F) == DEFAULT_PROFILE) {
             set_active_profile(am_keyboard_data.profile_config >> 4);

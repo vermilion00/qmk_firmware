@@ -414,8 +414,10 @@ void apply_default_config(am_keyboard_t* keyboard_data) {
         .right_mult = RIGHT_MULTIPLIER * 100,
         .slave_mult = SLAVE_MULTIPLIER * 100,
         #endif
-        .keyboard_size = sizeof(am_keyboard_t),
+        .keyboard_size = sizeof(am_keyboard_t)
     };
+
+    //TODO: Check if it would be better to just set the elements instead, would maybe save on space?
 
     memcpy(&keyboard_data, &default_data, sizeof(am_keyboard_t));
 }
@@ -617,6 +619,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = height_type;
             value = (command_data[3] | (command_data[4] << 8));
             set_switch_height(index, profile, height_type, value);
+
+            config_update_required = true;
             break;
         }
 
@@ -629,6 +633,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_key_mode;
             value = command_data[2];
             set_switch_mode(index, profile, value);
+
+            config_update_required = true;
             break;
         }
 
@@ -642,6 +648,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_key_priority;
             value = command_data[2];
             set_switch_priority_mode(index, profile, value);
+
+            config_update_required = true;
             #endif
             break;
         }
@@ -652,6 +660,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             value = (layer_state_t)(command_data[1] | (command_data[2] << 8));
             // value = (layer_state_t)(command_data[1] | (command_data[2] << 8) | (command_data[3] << 16) | (command_data[4]) << 24);
             set_profile_layer_state(profile, value);
+
+            config_update_required = true;
             break;
         }
 
@@ -660,6 +670,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_priority_profiles;
             value = (command_data[0] | command_data[1] << 8);
             set_priority_profiles(value);
+
+            config_update_required = true;
             #endif
             break;
         }
@@ -670,6 +682,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             index = command_data[0];
             value = command_data[1];
             set_dynamic_calibration(index, value);
+
+            config_update_required = true;
             #endif
             break;
         }
@@ -679,6 +693,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             index = command_data[0];
             value = command_data[1];
             set_deadzones(index, value);
+
+            config_update_required = true;
             break;
         }
 
@@ -688,6 +704,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             value = command_data[0];
             set_profile_lock_save_state(value);
             value = am_keyboard_data.profile_num;
+
+            config_update_required = true;
             break;
         }
 
@@ -696,6 +714,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             value = command_data[0];
             set_profile_num(value);
             value = am_keyboard_data.profile_num;
+
+            config_update_required = true;
             break;
         }
 
@@ -704,6 +724,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_profile_config;
             value = command_data[0];
             set_profile_config(value);
+
+            config_update_required = true;
             break;
         }
 

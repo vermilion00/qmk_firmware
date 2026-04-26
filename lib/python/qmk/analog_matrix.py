@@ -9,14 +9,16 @@ MODE_NUM = 9
 
 INIT_KEYS = {
     'CALIBRATION_KEY': 'analog_matrix.config.calibration_keys',
-    'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_keys',
+    'CLEAR_CALIBRATION_KEY': 'analog_matrix.config.clear_calibration_keys',
+    'CLEAR_EEPROM_KEY': 'analog_matrix.config.clear_eeprom_keys',
     'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_keys'
 }
 
 # _RIGHT keys automatically translate to their left variant
 INIT_FUNCTIONS = {
     'BOOTLOADER_KEY': '_bootloader_jump',
-    'BOOTMAGIC_KEY': '_bootmagic',
+    'CLEAR_CALIBRATION_KEY': '_clear_calibration',
+    'CLEAR_EEPROM_KEY': '_clear_eeprom',
     'CALIBRATION_KEY': 'calibrate_switches'
 }
 

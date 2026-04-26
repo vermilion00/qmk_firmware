@@ -410,7 +410,8 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]);
 #endif
 #ifdef USE_INIT_KEYS
 // Init key helpers
-void _bootmagic(bool init);
+void _clear_calibration(bool init);
+void _clear_eeprom(bool init);
 void _bootloader_jump(bool init);
 #endif
 #ifdef AM_NO_EEPROM

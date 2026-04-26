@@ -570,7 +570,7 @@
                         },
                         "priority_level": {"type": "integer"},
                         "slave_low_priority": {"type": "boolean"},
-                        "bootmagic_keys": {
+                        "clear_calibration_keys": {
                             "oneOf": [
                                 {"$ref": "./definitions.jsonschema#/matrix_position"},
                                 {
@@ -579,7 +579,25 @@
                                 }
                             ]
                         },
-                        "bootmagic_keys_right": {
+                        "clear_calibration_keys_right": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "clear_eeprom_keys": {
+                            "oneOf": [
+                                {"$ref": "./definitions.jsonschema#/matrix_position"},
+                                {
+                                    "type": "array",
+                                    "items": {"$ref": "./definitions.jsonschema#/matrix_position"}
+                                }
+                            ]
+                        },
+                        "clear_eeprom_keys_right": {
                             "oneOf": [
                                 {"$ref": "./definitions.jsonschema#/matrix_position"},
                                 {

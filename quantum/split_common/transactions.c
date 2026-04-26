@@ -1384,7 +1384,6 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
         default:
             break;
     }
-
     config_update_required = true;
 }
 
