@@ -28,16 +28,8 @@ void analog_joystick_init(void) {
         #else
         const uint16_t travel = key_config[index].bottom_value - key_config[index].top_value - JS_TOP_DEADZONE - JS_BOTTOM_DEADZONE;
         #endif
-        #ifdef USE_JOYSTICK
-        for (uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
-            if(key_config[index].mode[profile] == joystick) {
-                // If the key mode is set to joystick, repurpose the release_value to hold the travel distance instead to avoid calculating every update
-                key_config[index].release_value = travel;
-            }
-        }
-        #else // ifdef USE_JOYSTICK
+
         key_config[index].joystick_travel = travel;
-        #endif // ifdef USE_JOYSTICK
     }
 }
 

@@ -1304,7 +1304,6 @@ uint16_t get_slave_value(void) {
 }
 
 static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t slave_matrix[]) {
-
     // This isn't an actual checksum anymore, rather the master writes a value to it whenever a transaction is sent
     if(!split_shmem->am_via.update) return;
     split_shmem->am_via.update = 0;
@@ -1380,15 +1379,12 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
             #if defined SPLIT_LAYER_SYNC
             change_layer_settings(am_highest_layer);
             #endif
-            nvm_set_analog_matrix_config(&am_keyboard_data);
             break;
 
         default:
             break;
     }
-    //TODO: Find a good way to save the new data to eeprom
-    //      Don't wanna update every transaction on flash emulation
-    //      HID connection loss callback, or layer switch perhaps?
+
     config_update_required = true;
 }
 

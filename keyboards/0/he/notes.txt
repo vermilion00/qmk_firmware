@@ -289,9 +289,13 @@ Add option to write full config to keyboard, in case the config is loaded from a
 -Before writing the config, I need to query the keyboard for the def size and only transfer if they match
 -Would be quite difficult for split keyboards
     -If I write everything one by one then it's obviously not a problem, but that isn't exactly optimal either
+    -> Just write the config to the master, and then plug the slave in and repeat, much simpler and honestly better
 
 Calling transport_write/read from the slave doesn't seem to work?
 
+Need to go through all occurances of memcpy etc and check if the pointers are correctly used
+
+The base_* setting should be set in the AM_SETTINGS tab. If the switch is reset, this value should be used(?)
 
 ========
 Automatic saving on layer change is currently disabled!!!
@@ -300,6 +304,13 @@ How do I efficiently get the slave scan value and set the index?
 How do I reset the scan index when it's not necessary anymore?
     -Could send a transaction when VIA closes, but is that reliable?
     -How do I reset the index as a failsafe?
+
+The TOTAL_*_HEIGHT defines are incorrect, the indexes don't line up with what the keyboard expects
+I need to separate them by side, then add back together to get the correct arrays
+
+-> Currently, the define looks correct, but it still grabs the wrong thing
+    -> Is the index applied incorrectly? Does the gui grab the wrong position in the array?
+    -> Preeeeeeetty sure that it's simply pulling the eeprom data instead of the json config, which is why it's still wrong even though some stuff got fixed
 ========
 
 

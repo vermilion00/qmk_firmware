@@ -148,6 +148,7 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
     am_keyboard_data.key_mode[profile][key] &= 0b10000000;
     am_keyboard_data.key_mode[profile][key] |= mode;
     //TODO: Make sure that the mode passed here doesn't contain prio info
+    mode &= 0b01111111;  // Just in case
     if((key < switch_num + switch_low) && key >= switch_low) key_config[key - switch_low].mode[profile] = mode;
     if(profile == active_profile) change_layer_settings(am_highest_layer);
 }
@@ -492,6 +493,9 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #ifdef INVERT_ADC
             command_data[3] |= 0b00010000;
             #endif
+            #ifdef DISTANCE_FROM_BOTTOM
+            command_data[3] |= 0b00100000;
+            #endif
             //TODO: Add SOCD config here
 
             // Set external feature options
@@ -573,8 +577,8 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             }
 
             // If the new index is on the slave half, get the value from there first
-            else if(!((index < switch_num + switch_low) && index >= switch_low)) {
-                // If the index is new, send it to the slave
+            else {
+                // If the index is new, send it to the slave, otherwise get the value
                 if(prev_index != via_scan_index) {
                     split_id = split_switch_index;
                 } else if(index != 255) {

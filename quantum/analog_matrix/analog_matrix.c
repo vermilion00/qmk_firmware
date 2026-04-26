@@ -1379,7 +1379,11 @@ void profile_state_changed(uint8_t profile) {
 }
 
 #ifndef SPLIT_KEYBOARD
-void set_active_profile(uint8_t profile) { active_profile = profile; }
+void set_active_profile(uint8_t profile) {
+    if(profile >= (am_keyboard_data.profile_num & 0x0F)) return;
+    active_profile = profile;
+    profile_state_changed(profile);
+}
 #else // ifndef SPLIT_KEYBOARD
 void set_active_profile(uint8_t profile) {
     if(is_keyboard_master()) {
@@ -1388,7 +1392,7 @@ void set_active_profile(uint8_t profile) {
 
         active_profile = profile;
 
-        // Start the transaction
+        // Sync the new profile to the slave
         am_data_manual_transaction(normal_transaction);
     }
     profile_state_changed(profile);

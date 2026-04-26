@@ -5,9 +5,7 @@
 #include "analog_matrix.h"
 #include "joystick_aliases.h"
 #include "matrix.h"
-#ifndef USE_JOYSTICK
 #include "keymap_introspection.h"
-#endif
 
 typedef enum axis_name_t {
     LEFT_X_AXIS = 0,

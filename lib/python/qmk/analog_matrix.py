@@ -6,15 +6,11 @@ from milc import cli
 BSRR_PROCESSORS = 'RP2040', 'STM32F042', 'STM32F072', 'STM32F303', 'STM32F401', 'STM32F405', 'STM32F407', 'STM32F411', 'STM32F446', 'STM32G0B1', 'STM32G431', 'STM32G474', 'STM32H723', 'STM32H733', 'STM32L412', 'STM32L422', 'STM32L432', 'STM32L433', 'STM32L442', 'STM32L443', 'AT32F415'
 # Above this value, the key modes for special keys start. If for some reason I need more modes, increase this
 MODE_NUM = 9
-NO_KEY = [0, "X", "none", "None", "NONE"]
 
 INIT_KEYS = {
     'CALIBRATION_KEY': 'analog_matrix.config.calibration_keys',
     'BOOTMAGIC_KEY': 'analog_matrix.config.bootmagic_keys',
-    'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_keys',
-    # Use normal bootmagic key for mechanical button reset
-    # 'BOOTMAGIC_KEY': 'bootmagic.matrix',
-    # 'BOOTMAGIC_KEY_RIGHT': 'split.bootmagic.matrix'
+    'BOOTLOADER_KEY': 'analog_matrix.config.bootloader_keys'
 }
 
 # _RIGHT keys automatically translate to their left variant
@@ -24,13 +20,11 @@ INIT_FUNCTIONS = {
     'CALIBRATION_KEY': 'calibrate_switches'
 }
 
-#TODO: Do I need the joystick type here?
 RT_TYPES = {
     'NONE': 0,
     'RAPID_TRIGGER': 1,
     'CONTINUOUS_RAPID_TRIGGER': 2,
-    'CONSTANT_RAPID_TRIGGER': 3,
-    'JOYSTICK': 4
+    'CONSTANT_RAPID_TRIGGER': 3
 }
 
 RT_NAMES = {
@@ -38,8 +32,7 @@ RT_NAMES = {
     0: 'NONE',
     1: 'RAPID_TRIGGER',
     2: 'CONTINUOUS_RAPID_TRIGGER',
-    3: 'CONSTANT_RAPID_TRIGGER',
-    4: 'JOYSTICK'
+    3: 'CONSTANT_RAPID_TRIGGER'
 }
 
 # Will be populated with all features in lowercase and their status, taken from json{'features'}
@@ -419,16 +412,9 @@ def get_matrix_to_mux(info_data, config_h_lines):
             matrix_to_num[pos[0] - row_split][pos[1]] = idx
             full_matrix_to_num[pos[0]][pos[1]] = idx + switch_num_l if pos[0] >= rows else idx
 
-        # side = [row for row in matrix_to_num]
-        # full_matrix_to_num.append(side)
         config_h_lines.append(generate_define(f'MATRIX_TO_NUM{fix}', str(matrix_to_num).replace('[', '{').replace(']', '}')))
         info_data['analog_matrix']['hardware'][f'matrix_to_num{postfix}'] = matrix_to_num
 
-    # if split_keyboard:
-    #     for row_idx, row in enumerate(full_matrix_to_num[1]):
-    #         for idx, num in enumerate(row):
-    #             full_matrix_to_num[1][row_idx][idx] = num + switch_num_l if num != 255 else 255
-    # full_matrix_to_num = [num for side in full_matrix_to_num for num in side]
     config_h_lines.append(generate_define('FULL_MATRIX_TO_NUM', str(full_matrix_to_num).replace('[', '{').replace(']', '}')))
 
     return info_data
@@ -515,9 +501,9 @@ def transform_init_keys(info_data, config_h_lines):
     rows = info_data['matrix_size']['rows'] // 2 if split_keyboard else info_data['matrix_size']['rows']
     max_rows = info_data['matrix_size']['rows']
     max_cols = info_data['matrix_size']['cols']
+
     # '_right' postfix is used twice to scan _right key implementation as well
     repeated_right = False
-
     for postfix in ['', '_right', '_right'] if split_keyboard else ['']:
         used_pos = []
         init_key_num = 0
@@ -729,7 +715,7 @@ def generate_profile_config(info_data, config_h_lines):
                 used_modes.append(RT_NAMES[mode])
 
     #TODO: This doesn't work for items defined in rules.mk
-    if features.get('via', False): print("\n\n\nTESTESETANIRSTNI\n\n\n")
+    # if features.get('via', False): print("\n\n\nTESTESETANIRSTNI\n\n\n")
 
     # Apply the priority state to the key mode
     if use_priority_mode:
@@ -778,18 +764,27 @@ def generate_profile_config(info_data, config_h_lines):
                 config_h_lines.append(generate_define(f'TRIGGER_HEIGHT{postfix}', f'{str(split_trigger_heights[index]).replace('[', '{').replace(']', '}')}'))
                 config_h_lines.append(generate_define(f'RELEASE_HEIGHT{postfix}', f'{str(split_release_heights[index]).replace('[', '{').replace(']', '}')}'))
                 #TODO: Check if I can see via status here
-                if index == 0: config_h_lines.append(generate_define('TOTAL_TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
-                if index == 0: config_h_lines.append(generate_define('TOTAL_RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
+                if index == 0:
+                    #TODO: This leads to incorrect assignment
+                    trigger_heights = [split_trigger_heights[0][idx] + split_trigger_heights[1][idx] for idx in range(profile_num)]
+                    release_heights = [split_release_heights[0][idx] + split_release_heights[1][idx] for idx in range(profile_num)]
+                    config_h_lines.append(generate_define('TOTAL_TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
+                    config_h_lines.append(generate_define('TOTAL_RELEASE_HEIGHT', f'{str(release_heights).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_press_distances for profile in side for idx in profile].count(0) != switch_num * profile_num:
                 config_h_lines.append(generate_define(f'RT_PRESS_DISTANCE{postfix}', f'{str(split_press_distances[index]).replace('[', '{').replace(']', '}')}'))
                 config_h_lines.append(generate_define(f'RT_RELEASE_DISTANCE{postfix}', f'{str(split_release_distances[index]).replace('[', '{').replace(']', '}')}'))
-                if index == 0: config_h_lines.append(generate_define('TOTAL_RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
-                if index == 0: config_h_lines.append(generate_define('TOTAL_RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
+                if index == 0:
+                    press_distances = [split_press_distances[0][idx] + split_press_distances[1][idx] for idx in range(profile_num)]
+                    release_distances = [split_release_distances[0][idx] + split_release_distances[1][idx] for idx in range(profile_num)]
+                    config_h_lines.append(generate_define('TOTAL_RT_PRESS_DISTANCE', f'{str(press_distances).replace('[', '{').replace(']', '}')}'))
+                    config_h_lines.append(generate_define('TOTAL_RT_RELEASE_DISTANCE', f'{str(release_distances).replace('[', '{').replace(']', '}')}'))
 
             if [idx for side in split_key_modes for profile in side for idx in profile].count(-1) != switch_num * profile_num:
                 config_h_lines.append(generate_define(f'KEY_MODES{postfix}', f'{str(split_key_modes[index]).replace('[', '{').replace(']', '}')}'))
-                if index == 0: config_h_lines.append(generate_define('TOTAL_KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
+                if index == 0:
+                    key_modes = [split_key_modes[0][idx] + split_key_modes[1][idx] for idx in range(profile_num)]
+                    config_h_lines.append(generate_define('TOTAL_KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Not a split keyboard
     else:
@@ -824,24 +819,6 @@ def generate_profile_config(info_data, config_h_lines):
         config_h_lines.append(generate_define('USE_TRIGGER_HEIGHT'))
     if use_distance == True:
         config_h_lines.append(generate_define('USE_RT_DISTANCE'))
-
-
-#MARK: Mux_to_matrix
-def validate_mux_to_matrix(mux_to_matrix):
-    mux_to_num_len = 0
-    matrix_pos = []
-    valid = True
-    for row in mux_to_matrix:
-        for key in row:
-            if key not in NO_KEY:
-                mux_to_num_len += 1
-                if key in matrix_pos:
-                    print(f"Matrix position {key} appears multiple times in mux_to_matrix!")
-                    valid = False
-                else:
-                    matrix_pos.append(key)
-
-    return valid
 
 
 def validate_profile_name(profile):
@@ -993,11 +970,6 @@ def generate_analog_matrix_config(info_data, config_h_lines):
             rc_to_matrix_r = am_hardware.get('rc_to_matrix_right', rc_to_matrix)
             config_h_lines.append(generate_define('RC_TO_MATRIX_R', str(rc_to_matrix_r).replace('[', '{').replace(']', '}')))
 
-    #TODO: Add this back when debouncing works
-    #Hardware stuff
-    # if info_data.get('debounce', 0) > 0:
-    #     config_h_lines.append(generate_define('USE_DEBOUNCE'))
-
     info_data = get_port_def(info_data, config_h_lines)
 
     info_data = check_pins(info_data, config_h_lines)
@@ -1036,29 +1008,6 @@ def generate_analog_matrix_config(info_data, config_h_lines):
     if 'debug_matrix_position' in am_json['config']:
         debug_matrix_position(info_data, config_h_lines)
 
-    # switch_num = am_hardware.get('total_switch_num')
-    # #TODO: Remove config height definition stuff, no need for it
-    # Only get the heights from the config if no profiles are defined
-    # if 'profiles' not in am_json:
-    #     #Config stuff
-    #     if 'trigger_height' in am_json['config']:
-    #         trigger_height = am_json['config']['trigger_height']
-    #         if len(trigger_height) == 1:
-    #             height = trigger_height[0]
-    #             trigger_height = [height for _ in range(switch_num)]
-    #         config_h_lines.append(generate_define('TRIGGER_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
-
-    #         if 'release_height' in am_json['config']:
-    #             release_height = am_json['config']['release_height']
-    #             if len(release_height) == 1:
-    #                 height = release_height[0]
-    #                 release_height = [height for _ in range(switch_num)]
-    #             config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, release_height))} }}}}'))
-    #         #If no release height is defined, set it to the trigger height
-    #         else:
-    #             config_h_lines.append(generate_define('RELEASE_HEIGHT', f'{{{{ {", ".join(map(str, trigger_height))} }}}}'))
-
-    # else: # Profiles are configured
     generate_profile_config(info_data, config_h_lines)
 
 

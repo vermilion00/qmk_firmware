@@ -372,7 +372,7 @@ void create_joystick_mask(uint8_t current_layer) {
     }
     #endif
 }
-#endif // defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+#endif // defined(JOYSTICK_ENABLE)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix MIDI
@@ -382,7 +382,7 @@ void create_joystick_mask(uint8_t current_layer) {
 #include "analog_midi.h"
 
 
-#endif // defined(MIDI_ENABLE) && !defined(USE_JOYSTICK)
+#endif // defined(MIDI_ENABLE)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Analog Matrix Masks
@@ -393,11 +393,11 @@ void create_joystick_mask(uint8_t current_layer) {
 
 // Creates layer masks for all enabled features
 void change_layer_settings(uint8_t current_layer) {
-    #if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+    #if defined(JOYSTICK_ENABLE)
     create_joystick_mask(current_layer);
     #endif
 
-    #if defined(MIDI_ENABLE) && !defined(USE_MIDI)
+    #if defined(MIDI_ENABLE)
     create_midi_mask(current_layer);
     #endif
 

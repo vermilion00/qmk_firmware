@@ -122,7 +122,7 @@ void assign_side(void);
 
 // This function creates masks for all used special functions on the layer (joystick, midi etc)
 void change_layer_settings(uint8_t current_layer);
-#if defined(JOYSTICK_ENABLE) && !defined(USE_JOYSTICK)
+#if defined(JOYSTICK_ENABLE)
 typedef uint8_t matrix_row_t;
 extern bool joystick_layer;
 // Create a mask of all joystick axis keys in the highest active layer
@@ -131,8 +131,8 @@ void create_joystick_mask(uint8_t current_layer);
 extern const bool joystick_layer;
 #endif
 
-#if defined(MIDI_ENABLE) && !defined(USE_MIDI)
-#if !(defined (JOYSTICK_ENABLE) && !defined(USE_JOYSTICK))
+#if defined(MIDI_ENABLE)
+#if !defined (MIDI_ENABLE)
 typedef uint8_t matrix_row_t;
 #endif
 extern bool midi_layer;
