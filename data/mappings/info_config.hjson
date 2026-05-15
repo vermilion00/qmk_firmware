@@ -80,6 +80,8 @@
     "SLAVE_LOW_PRIORITY": {"info_key": "analog_matrix.config.slave_low_priority", "value_type": "flag"},
     "ROUND_STICKS": {"info_key": "analog_matrix.joystick.round_sticks", "value_type": "flag"},
 
+    "NO_PRIORITY_INDICES": {"info_key": "analog_matrix.via.no_priority_indices", "value_type": "flag"},
+
     // APA102
     "APA102_CI_PIN": {"info_key": "apa102.clock_pin"},
     "APA102_DEFAULT_BRIGHTNESS": {"info_key": "apa102.default_brightness", "value_type": "int"},

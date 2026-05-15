@@ -105,7 +105,7 @@ def generate_rules_mk(cli):
     if converter:
         rules_mk_lines.append(generate_rule('CONVERT_TO', converter))
 
-    # Set ANALOG_MATRIX, if needed, without needing to enable it as a feature, since it always needs configuration anyway
+    # Set ANALOG_MATRIX, if needed
     if 'analog_matrix' in kb_info_json and kb_info_json['features'].get('analog_matrix') != False:
         rules_mk_lines.append(generate_rule('ANALOG_MATRIX_ENABLE', 'yes'))
         # Enable mixed matrix support

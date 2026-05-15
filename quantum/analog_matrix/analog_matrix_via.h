@@ -40,6 +40,9 @@ typedef struct am_keyboard_t {
 
     #ifdef USE_PRIORITY_MODE
     uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
+    #ifdef PRIORITY_INDICES
+    uint8_t priority_level;
+    #endif
     #endif
     #ifdef DYNAMIC_CALIBRATION
     uint8_t dc_switch_num;
@@ -79,7 +82,6 @@ typedef enum am_via_id {
     get_keyboard_def_id = 0x00, // Get the the size of the keyboard data and enabled features
     get_keyboard_data_id, // Get the entirety of am_keyboard_data
     get_matrix_to_num_id,
-    // get_mixed_matrix_id, // Get the matrix positions of all mixed matrix keys
     get_switch_value_id, // Send the press value for the selected switch
     set_switch_height_id, // Set any height for the index
     set_switch_mode_id,
@@ -87,6 +89,7 @@ typedef enum am_via_id {
     set_profile_layers_id,
     set_profile_config_id,
     set_priority_profiles_id,
+    set_priority_level_id,
     set_dynamic_calibration_id,
     set_deadzone_id, // Set one of top_deadzone, bottom_deadzone, smoothing, or top mult value, according to the index passed
     set_profile_lock_save_id,
@@ -110,6 +113,7 @@ typedef enum am_via_split_id {
     split_profile_config,
     split_key_priority,
     split_priority_profiles,
+    split_priority_level,
     split_dynamic_calibration,
     split_deadzone,
     split_profile_num,
@@ -136,8 +140,13 @@ uint8_t get_switch_mode(uint8_t key, uint8_t profile);
 bool get_switch_priority_mode(uint8_t key, uint8_t profile);
 void set_switch_height(uint8_t key, uint8_t profile, height_addr_t height, height_t value);
 void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode);
-void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
+#ifdef USE_PRIORITY_MODE
 void set_priority_profiles(uint16_t value);
+#ifdef PRIORITY_INDICES
+void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority);
+void set_priority_level(uint8_t value);
+#endif
+#endif
 void set_profile_layer_state(uint8_t profile, layer_state_t value);
 void set_profile_config(uint8_t config);
 void set_dynamic_calibration(uint8_t index, uint8_t value);

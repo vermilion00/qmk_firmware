@@ -144,10 +144,6 @@ Remove unnecessary 0 defines for stuff that is guarded anyways (clutter in info_
 
 -What the heck is dma_storm_adc.c for? Apparently implemented on F4XX? Maybe worth looking into
 
-When VIA_ENABLED is set, define all USE_* height defines
-    -Allow disabling specific ones in config though
-
-VIA makes init keys take forever, check if bootmagic is called before then and scan keys there?
 Since the bottom left mux has problems on slave, check if that is actually the cause of worse slave stability?
     -Maybe I don't need larger slave deadzones after all?
     -Probably just caused by a bad connection to the ADC pin or smth
@@ -155,16 +151,9 @@ Since the bottom left mux has problems on slave, check if that is actually the c
 Can the layout macro be reworked, so that the mux param replaces the matrix parameter completely, since technically only the order matters?
     -This would make it harder to set anything requiring the actual matrix position
         -Prio keys, debug position, init keys etc
-    -Could do it as an optional thing, and set all of those via the index instead, but it's a lot of effort for little payoff in light off that
+    -Could do it as an optional thing, and set all of those via the index instead, but it's a lot of effort for little payoff in light of that
     -automatically place all keys in a row until it has 8 keys, then go to the next one
     -Make sure it also works with mixed matrix, which it should
-
-Bootmagic:
--Does having bootmagic enabled still fail compilation due to invalid pins?
-    -I'm assuming yes, and it's enabled by default, so I should fix that
--The default bootmagic function is ran in quantum_init(), which happens just after the default matrix init
--It uses a full matrix scan, so as long as I put my init before quantum init I should be able to use it
--Via init happens before matrix_init and quantum_init, does that mean that normal bootmagic functionality is also super delayed on via(l)?
 
 Extra function to calibrate top deadzone:
     -Works beautifully
@@ -191,7 +180,7 @@ then calibrate the top_deadzones automatically, instead of doing it separately.
 
 Add my keycodes to docs/keycodes.md with a link to my page
 
-Once VIA(L) is a thing, start top cal from there and keep it running until it's stopped on the PC
+Once VIA(L) is a thing, start top cal from there and keep it running until it's stopped in the GUI
     -This allows you to jiggle the keys a bit for better readings
 
 Add top values to calibration printing
@@ -209,15 +198,19 @@ Tinyuf2:
 
 The part that prints newlines is line 145 in action.c
 
+Make sure that defining PRIORITY_INDICES without actually defining a set of indices works for via
+
 
 !!! IMPORTANT !!!
 
 This should come first:
 ========
 
-Saving the updated config through a layer change doesn't work, neither on slave nor master
-->However, the HID save transaction works on both, so...?
--The biggest difference is that config_update_required needs to be set for the layer change to work
+The config from config_h is in fact merged with the info.json config, but only available in an earlier step
+-It's accessible from _transfrom_am, called in info.py
+-Only keyboard level config.h though, keymap level doesn't seem to get included
+-I'm guessing that the rules.mk stuff is accessible similarily through the mappings
+    -> Either need to pass the whole data to the generate functions, or call them eariler with the whole available data
 
 ========
 
@@ -248,8 +241,6 @@ The current impl only supports up to 16 layers and profiles
 When changing a key on the current layer that is of a special mode, make sure that the axis is set correctly and that *_layer is set as well
     ->I should probably just run those commands anytime I change a keycode, since it might be switch those on or off
 
-Release offsets and base values should just be set in the GUI, then transmit the actual values
-
 How do I check if VIA is enabled in rules.mk from the json? The standard ways only seem to work if they're defined in the json in the first place
 ->Aren't the rules.mk/config.h things also put into the dict? Maybe it's just the config.h stuff
 
@@ -260,16 +251,16 @@ Make sure all default defines also have a default value attached
 
 Add the top/bottom deadzone calibration transactions
 
-=====
+Change config behaviour to apply the same default config as the GUI if none is set
 
-Allow setting init keys through VIA? Doesn't really seem worth the effort tbh
+=====
 
 The HID set transactions generally look like this:
 0 = AM_PREFIX, 1 = TRANS_ID, 2 = index, 3 = profile, 4+ other info
 
 Add option to remember last profile, and load it at startup? Very wasteful
 
-If joystick is enabled, show joystick keys -> I thought the keys are already pulled from the hjson files? Or does the GUI itself need access to them?
+If joystick is enabled, show joystick keys
 
 I could calculate the expected config size in the GUI to check against, would that be useful?
 -Could use that to trigger a reset if the config has changed
@@ -279,12 +270,10 @@ Need to make sure both halves are synced at the start
 -This means that the firmware needs to be the same on both halves to start with, otherwise they stay desynced
 -Should I implement a sync for that, a way to send over the entire config to the slave?
     -There's no way I'm manually starting the transaction for all things one by one
+-Not really that big of an issue, low prio
 
 Implement a button to build a full keyboard config out of the current VIA settings
 -Since I basically have all of the info anyway, it could be a nice feature
-
-Implement a button in GUI that saves config to eeprom
--The values would still be transferred instantly by default
 
 Add option to write full config to keyboard, in case the config is loaded from a layout file
 -Also need to write the config to a layout file obviously
@@ -297,56 +286,10 @@ Calling transport_write/read from the slave doesn't seem to work?
 
 Need to go through all occurances of memcpy etc and check if the pointers are correctly used
 
-The base_* setting should be set in the AM_SETTINGS tab. If the switch is reset, this value should be used(?)
-
 ========
-Automatic saving on layer change is currently disabled!!!
 
 How do I reset the scan index when it's not necessary anymore?
     -Could send a transaction when VIA closes, but is that reliable?
     -How do I reset the index as a failsafe?
 
 ========
-
-
-typedef struct am_keyboard_t {
-    #ifdef USE_TRIGGER_HEIGHT
-    height_t trigger_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    height_t release_height[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    #endif
-    #ifdef USE_RT_DISTANCE
-    height_t rt_press_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    height_t rt_release_distance[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    #endif
-    uint8_t key_mode[AM_PROFILE_NUM][TOTAL_SWITCH_NUM];
-    uint8_t profile_num;
-    uint8_t profile_config;
-    layer_state_t profile_layers[AM_PROFILE_NUM]; // Stores the assigned layers of each profile as a bitmap
-
-    // The deadzone values are only the USER_DEADZONES, not the ADC_DEADZONES
-    uint8_t top_deadzone; // Base values pre multiplication
-    uint8_t bottom_deadzone;
-    uint8_t smoothing;
-    uint8_t top_mult; // Multiplied by 100
-    #ifdef VIA_FILTER_STRENGTH
-    uint8_t filter_strength;
-    #endif
-
-    #ifdef USE_PRIORITY_MODE
-    uint16_t priority_profiles; // Stores the priority status of each profile as a bitmap
-    #endif
-    #ifdef DYNAMIC_CALIBRATION
-    uint8_t dc_switch_num;
-    uint8_t dc_factor; // Multiplied by 100
-    uint8_t dc_delta;
-    #endif
-
-    #ifdef SPLIT_KEYBOARD
-    #ifdef VIA_FILTER_STRENGTH
-    uint8_t split_filter_strength; // The first 4 bits show the slave strength, the right 4 the right strength
-    #endif
-    uint8_t right_mult; // Multiplied by 100
-    uint8_t slave_mult; // Multiplied by 100
-    #endif // ifdef SPLIT_KEYBOARD
-    uint16_t keyboard_size;
-} am_keyboard_t;

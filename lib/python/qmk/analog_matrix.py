@@ -587,6 +587,9 @@ def transform_init_keys(info_data, config_h_lines):
 #MARK: Profile config
 def generate_profile_config(info_data, config_h_lines):
     """Extract the profile configuration"""
+    via_enabled = info_data['analog_matrix'].get('via_enabled', False)
+    via_config = info_data['analog_matrix'].get('via', {})
+    DEFAULT_PROFILE_NUM = 4 if via_enabled else 0
     am_profiles = info_data['analog_matrix']['profiles']
     switch_num = info_data['analog_matrix']['hardware']['total_switch_num']
     trigger_heights = []
@@ -598,7 +601,9 @@ def generate_profile_config(info_data, config_h_lines):
     priority_profiles = 0 # Stored as a bitmap
     key_modes = []
     profile_num = 0
+    profile_amt = am_profiles.get('profiles', DEFAULT_PROFILE_NUM)
     from_bottom = info_data['analog_matrix']['config'].get('distance_from_bottom', False)
+    travel_distance = info_data['analog_matrix']['hardware'].get('travel_distance', 4.0)
     height_resolution = info_data['analog_matrix']['config'].get('height_resolution', 'low')
     height_mult = 50 if height_resolution == 'low' else 1000
     if height_resolution == 'high': config_h_lines.append(generate_define('HIGH_HEIGHT_RESOLUTION'))
@@ -610,104 +615,114 @@ def generate_profile_config(info_data, config_h_lines):
             print("Warning: Only 16 profiles are allowed! Any profile above profile_15 will be skipped!")
             break
 
-        #TODO: I can probably simplify this with a loop
         if f'profile_{profile_num}' in am_profiles:
             profile_data = am_profiles[f'profile_{profile_num}']
 
-            # base_trigger_height is the default value that then gets masked by the trigger_height values if they're not 0
-            # Multiply the heights to get rid of the floating point
-            base_trigger_height = int(profile_data.get('base_trigger_height', 0) * height_mult)
-            trigger_height = profile_data.get('trigger_height', [0])
-            trigger_height = [int(val * height_mult) for val in trigger_height]
-            if len(trigger_height) == 1:
-                trigger_height = [trigger_height[0] if trigger_height[0] > 0 else base_trigger_height for _ in range(switch_num)]
-            trigger_heights.append(trigger_height)
+        # Profile isn't in the json
+        elif profile_num < profile_amt:
+            profile_data = {
+                'trigger_height': [1.5] if not from_bottom else [travel_distance - 1.5],
+                'release_height': [1.3] if not from_bottom else [travel_distance - 1.3],
+                'rt_press_distance': [0.5],
+                'rt_release_distance': [0.5],
+                #TODO: Make sure this doesn't cause problems if no fixed height mode is used, currently this will just force enable it
+                'key_modes': [0]
+            }
 
-            # If base_release_height is defined, it takes priority over offset, as the two values clash
-            # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
-            base_release_height = int(profile_data.get('base_release_height', 0) * height_mult)
-            offset = -int(profile_data.get('release_offset', 0.2) * height_mult) if not from_bottom else int(profile_data.get('release_offset', 0.2) * height_mult)
-            release_height = profile_data.get('release_height', [0])
-            release_height = [int(val * height_mult) for val in release_height]
-            if len(release_height) == 1:
-                release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
-            if base_release_height == 0:
-                release_height = [round(trigger_height[idx] + offset, 2) if release_height[idx] == 0 else release_height[idx] for idx in range(switch_num)]
-            release_heights.append(release_height)
+        else:
+            break
 
-            base_press_distance = int(profile_data.get('base_press_distance', 0) * height_mult)
-            rt_press_distance = profile_data.get('rt_press_distance', [0])
-            rt_press_distance = [int(val * height_mult) for val in rt_press_distance]
-            if len(rt_press_distance) == 1:
-                rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
-            rt_press_distance = [distance if distance > 0 else base_press_distance for distance in rt_press_distance]
+        # base_trigger_height is the default value that then gets masked by the trigger_height values if they're not 0
+        # Multiply the heights to get rid of the floating point
+        base_trigger_height = int(profile_data.get('base_trigger_height', 0) * height_mult)
+        trigger_height = profile_data.get('trigger_height', [0])
+        trigger_height = [int(val * height_mult) for val in trigger_height]
+        if len(trigger_height) == 1:
+            trigger_height = [trigger_height[0] if trigger_height[0] > 0 else base_trigger_height for _ in range(switch_num)]
+        trigger_heights.append(trigger_height)
 
-            base_release_distance = int(profile_data.get('base_release_distance', 0) * height_mult)
-            offset = int(profile_data.get('rt_release_offset', 0) * height_mult)
-            rt_release_distance = profile_data.get('rt_release_distance', [0])
-            rt_release_distance = [int(val * height_mult) for val in rt_release_distance]
-            if len(rt_release_distance) == 1:
-                rt_release_distance = [rt_release_distance[0] if rt_release_distance[0] > 0 else base_release_distance for _ in range(switch_num)]
-            if base_release_distance == 0:
-                rt_release_distance = [round(rt_press_distance[idx] + offset, 2) if rt_release_distance[idx] == 0 else rt_release_distance[idx] for idx in range(switch_num)]
+        # If base_release_height is defined, it takes priority over offset, as the two values clash
+        # If base_release_height isn't defined, the trigger_height at that index + offset becomes the base value
+        base_release_height = int(profile_data.get('base_release_height', 0) * height_mult)
+        offset = -int(profile_data.get('release_offset', 0.2) * height_mult) if not from_bottom else int(profile_data.get('release_offset', 0.2) * height_mult)
+        release_height = profile_data.get('release_height', [0])
+        release_height = [int(val * height_mult) for val in release_height]
+        if len(release_height) == 1:
+            release_height = [release_height[0] if release_height[0] > 0 else base_release_height for _ in range(switch_num)]
+        if base_release_height == 0:
+            release_height = [max(round(trigger_height[idx] + offset, 2), 0) if release_height[idx] == 0 else release_height[idx] for idx in range(switch_num)]
+        release_heights.append(release_height)
 
-            press_distances.append(rt_press_distance)
-            release_distances.append(rt_release_distance)
+        base_press_distance = int(profile_data.get('base_press_distance', 0) * height_mult)
+        rt_press_distance = profile_data.get('rt_press_distance', [0])
+        rt_press_distance = [int(val * height_mult) for val in rt_press_distance]
+        if len(rt_press_distance) == 1:
+            rt_press_distance = [rt_press_distance[0] for _ in range(switch_num)]
+        rt_press_distance = [distance if distance > 0 else base_press_distance for distance in rt_press_distance]
 
-            # Rest of the profile config
-            #TODO: Can probably remove profile_config
-            profile_config.append([])
-            if 'layers' in profile_data:
-                profile_layers = 0
-                for num in profile_data['layers']:
-                    profile_layers |= (1 << num)
-                profile_config[profile_num].append(profile_layers)
-                profile_layer_data.append(profile_layers)
-            else:
-                profile_config[profile_num].append(0)
-                profile_layer_data.append(0)
+        base_release_distance = int(profile_data.get('base_release_distance', 0) * height_mult)
+        offset = int(profile_data.get('rt_release_offset', 0) * height_mult)
+        rt_release_distance = profile_data.get('rt_release_distance', [0])
+        rt_release_distance = [int(val * height_mult) for val in rt_release_distance]
+        if len(rt_release_distance) == 1:
+            rt_release_distance = [rt_release_distance[0] if rt_release_distance[0] > 0 else base_release_distance for _ in range(switch_num)]
+        if base_release_distance == 0:
+            rt_release_distance = [round(rt_press_distance[idx] + offset, 2) if rt_release_distance[idx] == 0 else rt_release_distance[idx] for idx in range(switch_num)]
 
-            # Priority profile data
-            if use_priority_mode:
-                profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
-                if profile_data.get('priority_profile', False):
-                    priority_profiles |= 1 << profile_num
+        press_distances.append(rt_press_distance)
+        release_distances.append(rt_release_distance)
 
-            #MARK: Key modes
-            if 'rapid_trigger_type' in profile_data:
-                #TODO: This is kinda useless
-                # If a rapid_trigger_type is defined for the profile, set the mode to it for all RT enabled keys
-                if 'key_modes' in profile_data:
-                    rt_int = RT_TYPES[profile_data['rapid_trigger_type'].upper()]
-                    key_mode = profile_data['key_modes']
-                    if len(key_mode) == 1:
-                        key_mode = [key_mode[0] for _ in range(switch_num)]
-                    modes = []
-                    for mode in key_mode:
-                        if mode > MODE_NUM or mode == 0:
-                            modes.append(mode)
-                        else:
-                            modes.append(rt_int)
-                    key_modes.append(modes)
+        # Rest of the profile config
+        #TODO: Can probably remove profile_config
+        profile_config.append([])
+        if 'layers' in profile_data:
+            profile_layers = 0
+            for num in profile_data['layers']:
+                profile_layers |= (1 << num)
+            profile_config[profile_num].append(profile_layers)
+            profile_layer_data.append(profile_layers)
+        else:
+            profile_config[profile_num].append(0)
+            profile_layer_data.append(0)
 
-                else: #RT defined but no key_modes
-                    key_modes.append([RT_TYPES[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
-            else:
-                default_mode = 0
-                if 'key_modes' not in profile_data:
-                    if 'trigger_height' in profile_data:
-                        default_mode = 0
-                    elif 'rt_press_distance' in profile_data:
-                        default_mode = 3
-                key_mode = profile_data.get('key_modes', [default_mode])
+        # Priority profile data
+        if use_priority_mode:
+            profile_config[profile_num].append(1 if profile_data.get('priority_profile', False) else 0)
+            if profile_data.get('priority_profile', False):
+                priority_profiles |= 1 << profile_num
+
+        #MARK: Key modes
+        if 'rapid_trigger_type' in profile_data:
+            #TODO: This is kinda useless
+            # If a rapid_trigger_type is defined for the profile, set the mode to it for all RT enabled keys
+            if 'key_modes' in profile_data:
+                rt_int = RT_TYPES[profile_data['rapid_trigger_type'].upper()]
+                key_mode = profile_data['key_modes']
                 if len(key_mode) == 1:
                     key_mode = [key_mode[0] for _ in range(switch_num)]
-                key_modes.append(key_mode)
+                modes = []
+                for mode in key_mode:
+                    if mode > MODE_NUM or mode == 0:
+                        modes.append(mode)
+                    else:
+                        modes.append(rt_int)
+                key_modes.append(modes)
 
-            profile_num += 1
+            else: #RT defined but no key_modes
+                key_modes.append([RT_TYPES[profile_data['rapid_trigger_type'].upper()] for _ in range(switch_num)])
+        else:
+            default_mode = 0
+            if 'key_modes' not in profile_data:
+                if 'trigger_height' in profile_data:
+                    default_mode = 0
+                elif 'rt_press_distance' in profile_data:
+                    default_mode = 3
+            key_mode = profile_data.get('key_modes', [default_mode])
+            if len(key_mode) == 1:
+                key_mode = [key_mode[0] for _ in range(switch_num)]
+            key_modes.append(key_mode)
 
-        else: # Profile isn't in the json
-            break
+        profile_num += 1
 
     # Set the mode definitions
     used_modes = []
@@ -715,9 +730,10 @@ def generate_profile_config(info_data, config_h_lines):
         for mode in profile_modes:
             if RT_NAMES[mode] not in used_modes:
                 used_modes.append(RT_NAMES[mode])
-
-    #TODO: This doesn't work for items defined in rules.mk
-    # if features.get('via', False): print("\n\n\nTESTESETANIRSTNI\n\n\n")
+    if via_enabled:
+        for key in ['no_none', 'no_rapid_trigger', 'no_continuous_rapid_trigger', 'no_constant_rapid_trigger']:
+            if not via_config.get(key, False):
+                used_modes.append(key[3:].upper())
 
     # Apply the priority state to the key mode
     if use_priority_mode:
@@ -767,7 +783,6 @@ def generate_profile_config(info_data, config_h_lines):
                 config_h_lines.append(generate_define(f'RELEASE_HEIGHT{postfix}', f'{str(split_release_heights[index]).replace('[', '{').replace(']', '}')}'))
                 #TODO: Check if I can see via status here
                 if index == 0:
-                    #TODO: This leads to incorrect assignment
                     trigger_heights = [split_trigger_heights[0][idx] + split_trigger_heights[1][idx] for idx in range(profile_num)]
                     release_heights = [split_release_heights[0][idx] + split_release_heights[1][idx] for idx in range(profile_num)]
                     config_h_lines.append(generate_define('TOTAL_TRIGGER_HEIGHT', f'{str(trigger_heights).replace('[', '{').replace(']', '}')}'))
@@ -802,8 +817,9 @@ def generate_profile_config(info_data, config_h_lines):
             config_h_lines.append(generate_define('KEY_MODES', f'{str(key_modes).replace('[', '{').replace(']', '}')}'))
 
     # Add the profile config to info_config.h
-    config_h_lines.append(generate_define('AM_PROFILE_NUM', profile_num))
+    config_h_lines.append(generate_define('AM_PROFILE_NUM', max(profile_num, profile_amt)))
     config_h_lines.append(generate_define('AM_DEFAULT_PROFILE', default_profile))
+    #TODO: Do I need the profile config at all anymore?
     config_h_lines.append(generate_define('AM_PROFILE_CONFIG', f'{str(profile_config).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define('PROFILE_LAYERS', f'{str(profile_layer_data).replace('[', '{').replace(']', '}')}'))
     config_h_lines.append(generate_define('PRIORITY_PROFILES', priority_profiles))
@@ -851,6 +867,7 @@ def validate_analog_matrix_config(info_data):
             valid = False
             cli.log.error("If custom_power_before_scan isn't enabled, you need to define as many power_pins as mux_channels are used.")
 
+    #TODO: Make sure this works if no profiles are configured (VIA)
     if 'profiles' in am_json:
         profile = 0
         while True:
@@ -967,7 +984,6 @@ def generate_analog_matrix_config(info_data, config_h_lines):
         rc_to_matrix = am_hardware['rc_to_matrix']
         config_h_lines.append(generate_define('RC_TO_MATRIX', str(rc_to_matrix).replace('[', '{').replace(']', '}')))
         config_h_lines.append(generate_define('RC_SWITCH_NUM', am_hardware['rc_switch_num']))
-        config_h_lines.append(generate_define('RC_NUM_TO_MATRIX'), am_hardware['rc_num_to_matrix'])
         if split_keyboard:
             rc_to_matrix_r = am_hardware.get('rc_to_matrix_right', rc_to_matrix)
             config_h_lines.append(generate_define('RC_TO_MATRIX_R', str(rc_to_matrix_r).replace('[', '{').replace(']', '}')))

@@ -41,6 +41,9 @@ am_keyboard_t am_keyboard_data = {
 
     #ifdef USE_PRIORITY_MODE
     .priority_profiles = PRIORITY_PROFILES,
+    #ifdef PRIORITY_INDICES
+    .priority_level = PRIORITY_LEVEL,
+    #endif
     #endif
     #ifdef DYNAMIC_CALIBRATION
     .dc_switch_num = RECALIBRATED_SWITCHES,
@@ -76,6 +79,8 @@ void analog_matrix_via_init(void) {
         // Overwrite the saved keyboard data with the json config if they don't
         nvm_set_analog_matrix_config(&am_keyboard_data);
     }
+    // Use the default profile
+    active_profile = am_keyboard_data.profile_config >> 4;
 }
 
 // Returns the compressed height (uint8_t instead of float)
@@ -153,19 +158,24 @@ void set_switch_mode(uint8_t key, uint8_t profile, key_mode_t mode) {
     if(profile == active_profile) change_layer_settings(am_highest_layer);
 }
 
-void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority) {
-    if (priority) am_keyboard_data.key_mode[profile][key] |= 0b10000000;
-    else am_keyboard_data.key_mode[profile][key] &= 0b01111111;
-
-    #ifdef PRIORITY_INDICES
-    if((key < switch_num + switch_low) && key >= switch_low) priority_indices[key - switch_low] = priority;
-    #endif
-}
-
 #ifdef USE_PRIORITY_MODE
 void set_priority_profiles(uint16_t value) {
     am_keyboard_data.priority_profiles = value;
 }
+
+#ifdef PRIORITY_INDICES
+extern SPLIT_VIA_MUT uint8_t priority_indices[SMAX(SWITCH_NUM)];
+void set_switch_priority_mode(uint8_t key, uint8_t profile, bool priority) {
+    if (priority) am_keyboard_data.key_mode[profile][key] |= 0b10000000;
+    else am_keyboard_data.key_mode[profile][key] &= 0b01111111;
+
+    if((key < switch_num + switch_low) && key >= switch_low) priority_indices[key - switch_low] = priority;
+}
+
+void set_priority_level(uint8_t value) {
+    am_keyboard_data.priority_level = value;
+}
+#endif
 #endif
 
 void set_profile_layer_state(uint8_t profile, layer_state_t value) {
@@ -400,6 +410,9 @@ void apply_default_config(am_keyboard_t* keyboard_data) {
 
         #ifdef USE_PRIORITY_MODE
         .priority_profiles = PRIORITY_PROFILES,
+        #ifdef PRIORITY_INDICES
+        .priority_level = PRIORITY_LEVEL,
+        #endif
         #endif
         #ifdef DYNAMIC_CALIBRATION
         .dc_switch_num = RECALIBRATED_SWITCHES,
@@ -443,8 +456,10 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             }
 
             if(command_data[0] == 2) {
+                #ifdef SPLIT_KEYBOARD
                 void sync_calibration_values(bool init);
                 sync_calibration_values(false);
+                #endif
                 via_transfer_calibration(data, command_data[1], command_data[2]);
                 break;
             }
@@ -497,6 +512,9 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             #endif
             #ifdef DISTANCE_FROM_BOTTOM
             command_data[3] |= 0b00100000;
+            #endif
+            #ifdef PRIORITY_INDICES
+            command_data[3] |= 0b01000000;
             #endif
             //TODO: Add SOCD config here
 
@@ -567,6 +585,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
 
             if(prev_index != via_scan_index) via_scan_value = 0;
 
+            #ifdef SPLIT_KEYBOARD
             // Is the index on the master half?
             if((index < switch_num + switch_low) && index >= switch_low) {
                 // If the new index is on the master but the previous index was on the slave, stop updating the slave
@@ -583,10 +602,12 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
                 // If the index is new, send it to the slave, otherwise get the value
                 if(prev_index != via_scan_index) {
                     split_id = split_switch_index;
-                } else if(index != 255) {
+                }
+                else if(index != 255) {
                     via_scan_value = get_slave_value();
                 }
             }
+            #endif
 
             command_data[0] = via_scan_value;
             command_data[1] = via_scan_value >> 8;
@@ -639,7 +660,7 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
         }
 
         case set_switch_priority_id: {
-            #ifdef USE_PRIORITY_MODE
+            #if defined USE_PRIORITY_MODE && defined PRIORITY_INDICES
             index = command_data[0];
             if(index == 255) return;
             profile = command_data[1];
@@ -670,6 +691,17 @@ void analog_matrix_handle_hid(uint8_t *data, uint8_t length) {
             split_id = split_priority_profiles;
             value = (command_data[0] | command_data[1] << 8);
             set_priority_profiles(value);
+
+            config_update_required = true;
+            #endif
+            break;
+        }
+
+        case set_priority_level_id: {
+            #if defined USE_PRIORITY_MODE && defined PRIORITY_INDICES
+            split_id = split_priority_level;
+            value = command_data[0];
+            set_priority_level(value);
 
             config_update_required = true;
             #endif

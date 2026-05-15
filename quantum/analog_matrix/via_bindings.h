@@ -7,24 +7,28 @@
 #define VIA_MUTABLE
 
 // If VIA is enabled, all modes should be included by default unless specifically turned off
-#if !defined USE_NONE && !defined NO_NONE
+#if !defined USE_NONE
 #   define USE_NONE
-#elif defined NO_NONE
+#endif
+#if defined NO_NONE
 #   undef USE_NONE
 #endif
-#if !defined USE_RAPID_TRIGGER && !defined NO_RAPID_TRIGGER
+#if !defined USE_RAPID_TRIGGER
 #   define USE_RAPID_TRIGGER
-#elif defined NO_RAPID_TRIGGER
+#endif
+#if defined NO_RAPID_TRIGGER
 #   undef USE_RAPID_TRIGGER
 #endif
-#if !defined USE_CONTINUOUS_RAPID_TRIGGER && !defined NO_CONTINUOUS_RAPID_TRIGGER
+#if !defined USE_CONTINUOUS_RAPID_TRIGGER
 #   define USE_CONTINUOUS_RAPID_TRIGGER
-#elif defined NO_CONTINUOUS_RAPID_TRIGGER
+#endif
+#if defined NO_CONTINUOUS_RAPID_TRIGGER
 #   undef USE_CONTINUOUS_RAPID_TRIGGER
 #endif
-#if !defined USE_CONSTANT_RAPID_TRIGGER && !defined NO_CONSTANT_RAPID_TRIGGER
+#if !defined USE_CONSTANT_RAPID_TRIGGER
 #   define USE_CONSTANT_RAPID_TRIGGER
-#elif defined NO_CONSTANT_RAPID_TRIGGER
+#endif
+#if defined NO_CONSTANT_RAPID_TRIGGER
 #   undef USE_CONSTANT_RAPID_TRIGGER
 #endif
 
@@ -42,14 +46,29 @@
 #if !defined NO_PRIORITY_MODE && !defined USE_PRIORITY_MODE
 #   define USE_PRIORITY_MODE
 #endif
+#if !defined NO_PRIORITY_MODE && !defined NO_PRIORITY_INDICES
+#   define PRIORITY_INDICES {[0 ... SWITCH_NUM-1] = 0}
+#endif
 
-#ifndef SPLIT_LAYER_SYNC
+#if defined SPLIT_KEYBOARD && !defined SPLIT_LAYER_SYNC
 #   define SPLIT_LAYER_SYNC
 #endif
 
 #if PROFILE_SWITCH_MODE == 2
 #undef PROFILE_SWITCH_MODE
 #define PROFILE_SWITCH_MODE 0
+#endif
+
+#if !defined SPLIT_KEYBOARD
+#ifdef TRIGGER_HEIGHT
+#   define TOTAL_TRIGGER_HEIGHT TRIGGER_HEIGHT
+#   define TOTAL_RELEASE_HEIGHT RELEASE_HEIGHT
+#endif
+#ifdef RT_PRESS_DISTANCE
+#   define TOTAL_RT_PRESS_DISTANCE RT_PRESS_DISTANCE
+#   define TOTAL_RT_RELEASE_DISTANCE RT_RELEASE_DISTANCE
+#endif
+#define TOTAL_KEY_MODES KEY_MODES
 #endif
 
 #ifdef JOYSTICK_ENABLE
@@ -61,5 +80,6 @@
 #   endif
 #endif
 
+//TODOD: Perhaps move these elsewhere?
 extern uint16_t bottom_deadzone;
 extern uint16_t smoothing;

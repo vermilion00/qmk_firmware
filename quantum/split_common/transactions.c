@@ -1335,11 +1335,19 @@ static void am_via_handlers_slave(matrix_row_t master_matrix[], matrix_row_t sla
 
         #ifdef USE_PRIORITY_MODE
         case split_key_priority:
+            #ifdef PRIORITY_INDICES
             set_switch_priority_mode(index, profile, value);
+            #endif
             break;
 
         case split_priority_profiles:
             set_priority_profiles(value);
+            break;
+
+        case split_priority_level:
+            #ifdef PRIORITY_INDICES
+            set_priority_level(value);
+            #endif
             break;
         #endif
 

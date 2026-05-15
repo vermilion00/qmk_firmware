@@ -184,7 +184,6 @@ adc_mux adc_pin_mux[ADC_PIN_NUM];
 uint8_t scan_amt = 0;
 #ifdef PRIORITY_INDICES
 SPLIT_VIA_MUT uint8_t priority_indices[SMAX(SWITCH_NUM)] = PRIORITY_INDICES;
-// SPLIT_VIA_MUT uint8_t priority_index_num = PRIORITY_INDEX_NUM;
 #endif
 #endif
 
@@ -252,12 +251,7 @@ __attribute__((weak)) void analog_matrix_init(void) {
         translate_mm_to_value(index, true);
     }
 
-    profile_state_changed(active_profile);
-
-    #if defined SPLIT_LAYER_SYNC
-    change_layer_settings(am_highest_layer);
-    #endif
-
+    //TODO: Check if this causes startup issues if only one half is connected
     #if defined SPLIT_KEYBOARD
     #if defined VIA_ENABLE
     sync_calibration_values(true);
@@ -273,6 +267,12 @@ __attribute__((weak)) void analog_matrix_init(void) {
     // Set the active profile to the default profile
     #if AM_PROFILE_NUM > 1
     active_profile = am_keyboard_data.profile_config >> 4;
+    #endif
+
+    profile_state_changed(active_profile);
+
+    #if defined SPLIT_LAYER_SYNC
+    change_layer_settings(am_highest_layer);
     #endif
 
     matrix_init_kb();
@@ -351,7 +351,7 @@ uint8_t matrix_scan(void) {
             }
 
             #ifdef PRIORITY_INDICES
-            if(priority_mode && scan_amt < PRIORITY_LEVEL) {
+            if(priority_mode && scan_amt < am_keyboard_data.priority_level) {
                 if(!priority_indices[index]) { continue; }
             }
             #endif
@@ -459,7 +459,10 @@ void translate_mm_to_value(uint8_t index, bool init) {
     // Take out the deadzones here, since we want to calculate the travel unit for the entire range
     const uint16_t top_value = init ? (key_config[index].top_value + top_deadzone) : (key_config[index].top_value + top_deadzones[index]);
     const uint16_t bottom_value = key_config[index].bottom_value - bottom_deadzone;
-    const float travel_unit = (float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT);
+    //TODO: The travel value seems weird, almost like its double the intended value?
+    // The travel unit is halved as a temporary fix, which does seem to make it more accurate (on my setup at least)
+    const float travel_unit = ((float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT)) / 2;
+    // const float travel_unit = (float)(top_value - bottom_value) / (TRAVEL_DISTANCE * HEIGHT_MULT);
     #endif
 
     for(uint8_t profile = 0; profile < AM_PROFILE_NUM; profile++) {
@@ -505,7 +508,7 @@ void translate_mm_to_value(uint8_t index, bool init) {
                 #ifdef USE_TRIGGER_HEIGHT
                 case 1:
                 case 2:
-                    key_config[index].rt_threshold = key_config[index].trigger_value;
+                    key_config[index].rt_threshold = key_config[index].trigger_value[profile];
                     break;
                 #endif
                 case 3:
@@ -1049,7 +1052,7 @@ bool evaluate_value(uint8_t index, uint16_t value) {
 
         #if defined USE_CONTINUOUS_RAPID_TRIGGER
         case continuous_rapid_trigger:
-        if(value > key_config[index].top_value || value > key_config[index].release_value) {
+        if(value > key_config[index].top_value || value > key_config[index].release_value[active_profile]) {
             key_config[index].pressed = true;
             key_config[index].rt_threshold = key_config[index].trigger_value[active_profile];
             key_config[index].rt_active = false;
@@ -1357,7 +1360,7 @@ void profile_state_changed(uint8_t profile) {
                 #ifdef USE_TRIGGER_HEIGHT
                 case 1: // Rapid trigger
                 case 2: // Continuous rapid trigger
-                    key_config[index].rt_threshold = key_config[index].trigger_value;
+                    key_config[index].rt_threshold = key_config[index].trigger_value[profile];
                     break;
                 #endif
                 case 3: // Constant rapid trigger

@@ -419,7 +419,7 @@ void change_layer_settings(uint8_t current_layer) {
     #endif // ifdef DYNAMIC_CALIBRATION
 
     // Update the VIA config during a layer change to avoid writing to flash too often
-    #ifdef VIA_ENABLE
+    #if defined VIA_ENABLE && !defined VIA_NO_SAVE_ON_LAYER_CHANGE
     if(config_update_required) {
         nvm_set_analog_matrix_config(&am_keyboard_data);
         config_update_required = false;
